@@ -46,7 +46,7 @@ fmt-check:
     cargo fmt --all --check
 
 clippy:
-    cargo clippy --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
 
 # --- fast inner loop: filtered output, exit codes preserved ---
 
@@ -96,6 +96,20 @@ c:
     #!/usr/bin/env bash
     out=$(cargo check --all-targets 2>&1); code=$?
     echo "$out" | grep -E "error|warning" || echo "check clean"
+
+# Middle-end-only check: types, Core, typed passes. Skips the driver, LLVM,
+# and CLI entirely, so it is the fastest "did I break the compiler" signal
+# for work under crates/prism-core.
+ccore:
+    #!/usr/bin/env bash
+    out=$(cargo check -p prism-core 2>&1); code=$?
+    echo "$out" | grep -E "error|warning" || echo "check clean"
+
+# Surface-syntax-only check: lexer, grammar, AST, formatter, diagnostics.
+csyn:
+    #!/usr/bin/env bash
+    out=$(cargo check -p prism-syntax 2>&1); code=$?
+    echo "$out" | grep -E "error|warning" || echo "check clean"
     exit $code
 
 # Feature matrix, mirroring the CI matrix.
@@ -113,6 +127,11 @@ no-drift:
 # Compile-time baselines over the pinned corpus. Extra criterion flags after `--`.
 bench *ARGS:
     cargo bench --bench compile -- {{ARGS}}
+
+# Throughput and peak memory of the Prism-language lexer against the compiler's
+# own, per layer, over every corpus class. `--reps N` to change the sample count.
+lexperf *ARGS: build-release
+    ./scripts/lexperf.py {{ARGS}}
 
 # Compile one program to a native binary and run it (fast codegen smoke).
 smoke1 FILE:
@@ -193,12 +212,12 @@ ci: fmt-check clippy stub-check doc-check feature-matrix test fmt-examples packa
 # CI-only checks mirrored locally: stub-marker grep + rustdoc deny-warnings.
 stub-check:
     #!/usr/bin/env bash
-    if grep -rEn 'todo!|unimplemented!|FIXME|XXX|allow\(dead_code\)' src bin; then
+    if grep -rEn 'todo!|unimplemented!|FIXME|XXX|allow\(dead_code\)' src bin crates; then
         echo "stub markers found (see above)"; exit 1
     fi
 
 doc-check:
-    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --quiet
+    RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --workspace --quiet
 
 # Build the wasm playground bundle and sync it into docs/src/pkg; cdylib is requested here (not Cargo.toml) so native builds skip it, and wasm-bindgen CLI must match the crate.
 wasm:
@@ -239,11 +258,12 @@ docs: docs-gen wasm
 release VERSION:
     cargo release {{VERSION}} --execute
 
-# deb/rpm/apk for the host arch into dist/ (needs nfpm; use a Linux binary).
+# deb/rpm for the host arch into dist/ (needs nfpm; use a Linux binary). No apk:
+# the glibc binary can't run on musl, so Alpine takes the container image instead.
 pkg VERSION: build-release
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ "$(uname -s)" = Darwin ]; then echo "WARN: packaging a macOS binary; the deb/rpm/apk won't run on Linux" >&2; fi
+    if [ "$(uname -s)" = Darwin ]; then echo "WARN: packaging a macOS binary; the deb/rpm won't run on Linux" >&2; fi
     export VERSION="{{VERSION}}"
     case "$(uname -m)" in
       x86_64|amd64)  export PKG_ARCH=amd64 ;;
@@ -251,14 +271,14 @@ pkg VERSION: build-release
       *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
     esac
     mkdir -p dist
-    for fmt in deb rpm apk archlinux; do nfpm package -f packaging/nfpm.yaml -p "$fmt" -t dist; done
+    for fmt in deb rpm archlinux; do nfpm package -f packaging/nfpm.yaml -p "$fmt" -t dist; done
     ls -1 dist
 
 # Self-contained image bundling LLVM. Push manually when ready.
 docker TAG="prism:dev":
     docker build -t "{{TAG}}" .
 
-# One command: deb, rpm, apk, and the docker image for this host.
+# One command: deb, rpm, and the docker image for this host.
 dist VERSION: (pkg VERSION)
     just docker "prism:{{VERSION}}"
 

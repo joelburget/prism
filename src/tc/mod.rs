@@ -174,6 +174,27 @@ mod env_summary_tests {
 }
 
 #[cfg(test)]
+mod data_annotation_tests {
+    use super::check;
+    use crate::parse::parse;
+    use crate::resolve::resolve;
+    use crate::syntax::desugar::desugar;
+
+    #[test]
+    fn unknown_constructor_field_type_is_rejected_during_checking() {
+        let surface = parse("type Target = Plain | Wrapped(MissingType)")
+            .expect("parse datatype fixture")
+            .program;
+        let resolved = resolve(surface).expect("resolve datatype fixture");
+        let program = desugar(resolved).expect("desugar datatype fixture");
+
+        let error = check(&program).expect_err("unknown field type must not reach elaboration");
+        assert_eq!(error.code(), Some("E1001"), "{error}");
+        assert!(error.to_string().contains("unknown type `MissingType`"));
+    }
+}
+
+#[cfg(test)]
 mod typed_hole_tests {
     use super::{check, check_allow_holes};
     use crate::parse::parse;
@@ -559,69 +580,11 @@ pub struct DataInfo {
     pub ctors: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CtorInfo {
-    pub type_name: Sym,
-    pub params: Vec<Sym>,
-    // Kind of each parameter, parallel to `params`. Lets pattern matching open a
-    // `Row`-kinded parameter with a fresh row existential (substituted into the
-    // field types with `subst_row_var`) rather than a type existential.
-    pub param_kinds: Vec<Kind>,
-    pub args: Vec<Type>,
-    pub tag: usize,
-    pub fields: Vec<Sym>,
-}
+pub(crate) use crate::types::CtorInfo;
 
-#[derive(Clone, Debug)]
-pub struct DeclInfo {
-    pub name: String,
-    pub params: Vec<String>,
-    pub ty: Type,
-    pub effects: Effects,
-}
+pub(crate) use crate::types::DeclInfo;
 
-#[derive(Clone, Debug)]
-pub struct EffOpInfo {
-    pub effect_name: Sym,
-    pub eff_params: Vec<Sym>,
-    pub params: Vec<Type>,
-    pub ret: Type,
-    // Declared resumption multiplicity of the op (see `ast::Grade`). Consumed by
-    // effect lowering to decide which handlers may disable var-erasure; a
-    // handler clause more general than this grade is rejected at desugar.
-    pub grade: Grade,
-}
-
-impl EffOpInfo {
-    // True when the op signature carries a free effect-row variable (a thunk
-    // parameter whose row has an open tail, e.g. `() -> a ! {Eff | e}`). Such an
-    // op must tie that variable to the ambient row at each perform site so the
-    // thunk's extra effects flow out; see `Tc::bind_op_rows_to_ambient`.
-    #[must_use]
-    pub fn has_free_row_vars(&self) -> bool {
-        let mut rows = BTreeSet::new();
-        for p in &self.params {
-            env::collect_row_vars(p, &mut rows);
-        }
-        env::collect_row_vars(&self.ret, &mut rows);
-        !rows.is_empty()
-    }
-
-    // Instantiate the op's param/return types with the effect's type arguments,
-    // substituting each declared effect parameter for the supplied argument.
-    #[must_use]
-    pub fn instantiate(&self, args: &[Type]) -> (Vec<Type>, Type) {
-        let mut params = self.params.clone();
-        let mut ret = self.ret.clone();
-        for (p, t) in self.eff_params.iter().zip(args) {
-            for q in &mut params {
-                *q = q.subst_var(*p, t);
-            }
-            ret = ret.subst_var(*p, t);
-        }
-        (params, ret)
-    }
-}
+pub(crate) use crate::types::EffOpInfo;
 
 // Instance dispatch key: the head constructor of an instance head type.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -1313,16 +1276,73 @@ pub fn check_seeded_allow_holes(
     check_seeded_mode(prog, seed, false)
 }
 
+/// The signatures a program's own constructor and operation declarations put in
+/// `env`, captured before the seed merges over it so they can be restored after.
+fn declared_member_signatures(prog: &Program<Core>, env: &Env) -> Vec<(Sym, Type)> {
+    let ctors = prog
+        .types
+        .iter()
+        .flat_map(|d| d.ctors.iter().map(|c| &c.name));
+    let ops = prog
+        .effects
+        .iter()
+        .flat_map(|e| e.ops.iter().map(|o| &o.name));
+    ctors
+        .chain(ops)
+        .map(|name| Sym::new(name))
+        .filter_map(|name| env.get(&name).map(|ty| (name, ty.clone())))
+        .collect()
+}
+
 fn check_seeded_mode(
     prog: &Program<Core>,
     seed: &TypecheckSeed,
     track_tooltips: bool,
 ) -> Result<Checked, TypeError> {
     let (mut data, mut ctors, mut eff_ops, mut env) = env::build_data(prog)?;
-    data.extend(seed.data.clone());
-    ctors.extend(seed.ctors.clone());
-    eff_ops.extend(seed.eff_ops.clone());
+    // The seed is the ambient foundation: the prelude, the embedded standard
+    // library, and every imported interface. A name the program declares itself
+    // is the program's, so seeding must not overwrite it. That is what the
+    // whole-program checker does, where a user declaration of a prelude name
+    // displaces the prelude's (the resolver relocates the prelude's to a
+    // module-private name), and the modular check has to agree with it: a
+    // program that runs must also build. Plain `extend` has the opposite
+    // precedence, so insert only the keys the program left free.
+    for (name, info) in &seed.data {
+        data.entry(name.clone()).or_insert_with(|| info.clone());
+    }
+    for (name, info) in &seed.ctors {
+        ctors.entry(name.clone()).or_insert_with(|| info.clone());
+    }
+    for (name, info) in &seed.eff_ops {
+        eff_ops.entry(name.clone()).or_insert_with(|| info.clone());
+    }
+    // `env` also holds the builtin base bindings, which the seed is entitled to
+    // refine, so it keeps seed precedence and only the program's own member
+    // signatures are restored over it.
+    let local_members = declared_member_signatures(prog, &env);
     env.extend(seed.env.iter().map(|(name, ty)| (*name, ty.clone())));
+    for (name, ty) in local_members {
+        env.insert(name, ty);
+    }
+    // Constructor field annotations are converted while the datatype
+    // environment is built, before its imported half is merged. Validate them
+    // now against the complete local-plus-imported datatype table. In
+    // particular, an unopened imported type must be rejected here as an unknown
+    // type instead of surviving as a nominal `Type::Con` and later making the
+    // structural printer generate an empty match.
+    for data_decl in &prog.types {
+        let span = if crate::names::module_of(&data_decl.name).is_empty() {
+            data_decl.span
+        } else {
+            Span::default()
+        };
+        for ctor in &data_decl.ctors {
+            for field_ty in &ctor.args {
+                env::check_known_types(field_ty, &data, span)?;
+            }
+        }
+    }
     let seeds = env::seed_var_states(&eff_ops);
     let (classes, instances, inst_keys, canonical, methods, mut constrained, mut warnings) =
         classes::build_classes(prog, &mut data, &mut ctors, &mut env, seed)?;
@@ -1593,9 +1613,7 @@ pub fn infer_expr_allow_holes(
 }
 
 // Parse the canonical signature carried by a checked module interface.
-pub(crate) fn parse_checked_signature(name: &str, signature: &str) -> Result<Type, TypeError> {
-    env::parse_sig(name, signature).map(|(ty, _)| ty)
-}
+pub(crate) use crate::types::sig::parse_checked_signature;
 
 pub(crate) const fn instance_head_key(ty: &Type) -> Option<HeadKey> {
     classes::head_name(ty)
