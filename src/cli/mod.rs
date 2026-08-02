@@ -28,6 +28,7 @@ pub mod check_world;
 pub mod docs;
 pub mod exec;
 pub mod fmt;
+pub mod index;
 pub mod lineage;
 pub mod patch;
 pub mod pkg;
