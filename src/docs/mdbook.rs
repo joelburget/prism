@@ -27,7 +27,10 @@ use serde_json::{json, Value};
 use super::typespans::{TypeSpan, TypeSpans, TYPESPANS_FORMAT};
 use crate::driver::{dump_on, example_program, with_prelude, Config};
 use crate::error::Error;
-use crate::lex::{highlight::tok_class, lex_raw};
+use crate::lex::{
+    highlight::{tok_class, COMMENT_CLASS},
+    lex_raw,
+};
 use crate::names::ENTRY_POINT;
 use crate::resolve::default_roots;
 
@@ -487,6 +490,31 @@ fn html_classes(info: &str) -> String {
     classes.join(" ")
 }
 
+// Classified spans for one snippet: the semantic tokens and the comments.
+//
+// The lexer files comments in the trivia table rather than the token stream, so
+// a renderer that paints them has to put the two back together. Merging here
+// rather than at each call site is what keeps a comment from rendering as
+// unclassed text that inherits the color of the code around it.
+fn highlight_spans(body: &str) -> Result<Vec<(usize, &'static str, usize)>, Error> {
+    let (tokens, trivia) = lex_raw(body)?;
+    let comments = trivia
+        .events()
+        .iter()
+        .filter(|event| !event.trivia.is_blank())
+        .map(|event| (event.span.start, COMMENT_CLASS, event.span.end));
+    let mut spans = tokens
+        .iter()
+        .filter(|(start, _, end)| start < end)
+        .map(|(start, token, end)| (*start, tok_class(token), *end))
+        .chain(comments)
+        .collect::<Vec<_>>();
+    // `render_plain` walks its spans once against a single cursor, so they have
+    // to arrive in source order. Comments and tokens never overlap.
+    spans.sort_unstable_by_key(|&(start, _, _)| start);
+    Ok(spans)
+}
+
 // Pre-render one tooltip block: ordinary highlight.js classes produced from the
 // real lexer and properly nested surface
 // expression ranges. The compact payload is embedded unchanged for the shared
@@ -497,12 +525,7 @@ fn typed_html(
     analyzed: &TypeSpans,
     browser_source: &str,
 ) -> Result<String, Error> {
-    let (tokens, _) = lex_raw(body)?;
-    let tokens = tokens
-        .iter()
-        .filter(|(start, _, end)| start < end)
-        .map(|(start, token, end)| (*start, tok_class(token), *end))
-        .collect::<Vec<_>>();
+    let tokens = highlight_spans(body)?;
 
     let mut arena: Vec<HtmlNode<'_>> = Vec::new();
     let mut roots = Vec::new();
@@ -556,12 +579,7 @@ fn typed_html(
 // spans payload. Even a snippet that cannot type-check is at least colored.
 // Falls back to the plain fence when the snippet does not lex.
 fn plain_html(body: &str, info: &str, browser_source: &str) -> Result<String, Error> {
-    let (tokens, _) = lex_raw(body)?;
-    let tokens = tokens
-        .iter()
-        .filter(|(start, _, end)| start < end)
-        .map(|(start, token, end)| (*start, tok_class(token), *end))
-        .collect::<Vec<_>>();
+    let tokens = highlight_spans(body)?;
     let mut rendered = String::new();
     render_plain(body, 0, body.len(), &tokens, &mut rendered);
     Ok(format!(
@@ -744,6 +762,24 @@ pub fn preprocess_book(input: &str) -> Result<(String, Vec<String>), Error> {
 mod tests {
     use super::annotate_markdown;
     use std::path::Path;
+
+    // Comments are lexed as trivia, so a renderer reading the token stream alone
+    // emits them unclassed and they inherit the color of the surrounding code.
+    // Both bake paths merge the trivia table back in; check each one.
+    #[test]
+    fn comments_are_classed_in_both_bake_paths() {
+        for markdown in [
+            "```prism\n-- a comment\nfn add(x : Int) : Int = x + 2\n```\n",
+            "```prism,compile_fail\n-- a comment\nfn bad() : Int = true\n```\n",
+        ] {
+            let (rendered, warnings) = annotate_markdown(markdown, Path::new("."));
+            assert!(warnings.is_empty(), "{warnings:?}");
+            assert!(
+                rendered.contains("<span class=\"hljs-comment\">-- a comment</span>"),
+                "comment left unclassed: {rendered}"
+            );
+        }
+    }
 
     #[test]
     fn compiling_block_bakes_theme_classes_and_nested_types_idempotently() {

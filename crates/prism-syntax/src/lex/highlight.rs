@@ -14,6 +14,14 @@ use Token::{
     With,
 };
 
+/// The highlight category for a comment.
+///
+/// Comments are lexed as trivia, so they never reach [`tok_class`] through an
+/// ordinary token stream; a renderer that paints them reads their spans from the
+/// trivia table and tags them with this. Named here so the tag has one home
+/// shared with the match arm below.
+pub const COMMENT_CLASS: &str = "com";
+
 /// Coarse highlight category for one lexed token, matched in `web/index.html`.
 ///
 /// Exhaustive by construction: every operator, delimiter, and layout-virtual
@@ -35,7 +43,7 @@ pub const fn tok_class(t: &Token) -> &'static str {
         UIdent(_) | QualName(_) => "ctor",
         Int(_) | Float(_) => "num",
         CharLit(_) | StringLit(_) | InterpStart(_) | InterpMid(_) | InterpEnd(_) => "str",
-        Comment(_) => "com",
+        Comment(_) => COMMENT_CLASS,
         Ident(_) => "id",
         // Operators and delimiters, plus the layout-virtual tokens (`VOpen` and
         // friends) that the offside pass inserts and strips before the parser, so
