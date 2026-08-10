@@ -1,0 +1,791 @@
+{
+  "envelope": {
+    "format": "prism-index-v1",
+    "scheme": "prism-core-hash-v2",
+    "compiler": "0.17.0",
+    "contract": "aab097d06298507bafb9ab992301a7445c2080b669e6b84bd659b2338cba3804",
+    "title": "contracts",
+    "tests": {
+      "unavailable": "in `clamp_holds`: unbound variable 'assert_eq'"
+    }
+  },
+  "modules": [
+    {
+      "dotted": "contracts",
+      "path": "contracts.pr",
+      "source": "-- Verification surface: logic fns, contracts, totality, disciplines.\nlogic fn nonneg(x : Int) : Bool = x >= 0\n\nfn clamp(x : Int, lo : Int, hi : Int) : Int\n  requires lo <= hi\n  ensures |r| nonneg(r)\n  =\n    if x < lo then\n      lo\n    elif x > hi then\n      hi\n    else\n      x\n\ntotal fn down(n : Int) : Int\n  decreases n\n  =\n    if n <= 0 then\n      0\n    else\n      down(n - 1)\n\nassume total fn trusted(n : Int) : Int = n\n\ntest fn clamp_holds() = assert_eq(clamp(5, 0, 3), 3)\n\nfip fn swap(p : (Int, Int)) : (Int, Int) =\n  match p of\n    (a, b) => (b, a)\n"
+    }
+  ],
+  "defs": [
+    {
+      "id": "nonneg",
+      "name": "nonneg",
+      "module": "contracts",
+      "kind": "logic",
+      "source": "fn nonneg(x : Int) : Bool = x >= 0",
+      "span": {
+        "start": 76,
+        "end": 110
+      },
+      "tokens": "0 2 0 7 1 1 2 1 1 1 3 2 0 1 1 1 1 1 1 4 2 1 1 1 3 2 1 1 1 3"
+    },
+    {
+      "id": "clamp",
+      "name": "clamp",
+      "module": "contracts",
+      "kind": "value",
+      "hash": "239ac5260019f4150741ed94e175c038c6657f71678a5cba3e7761d56678bfbc",
+      "ty": "(Int, Int, Int) -> Int",
+      "ty_tokens": "0 1 1 0 3 2 0 1 1 1 3 2 0 1 1 1 3 2 0 1 1 1 2 1 1 3 2",
+      "source": "fn clamp(x : Int, lo : Int, hi : Int) : Int\n  requires lo <= hi\n  ensures |r| nonneg(r)\n  =\n    if x < lo then\n      lo\n    elif x > hi then\n      hi\n    else\n      x",
+      "span": {
+        "start": 112,
+        "end": 278
+      },
+      "claims": [
+        "contract"
+      ],
+      "contracts": [
+        "requires lo <= hi",
+        "ensures |r| nonneg(r)"
+      ],
+      "types": "9 1 0 8 2 0 8 2 0 69 1 0 3 2 0 12 2 0 10 1 0 3 2 0 12 2 0 16 1 0",
+      "tokens": "0 2 0 6 1 1 2 1 1 1 3 2 0 1 1 4 1 1 1 3 2 0 1 1 4 1 1 1 3 2 0 1 1 1 1 1 1 3 2 3 8 0 4 2 1 6 7 0 1 1 1 1 1 1 7 1 1 1 1 1 3 1 1 5 2 0 3 1 1 4 4 0 14 4 0 3 1 1 4 4 0 14 4 0"
+    },
+    {
+      "id": "down",
+      "name": "down",
+      "module": "contracts",
+      "kind": "value",
+      "hash": "4c73c8d1ead8819fd3576056c3bf864eade95e232c1a726af5118b495f4b6923",
+      "ty": "(Int) -> Int",
+      "ty_tokens": "0 1 1 0 3 2 0 1 1 1 2 1 1 3 2",
+      "source": "total fn down(n : Int) : Int\n  decreases n\n  =\n    if n <= 0 then\n      0\n    else\n      down(n - 1)",
+      "span": {
+        "start": 280,
+        "end": 380
+      },
+      "claims": [
+        "total"
+      ],
+      "types": "14 1 0 39 1 0 34 4 1 1 1 0",
+      "tokens": "6 2 0 5 1 1 2 1 1 1 3 2 0 1 1 1 1 1 1 3 2 17 1 1 5 2 0 3 2 1 1 1 3 1 4 0 7 1 3 5 4 0 11 1 1 2 1 1 1 1 3 0 1 1",
+      "refs": [
+        {
+          "start": 89,
+          "end": 93,
+          "target": "down"
+        }
+      ]
+    },
+    {
+      "id": "trusted",
+      "name": "trusted",
+      "module": "contracts",
+      "kind": "value",
+      "hash": "1867099bd2094b8c8d5cb8c0d8e02ba8a7bde62277eb959381452e09d8744a1b",
+      "ty": "(Int) -> Int",
+      "ty_tokens": "0 1 1 0 3 2 0 1 1 1 2 1 1 3 2",
+      "source": "assume total fn trusted(n : Int) : Int = n",
+      "span": {
+        "start": 382,
+        "end": 424
+      },
+      "claims": [
+        "assume-total"
+      ],
+      "types": "24 1 0 16 1 0",
+      "tokens": "13 2 0 8 1 1 2 1 1 1 3 2 0 1 1 1 1 1 1 3 2 1 1 1"
+    },
+    {
+      "id": "clamp_holds",
+      "name": "clamp_holds",
+      "module": "contracts",
+      "kind": "test",
+      "source": "test fn clamp_holds() = assert_eq(clamp(5, 0, 3), 3)",
+      "span": {
+        "start": 426,
+        "end": 478
+      },
+      "tokens": "5 2 0 12 1 1 0 1 1 1 1 1 10 1 1 5 1 1 0 1 3 0 1 1 1 1 3 0 1 1 1 1 3 0 1 1 0 1 1 1 1 3 0 1 1",
+      "refs": [
+        {
+          "start": 24,
+          "end": 33,
+          "target": "assert_eq"
+        },
+        {
+          "start": 34,
+          "end": 39,
+          "target": "clamp"
+        }
+      ]
+    },
+    {
+      "id": "swap",
+      "name": "swap",
+      "module": "contracts",
+      "kind": "value",
+      "hash": "10aff288f52733b6803d3117a1c645504b6d23d24e419df90e14145739837465",
+      "ty": "((Int, Int)) -> (Int, Int)",
+      "ty_tokens": "0 1 1 0 1 1 0 3 2 0 1 1 1 3 2 0 1 1 0 1 1 1 2 1 1 1 1 0 3 2 0 1 1 1 3 2 0 1 1",
+      "source": "fip fn swap(p : (Int, Int)) : (Int, Int) =\n  match p of\n    (a, b) => (b, a)",
+      "span": {
+        "start": 480,
+        "end": 556
+      },
+      "claims": [
+        "fip"
+      ],
+      "types": "12 1 2 38 1 2 9 1 0 2 1 0 6 1 0 2 1 0",
+      "tokens": "0 3 0 1 2 0 5 1 1 2 1 1 1 1 1 0 3 2 0 1 1 1 3 2 0 1 1 0 1 1 1 1 1 1 1 1 0 3 2 0 1 1 1 3 2 0 1 1 1 1 1 3 5 0 3 2 0 5 1 1 1 1 1 2 1 1 1 2 1 1 1 1 1 1 1 2 1 1"
+    }
+  ],
+  "edges": [],
+  "builtins": [
+    {
+      "name": "Exn"
+    },
+    {
+      "name": "Fail"
+    },
+    {
+      "name": "IO"
+    },
+    {
+      "name": "abs_float",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "acos",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "append_file",
+      "signature": "(String, String) -> Result(Unit, String) ! {IO}"
+    },
+    {
+      "name": "array_empty",
+      "signature": "forall a. () -> Array(a)"
+    },
+    {
+      "name": "array_get",
+      "signature": "forall a. (Array(a), Int) -> a"
+    },
+    {
+      "name": "array_len",
+      "signature": "forall a. (Array(a)) -> Int"
+    },
+    {
+      "name": "array_new",
+      "signature": "forall a. (Int, a) -> Array(a)"
+    },
+    {
+      "name": "array_pop",
+      "signature": "forall a. (Array(a)) -> Array(a)"
+    },
+    {
+      "name": "array_push",
+      "signature": "forall a. (Array(a), a) -> Array(a)"
+    },
+    {
+      "name": "array_set",
+      "signature": "forall a. (Array(a), Int, a) -> Array(a)"
+    },
+    {
+      "name": "asin",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "atan",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "atan2",
+      "signature": "(Float, Float) -> Float"
+    },
+    {
+      "name": "blake3",
+      "signature": "(String) -> String"
+    },
+    {
+      "name": "buf_cat",
+      "signature": "(Buf, Buf) -> Buf"
+    },
+    {
+      "name": "buf_cmp",
+      "signature": "(Buf, Buf) -> Int"
+    },
+    {
+      "name": "buf_empty",
+      "signature": "() -> Buf"
+    },
+    {
+      "name": "buf_eq",
+      "signature": "(Buf, Buf) -> Bool"
+    },
+    {
+      "name": "buf_get",
+      "signature": "(Buf, Int) -> Int"
+    },
+    {
+      "name": "buf_hash",
+      "signature": "(Buf) -> String"
+    },
+    {
+      "name": "buf_len",
+      "signature": "(Buf) -> Int"
+    },
+    {
+      "name": "buf_new",
+      "signature": "(Int, Int) -> Buf"
+    },
+    {
+      "name": "buf_of_string",
+      "signature": "(String) -> Buf"
+    },
+    {
+      "name": "buf_push",
+      "signature": "(Buf, Int) -> Buf"
+    },
+    {
+      "name": "buf_set",
+      "signature": "(Buf, Int, Int) -> Buf"
+    },
+    {
+      "name": "buf_slice",
+      "signature": "(Buf, Int, Int) -> Buf"
+    },
+    {
+      "name": "buf_utf8_valid",
+      "signature": "(Buf) -> Bool"
+    },
+    {
+      "name": "byte_at",
+      "signature": "(String, Int) -> Int"
+    },
+    {
+      "name": "byte_len",
+      "signature": "(String) -> Int"
+    },
+    {
+      "name": "cbrt",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "ceil",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "ceil_to_int",
+      "signature": "(Float) -> Int"
+    },
+    {
+      "name": "char_at",
+      "signature": "(String, Int) -> Int"
+    },
+    {
+      "name": "chr"
+    },
+    {
+      "name": "concat",
+      "signature": "(String, String) -> String"
+    },
+    {
+      "name": "cos",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "cosh",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "eprint",
+      "signature": "(String) -> Unit ! {IO}"
+    },
+    {
+      "name": "error"
+    },
+    {
+      "name": "exit",
+      "signature": "forall a. (Int) -> a"
+    },
+    {
+      "name": "exp",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "exp2",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "expm1",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "fail",
+      "signature": "forall a. () -> a"
+    },
+    {
+      "name": "fatal"
+    },
+    {
+      "name": "floor",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "floor_to_int",
+      "signature": "(Float) -> Int"
+    },
+    {
+      "name": "fmod",
+      "signature": "(Float, Float) -> Float"
+    },
+    {
+      "name": "hypot",
+      "signature": "(Float, Float) -> Float"
+    },
+    {
+      "name": "i64_and",
+      "signature": "(I64, I64) -> I64"
+    },
+    {
+      "name": "i64_cmp",
+      "signature": "(I64, I64) -> Int"
+    },
+    {
+      "name": "i64_or",
+      "signature": "(I64, I64) -> I64"
+    },
+    {
+      "name": "i64_shl",
+      "signature": "(I64, I64) -> I64"
+    },
+    {
+      "name": "i64_shr",
+      "signature": "(I64, I64) -> I64"
+    },
+    {
+      "name": "i64_xor",
+      "signature": "(I64, I64) -> I64"
+    },
+    {
+      "name": "ibuf_blit",
+      "signature": "(IntBuf, Int, IntBuf, Int, Int) -> IntBuf"
+    },
+    {
+      "name": "ibuf_get",
+      "signature": "(IntBuf, Int) -> I64"
+    },
+    {
+      "name": "ibuf_len",
+      "signature": "(IntBuf) -> Int"
+    },
+    {
+      "name": "ibuf_new",
+      "signature": "(Int, I64) -> IntBuf"
+    },
+    {
+      "name": "ibuf_set",
+      "signature": "(IntBuf, Int, I64) -> IntBuf"
+    },
+    {
+      "name": "int_of_i64",
+      "signature": "(I64) -> Int"
+    },
+    {
+      "name": "int_of_u64",
+      "signature": "(U64) -> Int"
+    },
+    {
+      "name": "ln",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "log10",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "log1p",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "log2",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "ord"
+    },
+    {
+      "name": "parse_float",
+      "signature": "(String) -> Float"
+    },
+    {
+      "name": "parse_int",
+      "signature": "(String) -> Option(Int)"
+    },
+    {
+      "name": "pow_float",
+      "signature": "(Float, Float) -> Float"
+    },
+    {
+      "name": "prim_arena_bump",
+      "signature": "(Int) -> Arena.Cell"
+    },
+    {
+      "name": "prim_arg",
+      "signature": "(Int) -> String ! {IO}"
+    },
+    {
+      "name": "prim_args_count",
+      "signature": "() -> Int ! {IO}"
+    },
+    {
+      "name": "prim_entropy",
+      "signature": "() -> Int ! {IO}"
+    },
+    {
+      "name": "prim_file_exists",
+      "signature": "(String) -> Bool ! {IO}"
+    },
+    {
+      "name": "prim_getenv",
+      "signature": "(String) -> String ! {IO}"
+    },
+    {
+      "name": "prim_mono_now",
+      "signature": "() -> Int ! {IO}"
+    },
+    {
+      "name": "prim_print"
+    },
+    {
+      "name": "prim_println"
+    },
+    {
+      "name": "prim_rand"
+    },
+    {
+      "name": "prim_read_bytes",
+      "signature": "(String) -> Buf ! {IO}"
+    },
+    {
+      "name": "prim_read_file",
+      "signature": "(String) -> String ! {IO}"
+    },
+    {
+      "name": "prim_read_int"
+    },
+    {
+      "name": "prim_read_line"
+    },
+    {
+      "name": "prim_store_get",
+      "signature": "(String, String) -> String ! {IO}"
+    },
+    {
+      "name": "prim_store_has",
+      "signature": "(String, String) -> Bool ! {IO}"
+    },
+    {
+      "name": "prim_store_put",
+      "signature": "(String, String, String) -> Unit ! {IO}"
+    },
+    {
+      "name": "prim_wall_now",
+      "signature": "() -> Int ! {IO}"
+    },
+    {
+      "name": "prim_write_bytes",
+      "signature": "(String, Buf) -> Result(Unit, String) ! {IO}"
+    },
+    {
+      "name": "print"
+    },
+    {
+      "name": "println"
+    },
+    {
+      "name": "probe_enabled",
+      "signature": "(String) -> Bool"
+    },
+    {
+      "name": "remove_file",
+      "signature": "(String) -> Unit ! {IO}"
+    },
+    {
+      "name": "round",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "show_bool",
+      "signature": "(Bool) -> String"
+    },
+    {
+      "name": "show_char",
+      "signature": "(Char) -> String"
+    },
+    {
+      "name": "show_float",
+      "signature": "(Float) -> String"
+    },
+    {
+      "name": "show_float_prec",
+      "signature": "(Float, Int) -> String"
+    },
+    {
+      "name": "show_i64",
+      "signature": "(I64) -> String"
+    },
+    {
+      "name": "show_int",
+      "signature": "(Int) -> String"
+    },
+    {
+      "name": "show_u64",
+      "signature": "(U64) -> String"
+    },
+    {
+      "name": "simd_fadd",
+      "signature": "(F64x2, F64x2) -> F64x2"
+    },
+    {
+      "name": "simd_fadd4",
+      "signature": "(F32x4, F32x4) -> F32x4"
+    },
+    {
+      "name": "simd_fextract",
+      "signature": "(F64x2, Int) -> Float"
+    },
+    {
+      "name": "simd_fextract4",
+      "signature": "(F32x4, Int) -> Float"
+    },
+    {
+      "name": "simd_fmax",
+      "signature": "(F64x2, F64x2) -> F64x2"
+    },
+    {
+      "name": "simd_fmax4",
+      "signature": "(F32x4, F32x4) -> F32x4"
+    },
+    {
+      "name": "simd_fmin",
+      "signature": "(F64x2, F64x2) -> F64x2"
+    },
+    {
+      "name": "simd_fmin4",
+      "signature": "(F32x4, F32x4) -> F32x4"
+    },
+    {
+      "name": "simd_fmul",
+      "signature": "(F64x2, F64x2) -> F64x2"
+    },
+    {
+      "name": "simd_fmul4",
+      "signature": "(F32x4, F32x4) -> F32x4"
+    },
+    {
+      "name": "simd_fsplat",
+      "signature": "(Float) -> F64x2"
+    },
+    {
+      "name": "simd_fsplat4",
+      "signature": "(Float) -> F32x4"
+    },
+    {
+      "name": "simd_fsub",
+      "signature": "(F64x2, F64x2) -> F64x2"
+    },
+    {
+      "name": "simd_fsub4",
+      "signature": "(F32x4, F32x4) -> F32x4"
+    },
+    {
+      "name": "simd_iadd",
+      "signature": "(I64x2, I64x2) -> I64x2"
+    },
+    {
+      "name": "simd_iadd4",
+      "signature": "(I32x4, I32x4) -> I32x4"
+    },
+    {
+      "name": "simd_iand",
+      "signature": "(I64x2, I64x2) -> I64x2"
+    },
+    {
+      "name": "simd_iand4",
+      "signature": "(I32x4, I32x4) -> I32x4"
+    },
+    {
+      "name": "simd_iextract",
+      "signature": "(I64x2, Int) -> I64"
+    },
+    {
+      "name": "simd_iextract4",
+      "signature": "(I32x4, Int) -> I64"
+    },
+    {
+      "name": "simd_ior",
+      "signature": "(I64x2, I64x2) -> I64x2"
+    },
+    {
+      "name": "simd_ior4",
+      "signature": "(I32x4, I32x4) -> I32x4"
+    },
+    {
+      "name": "simd_isplat",
+      "signature": "(I64) -> I64x2"
+    },
+    {
+      "name": "simd_isplat4",
+      "signature": "(I64) -> I32x4"
+    },
+    {
+      "name": "simd_isub",
+      "signature": "(I64x2, I64x2) -> I64x2"
+    },
+    {
+      "name": "simd_isub4",
+      "signature": "(I32x4, I32x4) -> I32x4"
+    },
+    {
+      "name": "simd_ixor",
+      "signature": "(I64x2, I64x2) -> I64x2"
+    },
+    {
+      "name": "simd_ixor4",
+      "signature": "(I32x4, I32x4) -> I32x4"
+    },
+    {
+      "name": "sin",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "sinh",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "sqrt",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "srand"
+    },
+    {
+      "name": "str_cmp",
+      "signature": "(String, String) -> Int"
+    },
+    {
+      "name": "str_eq",
+      "signature": "(String, String) -> Bool"
+    },
+    {
+      "name": "str_len",
+      "signature": "(String) -> Int"
+    },
+    {
+      "name": "string_of_array",
+      "signature": "(Array(String)) -> String"
+    },
+    {
+      "name": "string_of_buf",
+      "signature": "(Buf) -> String"
+    },
+    {
+      "name": "substring",
+      "signature": "(String, Int, Int) -> String"
+    },
+    {
+      "name": "system",
+      "signature": "(String) -> Int ! {IO}"
+    },
+    {
+      "name": "tan",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "tanh",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "tbuf_blit",
+      "signature": "(FloatBuf, Int, FloatBuf, Int, Int) -> FloatBuf"
+    },
+    {
+      "name": "tbuf_get",
+      "signature": "(FloatBuf, Int) -> Float"
+    },
+    {
+      "name": "tbuf_len",
+      "signature": "(FloatBuf) -> Int"
+    },
+    {
+      "name": "tbuf_new",
+      "signature": "(Int, Float) -> FloatBuf"
+    },
+    {
+      "name": "tbuf_set",
+      "signature": "(FloatBuf, Int, Float) -> FloatBuf"
+    },
+    {
+      "name": "to_float",
+      "signature": "(Int) -> Float"
+    },
+    {
+      "name": "to_i64",
+      "signature": "(Int) -> I64"
+    },
+    {
+      "name": "to_u64",
+      "signature": "(Int) -> U64"
+    },
+    {
+      "name": "trunc",
+      "signature": "(Float) -> Float"
+    },
+    {
+      "name": "truncate",
+      "signature": "(Float) -> Int"
+    },
+    {
+      "name": "u64_and",
+      "signature": "(U64, U64) -> U64"
+    },
+    {
+      "name": "u64_cmp",
+      "signature": "(U64, U64) -> Int"
+    },
+    {
+      "name": "u64_or",
+      "signature": "(U64, U64) -> U64"
+    },
+    {
+      "name": "u64_shl",
+      "signature": "(U64, U64) -> U64"
+    },
+    {
+      "name": "u64_shr",
+      "signature": "(U64, U64) -> U64"
+    },
+    {
+      "name": "u64_xor",
+      "signature": "(U64, U64) -> U64"
+    },
+    {
+      "name": "write_file",
+      "signature": "(String, String) -> Result(Unit, String) ! {IO}"
+    }
+  ],
+  "token_classes": [
+    "kw",
+    "op",
+    "ty",
+    "num"
+  ],
+  "type_table": [
+    "Int",
+    "(Int) -> Int ! {e0}",
+    "(Int, Int)"
+  ]
+}
