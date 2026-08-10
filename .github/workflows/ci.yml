@@ -1,0 +1,781 @@
+name: CI
+
+on:
+  # Gated once per change: pull requests run the full parity/perf ratchet before
+  # work lands, and pushes to main re-run it post-merge. Release branches (vX.Y.Z)
+  # get the same full run on every push, because their work accumulates for weeks
+  # without a pull request to gate it and the squash lands on main in one commit;
+  # waiting until then to learn the tree is red is too late. Ordinary feature
+  # branches still do not trigger their own run, so an open PR is not built twice.
+  pull_request:
+  push:
+    branches:
+      - main
+      - "v*"
+  workflow_dispatch:
+
+# A newer commit on the same ref supersedes an in-flight run, so rapid pushes do
+# not pile up runners; the latest commit on each branch always gets a full run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # sccache caches per-crate rustc output in the GHA cache, shared across jobs, so
+  # the LLVM-linked crate is compiled once and reused by the parallel test /
+  # sanitizer / parity-shard jobs. Incremental must be off for sccache to hit.
+  # RUSTC_WRAPPER is set per-job (only where sccache-action installed the binary).
+  SCCACHE_GHA_ENABLED: "true"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # README install commands hardcode the version; fail if it drifts from Cargo.toml.
+  readme-version:
+    name: README version matches Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 scripts/check-readme-version.py
+
+  # docs/src cross-references anchors and {{#include}}s by hand; mdbook never
+  # validates either, so a rename or a moved example silently rots a link.
+  doc-links:
+    name: Doc links resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 scripts/check-doc-links.py
+
+  # Fast, no-compile gates: formatting, stub markers, and the C runtime static
+  # checks. Fails in a couple of minutes without waiting on the LLVM-linked build.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    env:
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Rust toolchain
+        run: rustup show
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+        with:
+          packages: clang-tidy-22
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: No stub markers
+        run: |
+          if grep -rEn 'todo!|unimplemented!|FIXME|XXX|allow\(dead_code\)' src bin; then
+            echo "stub markers found (see above)"; exit 1
+          fi
+      - name: C runtime warnings (-Werror)
+        run: |
+          for f in runtime/*.c; do
+            echo "checking $f"
+            ${PRISM_CC:-clang} -std=c11 -O2 -Werror -Wall -Wextra -Wpedantic -Wshadow \
+              -Wstrict-prototypes -Wconversion -Wsign-conversion -Wcast-qual -Wcast-align \
+              -Wpointer-arith -Wwrite-strings -Wfloat-equal -Wundef -Wredundant-decls \
+              -Wvla -Wdouble-promotion -Wformat=2 -Iruntime -fsyntax-only "$f"
+          done
+      - name: C runtime clang-tidy
+        run: |
+          for f in runtime/*.c; do
+            echo "tidy $f"
+            clang-tidy-22 "$f" --quiet -- -std=c11 -O2 -D_GNU_SOURCE=1 -Iruntime
+          done
+      # The arena allocator links into the runtime (build.rs RUNTIME_SOURCES) and
+      # is exercised end-to-end by the native parity/leak gates and the hostile
+      # harness. This extra standalone self-test compiles it in isolation to cover
+      # the create/alloc/reset/destroy paths directly.
+      - name: C runtime arena self-test
+        run: |
+          ${PRISM_CC:-clang} -std=c11 -O2 -DPRISM_ARENA_TEST -Iruntime \
+            runtime/prism_arena.c -o /tmp/prism_arena_test
+          /tmp/prism_arena_test
+
+  # Compile-only feature matrix. The heavier behavior checks stay in their
+  # dedicated jobs below (web bundle, MLIR parity, mimalloc parity smoke); this
+  # job exists to make feature compatibility explicit and fail fast when a
+  # feature graph stops compiling.
+  feature-matrix:
+    name: Feature matrix (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            command: cargo check --all-targets
+            wasm: false
+          - name: wasm
+            command: cargo check --no-default-features --features wasm --target wasm32-unknown-unknown
+            wasm: true
+          - name: mlir
+            command: cargo check --features mlir
+            wasm: false
+          - name: mimalloc
+            command: cargo check --features mimalloc
+            wasm: false
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      MLIR_SYS_220_PREFIX: /usr/lib/llvm-22
+      TABLEGEN_220_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Install wasm target
+        if: ${{ matrix.wasm }}
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+        with:
+          packages: libmlir-22-dev mlir-22-tools
+
+      - name: Check feature set
+        run: ${{ matrix.command }}
+
+      # A cargo check compiles the wasm build but never runs it; the playground
+      # does. Execute wasm.rs's entry point on the wasm target under node so a
+      # default-path host syscall (the durable store's filesystem calls) fails
+      # CI here instead of every example in the shipped playground.
+      - name: Install wasm-bindgen test runner
+        if: ${{ matrix.wasm }}
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+      - name: Run playground smoke on wasm
+        if: ${{ matrix.wasm }}
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+        run: cargo test --no-default-features --features wasm --target wasm32-unknown-unknown --lib wasm_smoke
+
+  # The C-runtime sanitizer + structural-backstop parity re-runs, split off `test`
+  # so they run in parallel instead of tailing it (free runners: wall-clock, not cost).
+  sanitizers:
+    name: Sanitizers
+    runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Rust toolchain
+        run: rustup show
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+      - name: ASan + UBSan runtime
+        env:
+          PRISM_CC_FLAGS: "-fsanitize=address,undefined -fno-sanitize-recover=all"
+          ASAN_OPTIONS: "detect_leaks=0:abort_on_error=1"
+        run: cargo test --test native_parity native_matches_interpreter
+      - name: Runtime structural backstop
+        env:
+          PRISM_CC_FLAGS: "-DPRISM_RT_DEBUG"
+        run: cargo test --test native_parity native_matches_interpreter
+
+  # The non-test verification steps, split out of the sharded `test` job below so
+  # they run once instead of being duplicated across every shard.
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v7
+
+      # Toolchain version + components come from rust-toolchain.toml, so CI and
+      # local fmt/clippy always run the identical rustc/rustfmt/clippy.
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      # `--workspace` is required because the root is itself a package and there is no
+      # `default-members`, so without it cargo selects only `prism` and the member
+      # crates are linted as path dependencies, where `-D warnings` does not reach
+      # them. That let a permanently-false `cfg` silently drop three tests.
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # rustdoc held to the same zero-warning bar as clippy and the C runtime:
+      # a broken intra-doc link or a public doc pointing at a private item fails
+      # CI rather than silently shipping degraded API docs. `--workspace` for the
+      # same selection reason as clippy above.
+      - name: Build docs (-D warnings)
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --no-deps --workspace
+
+      # nextest does not run Rust doctests (the `--test` in `-- | ... --test`
+      # doc examples and rustdoc code blocks); cover them with a plain run.
+      - name: Run doctests
+        run: cargo test --doc
+
+      - name: Check prism formatting
+        run: |
+          cargo build --all --release 2>/dev/null
+          ./target/release/prism fmt --check
+
+      # The committed Standard Library Reference is generated from the stdlib
+      # sources; fail if it drifts, and run the doctests in its `-- |` comments.
+      - name: Check stdlib docs
+        run: |
+          ./target/release/prism docs --stdlib --check --out docs/src/stdlib
+          ./target/release/prism docs --stdlib --test
+
+      # The book's prose blocks and the `docs/examples/*.pr` files pulled in via
+      # `{{#include}}` are live-checked only by the `prism mdbook` preprocessor,
+      # which runs solely under `mdbook build`. That build lived only in pages.yml
+      # (main-only), so a doc block that stopped type-checking (e.g. an example
+      # instance missing a newly-required class method) surfaced on the post-merge
+      # Pages deploy instead of on the PR. Run the same strict build here so a stale
+      # doc block is a red PR check, not a red main deploy. Uses the release binary
+      # built above; `PRISM_MDBOOK_STRICT=1` turns a non-type-checking block fatal.
+      - name: Install mdbook
+        run: cargo install mdbook mdbook-tabs
+      - name: Book doc-blocks type-check (strict)
+        run: PRISM_MDBOOK_STRICT=1 mdbook build docs
+
+      # PRISM_CORE_LINT runs Core Lint between every optimization pass, so the
+      # whole example corpus is the lint's gate: a pass that produces ill-formed
+      # Core (an escaped binder, a reuse token spent twice) aborts the compile.
+      - name: Compile every example
+        env:
+          PRISM_CORE_LINT: 1
+        run: ./target/release/prism run --examples
+
+      - name: Check package world
+        run: ./target/release/prism pkg check-world packages --strict
+
+      # The committed generated artifacts whose currency no ordinary test
+      # asserts. Several of them (the frozen parser corpus, the production
+      # manifest, the generated Type parser, the book figures) had no CI gate at
+      # all, so one could be deleted or go stale and still pass every job here
+      # while the local run failed. `just` exists only inside the nix shell, so
+      # this calls the script the recipe wraps. It builds the binaries it needs.
+      - name: Check generated artifacts
+        run: ./scripts/artifacts-check.sh
+
+      # Ordinary tests/checks must not rewrite committed generated artifacts. The
+      # accept/regeneration recipes (`just snap`, `just docs-gen`, `just hash`,
+      # `just tier-accept`, `just bless`) remain explicit review points.
+      - name: No surprise generated drift
+        run: git diff --exit-code
+
+  # The test runner, sharded across machines. nextest --partition splits the
+  # suite by a stable hash of each test id, so the heavy single-test corpus gates
+  # (opt_equiv, native_tier, native_fusion, typed_spine, snapshots) that the
+  # nextest test-groups force to run single-threaded scatter across shards and run
+  # in parallel instead of back-to-back on one runner. The heavy native-parity
+  # corpus stays delegated to the sharded `parity` job (PRISM_CORPUS_SHARDED).
+  test:
+    name: Test (shard ${{ matrix.partition }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4]
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      RUSTC_WRAPPER: sccache
+      # Source-fingerprinted gate cache: only genuinely unchanged programs are
+      # skipped, so a stale cache can never mask a regression.
+      PRISM_GATE_CACHE: "1"
+      PRISM_GATE_FINGERPRINT: source
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v1-libm"
+
+      # Per-shard gate-verdict cache: each partition owns a distinct key so the
+      # parallel runs do not overwrite each other's snapshots.
+      - name: Cache gate verdicts
+        uses: actions/cache@v6
+        with:
+          path: target/gate-cache
+          key: gate-verdicts-test-${{ matrix.partition }}-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            gate-verdicts-test-${{ matrix.partition }}-${{ runner.os }}-
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Run tests (shard ${{ matrix.partition }} of 4)
+        env:
+          PRISM_CORPUS_SHARDED: "1"
+          # Enlarge libtest's per-test thread stack so the deepest debug-profile
+          # compiler recursion (Core Lint over the corpus, the scheduler
+          # constant-stack perf gate) does not overflow the 2 MB default. Matches
+          # the `just test` recipe; these tests are release-green in `just gate`.
+          RUST_MIN_STACK: "33554432"
+        run: cargo nextest run --profile ci --workspace --partition hash:${{ matrix.partition }}/4
+
+  # Branch-protection anchor: one "Test" check that is green only when Checks and
+  # every test shard passed, so the required-status-check config need not
+  # enumerate the matrix and the split does not weaken enforcement.
+  test-complete:
+    name: Test
+    needs: [checks, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checks and all test shards passed
+        run: |
+          if [ "${{ needs.checks.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "checks or a test shard failed"
+            exit 1
+          fi
+
+  web:
+    name: Web playground
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      # cdylib is not in Cargo.toml (rlib-only, so native builds skip the dead
+      # dylib); we ask for it here via `cargo rustc --crate-type cdylib` and drive
+      # wasm-bindgen directly, since wasm-pack requires cdylib in the manifest. The
+      # CLI version must match the wasm-bindgen crate; bump both together.
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.126 --locked
+
+      - name: Build wasm bundle
+        run: |
+          cargo rustc --lib --crate-type cdylib --target wasm32-unknown-unknown \
+            --release --no-default-features --features wasm
+          wasm-bindgen target/wasm32-unknown-unknown/release/prism.wasm \
+            --target web --out-dir web/pkg --out-name prism
+
+      # The whole Prism compiler, gzipped, must still fit on a 3.5" floppy disk.
+      # A real binary-size ratchet wearing a joke: if this ever fails, Prism has
+      # outgrown the floppy era entirely. It has grown past the 1.44 MB HD disk,
+      # so the ratchet moves up to the 2.88 MB ED floppy, the largest 3.5" format
+      # ever made. When this one fails too, there is no bigger floppy to reach for.
+      - name: Fits on a floppy disk
+        run: |
+          FLOPPY=2949120  # bytes on a 3.5" ED floppy (2.88 "MB" = 2880 * 1024)
+          GZ=$(gzip -9 -c web/pkg/prism_bg.wasm | wc -c | tr -d ' ')
+          echo "gzipped wasm: $GZ B / floppy: $FLOPPY B"
+          if [ "$GZ" -gt "$FLOPPY" ]; then
+            echo "::error::Prism no longer fits on a floppy: gzipped wasm is $GZ B, a floppy holds $FLOPPY B ($((GZ - FLOPPY)) B over)."
+            exit 1
+          fi
+          echo "Fits with $((FLOPPY - GZ)) B to spare. Eject safely."
+
+      - uses: pnpm/action-setup@v6
+        with:
+          # Pinned to web/package.json's packageManager: a floating "11" once
+          # pulled a just-published pnpm whose self-installer crashed.
+          version: 11.6.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install, check, build
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm typecheck
+          pnpm build
+
+  lean:
+    name: Lean model
+    runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+    steps:
+      - uses: actions/checkout@v7
+
+      # Toolchain pinned via rust-toolchain.toml (single source of truth).
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      # The `prism` binary links libLLVM (inkwell), so it needs the dev libs to
+      # build even though the interpreter and `dump core-json` paths never touch
+      # codegen. Same LLVM 22 install as the Test/MLIR jobs.
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+
+      # The differential oracle feeds the live compiler core through the verified
+      # CEK model, so it needs the compiler built alongside the model.
+      - name: Build prism
+        run: cargo build
+
+      # Kernel-checks every theorem in the core model (CEK adequacy, determinism,
+      # progress, effect-safety) and the differential `Certificates` whose `rfl`
+      # proofs pin model output to live `prism run` output, and builds the `oracle`
+      # executable the differential harness runs. The toolchain is read from
+      # models/lean-toolchain (single source of truth); no mathlib, so the build is
+      # self-contained and fast. This is the one formal-methods gate that used to be
+      # able to silently break (Lean was outside CI).
+      - name: Build Lean model
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: models
+          build-args: --wfail
+          # The package sets `builtinLint`, which the action auto-detects and
+          # turns into a `lake lint` stage over every library, including the
+          # `sorry`-bearing scaffold that is deliberately outside the default
+          # targets. That sweep does not terminate inside the job's budget and
+          # is killed, so the gate we do want (`lake build --wfail` over the
+          # default targets) is reported as a failure for a reason unrelated to
+          # the model. This job asserts the build; nothing here asks for a lint.
+          lint: "false"
+
+      # The fixture oracle above is curated. Exercise the same compiler-to-JSON
+      # boundary on deterministic generated pure/effectful programs as well, with
+      # final-value mains so a Unit result from println cannot pass vacuously.
+      # Each case costs two full prelude compiles (an in-process interpret plus
+      # `dump core-json` and `oracle eval -` subprocesses), measured at 6.2s per
+      # case in this profile on an M-series laptop and 7-18s per case on this
+      # runner. The default corpus of 256 therefore needs roughly an hour, and
+      # the previous 30-minute cap killed the step mid-sweep rather than
+      # reporting a divergence. Budget for the slow end of the observed range;
+      # trimming PRISM_LEAN_FUZZ_CASES instead would buy time by shrinking the
+      # corpus this job exists to sweep.
+      - name: Generated Lean differential fuzz
+        timeout-minutes: 90
+        run: cargo test --test lean_fuzz generated_programs_match_lean_final_values -- --ignored --exact --nocapture
+
+      # Runs the whole fixture corpus through both the verified CEK machine (via
+      # `dump core-json` piped to the `oracle` exe) and `prism run`, and fails on
+      # any divergence. This couples the proven model to the live compiler on every
+      # push; before this it passed only when run by hand.
+      - name: Differential oracle vs interpreter
+        run: models/diff_against_rust.sh
+
+      # The committed fixture manifest is a `just hash`-style artifact:
+      # regenerate it and fail if source, core-json, Core hashes, or expected
+      # outputs drift from what the compiler now emits.
+      - name: Certificate fixtures drift check
+        run: |
+          models/gen_fixtures.sh
+          git diff --exit-code -- models/fixtures/core-hashes.tsv \
+            || { echo "models/fixtures/core-hashes.tsv drifted; run 'just fixtures' and commit"; exit 1; }
+
+  mlir:
+    name: MLIR backend
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v7
+
+      # Toolchain pinned via rust-toolchain.toml (single source of truth).
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      # Same gate verdict cache as the Test job, on its own key so the two jobs
+      # do not overwrite each other's snapshots. The `mlir` tag makes these
+      # markers distinct from the LLVM ones even were the dirs ever shared.
+      - name: Cache gate verdicts
+        uses: actions/cache@v6
+        with:
+          path: target/gate-cache
+          key: gate-verdicts-mlir-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            gate-verdicts-mlir-${{ runner.os }}-
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+        with:
+          packages: libmlir-22-dev mlir-22-tools
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Build with mlir backend
+        run: cargo build --features mlir
+        env:
+          LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+          MLIR_SYS_220_PREFIX: /usr/lib/llvm-22
+          TABLEGEN_220_PREFIX: /usr/lib/llvm-22
+
+      - name: Run mlir parity test
+        run: PATH=/usr/lib/llvm-22/bin:$PATH cargo nextest run --profile ci --features mlir --test native_parity mlir_matches_interpreter
+        env:
+          LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+          MLIR_SYS_220_PREFIX: /usr/lib/llvm-22
+          TABLEGEN_220_PREFIX: /usr/lib/llvm-22
+          PRISM_CC: /usr/lib/llvm-22/bin/clang
+          PRISM_GATE_CACHE: "1"
+          PRISM_GATE_FINGERPRINT: source
+
+  # The opt-in `mimalloc` feature routes the C runtime's allocation through mi_*
+  # (build.rs compiles the embedded runtime with -DPRISM_MIMALLOC; src/lib.rs links
+  # libmimalloc-sys so the shim resolves). It compiled clean but had no CI leg, so a
+  # change that broke the feature-gated code, or an mi_* symbol that stopped resolving
+  # at link, would only surface for whoever next ran `--features mimalloc` by hand.
+  # This job gates it two ways: a `cargo check` catches feature-gated code that stops
+  # compiling, and a bounded native-parity smoke builds+links the feature (proving the
+  # mi_* shim resolves, which check alone cannot) and diffs native output against the
+  # interpreter. The feature only swaps the compiler process's own allocator; generated
+  # native binaries go through the same link path regardless, so one corpus shard is a
+  # sufficient behavior smoke rather than the whole set.
+  mimalloc:
+    name: mimalloc feature
+    runs-on: ubuntu-latest
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      RUSTC_WRAPPER: sccache
+      # The parity smoke's verdict cache fingerprints the feature set, so these
+      # markers never collide with the plain-build (default-feature) ones.
+      PRISM_GATE_CACHE: "1"
+      PRISM_GATE_FINGERPRINT: source
+      # A high shard total keeps the smoke to a handful of the corpus's programs;
+      # index 0 pins which ones so the cache key is stable across runs.
+      PRISM_SHARD_TOTAL: "8"
+      PRISM_SHARD_INDEX: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      # Own gate-verdict cache key so this job's markers do not overwrite the
+      # Test/MLIR/parity snapshots. The feature fingerprint already keeps the
+      # marker contents distinct; the tag just separates the saved snapshots.
+      - name: Cache gate verdicts
+        uses: actions/cache@v6
+        with:
+          path: target/gate-cache
+          key: gate-verdicts-mimalloc-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            gate-verdicts-mimalloc-${{ runner.os }}-
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+
+      # Fast fail: catches feature-gated code that stops compiling before paying
+      # for the full build+link of the parity smoke below.
+      - name: Check mimalloc feature compiles
+        run: cargo check --features mimalloc
+
+      # Builds+links the feature (mi_* must resolve) and diffs native output against
+      # the interpreter over one corpus shard, proving output stays byte-identical.
+      - name: Native parity smoke (mimalloc)
+        run: cargo test --features mimalloc --test native_parity native_matches_interpreter
+
+  # The heavy native-parity corpus, split across N shards that run in parallel so
+  # wall-clock is corpus/N rather than the whole thing serially in the Test job
+  # (which delegates it here via PRISM_CORPUS_SHARDED). Each shard runs the sorted
+  # corpus's cases at positions (mod N) == shard; together they cover every case.
+  parity:
+    name: Native parity (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      LLVM_SYS_221_PREFIX: /usr/lib/llvm-22
+      PRISM_CC: /usr/lib/llvm-22/bin/clang
+      PRISM_GATE_CACHE: "1"
+      PRISM_GATE_FINGERPRINT: source
+      PRISM_SHARD_TOTAL: "4"
+      PRISM_SHARD_INDEX: ${{ matrix.shard }}
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Bump when a build-script output (the vendored libm archive) changes
+          # shape in a way cargo's incremental can miss on a warm cache: forces a
+          # cold rebuild so `libprism_libm.a` is regenerated from current sources.
+          prefix-key: "v1-libm"
+
+      # Per-shard gate-verdict cache: each shard owns a distinct key so the four
+      # runs do not overwrite each other's snapshots.
+      - name: Cache gate verdicts
+        uses: actions/cache@v6
+        with:
+          path: target/gate-cache
+          key: gate-verdicts-parity-${{ matrix.shard }}-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            gate-verdicts-parity-${{ matrix.shard }}-${{ runner.os }}-
+
+      - name: Install LLVM 22
+        uses: ./.github/actions/setup-llvm
+
+      - name: Native parity (shard ${{ matrix.shard }} of 4)
+        run: cargo test --test native_parity native_matches_interpreter
+
+  nix:
+    name: Nix dev shell + package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Substitutes the LLVM/rust-overlay/package closure from Cachix and pushes
+      # anything newly built. A cache miss or Cachix outage only makes this job
+      # slower (falls back to cache.nixos.org + local build), never wrong.
+      - name: Cachix
+        uses: cachix/cachix-action@v17
+        with:
+          name: prism-lang
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Lock flake inputs
+        run: nix flake lock
+
+      - name: Build dev shell
+        run: nix develop --command bash -c "rustc --version && clang --version && just --version"
+
+      # Build the reproducible `prism` binary itself. This keeps the Nix build path
+      # from drifting from the cargo/setup-llvm path (loud failure on any LLVM-version
+      # or source-filter skew) and seeds the package closure into Cachix. The smoke
+      # asserts the artifact loads the embedded stdlib and runs.
+      - name: Build package
+        run: nix build .#default --print-build-logs
+
+      - name: Smoke the built binary
+        run: |
+          ./result/bin/prism --version
+          ./result/bin/prism check examples/accum.pr
+
+      # Drift guard: the nix build path must embed the exact stdlib the cargo path
+      # pins. Assert the nix-built binary's stdlib Merkle root equals the committed
+      # golden that `just hash` regenerates from the cargo build (and that CI checks
+      # elsewhere via `prism docs --stdlib --check`). A mismatch means the crane
+      # source filter dropped/staled a stdlib source or the two paths' LLVM skewed.
+      # The `.pr` file arg is an ignored placeholder; dump reads the embedded stdlib.
+      - name: Stdlib Merkle root parity (nix vs committed golden)
+        run: |
+          set -euo pipefail
+          golden="$(grep -oE '[0-9a-f]{64}' docs/src/stdlib/index.md | head -1)"
+          got="$(./result/bin/prism dump stdlib-hash examples/accum.pr | awk '/^root/{print $2}')"
+          echo "committed golden: $golden"
+          echo "nix-built binary: $got"
+          [ -n "$golden" ] || { echo "no golden root found in docs/src/stdlib/index.md"; exit 1; }
+          [ "$golden" = "$got" ] || { echo "stdlib Merkle root drift between nix and cargo build paths"; exit 1; }
+
+      # Keep the wasm bundle output building (interpreter-only, no LLVM); it feeds
+      # the web/docs build and would otherwise bit-rot until someone ran it. Also
+      # seeds the wasm closure into Cachix.
+      - name: Build wasm bundle
+        run: nix build .#wasm --print-build-logs
+
+      # Uploaded even if the build step fails, so the resolved lockfile is always
+      # retrievable from the run.
+      - name: Upload flake.lock
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flake-lock
+          path: flake.lock

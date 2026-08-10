@@ -1,0 +1,96 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+fail_fast: false
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(tests/snapshots/|tests/fixtures/|.*\.gray$)
+      - id: end-of-file-fixer
+        exclude: ^(LICENSE$|tests/snapshots/|tests/fixtures/|.*\.gray$)
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: local
+    hooks:
+      - id: dprint
+        name: dprint fmt
+        entry: dprint fmt
+        language: system
+        files: \.(md|json|toml)$
+        pass_filenames: false
+
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --workspace --all-targets -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      # C runtime gates, mirroring the CI "Test" job: every linked runtime module
+      # is checked standalone, with no exclusions, so the local loop and CI ask
+      # the same question of the same files. Both run on the host toolchain, so
+      # they catch most findings locally; a few clang-analyzer results are
+      # glibc-header-sensitive and only surface on the Linux CI. The warning set
+      # is not spelled here: it lives in runtime/warnings.txt, which the cargo
+      # build of the runtime reads as well.
+      - id: c-runtime-warnings
+        name: C runtime warnings (-Werror)
+        language: system
+        entry: bash -c 'cc="$(command -v clang-22 || command -v clang)"; flags=$(grep -v "^#" runtime/warnings.txt); for f in runtime/*.c; do "$cc" -std=c11 -O2 -Werror $flags -Iruntime -fsyntax-only "$f" || exit 1; done'
+        files: ^runtime/(.*\.(c|h)|warnings\.txt)$
+        pass_filenames: false
+
+      - id: clang-tidy
+        name: C runtime clang-tidy
+        language: system
+        entry: bash -c 'ct="$(command -v clang-tidy-22 || command -v clang-tidy)"; for f in runtime/*.c; do "$ct" "$f" --quiet -- -std=c11 -O2 -D_GNU_SOURCE=1 -Iruntime || exit 1; done'
+        files: ^runtime/(.*\.(c|h)|\.clang-tidy)$
+        pass_filenames: false
+
+      # Heavy correctness moved to pre-push: fast commits, but the suite and the
+      # cached parity/perf/snapshot gate still run locally before a push, catching
+      # what CI would otherwise catch 20 minutes later. Install with
+      # `pre-commit install` (hook types come from default_install_hook_types).
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test --all
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: gate
+        name: just gate-fast (parity/tier/perf/snapshots/store)
+        entry: just gate-fast
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # Whole-corpus prism format check, identical to the CI "Check prism
+      # formatting" step: `prism fmt --check` with no path walks every *.pr
+      # outside target/. pass_filenames is off so a commit touching any .pr
+      # re-checks the entire corpus, not just its own changed files. A per-file
+      # check let a fixture an unrelated commit left unformatted slip past the
+      # hook yet fail CI; the whole-corpus walk closes that gap. The walk is
+      # non-strict, so an unparseable fixture (interp_empty/interp_unterm) is
+      # skipped with a notice, not failed.
+      - id: prism-fmt
+        name: prism fmt --check
+        language: system
+        entry: cargo run --quiet --bin prism -- fmt --check
+        files: \.pr$
+        pass_filenames: false

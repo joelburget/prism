@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="./prism.png" />
+    <title>Prism playground</title>
+
+    <meta name="description" content="An in-browser playground for Prism, a functional language with algebraic effect types. Edit, run, and inspect Core IR, all compiled to WebAssembly." />
+    <meta name="theme-color" content="#2f6f4f" />
+    <link rel="canonical" href="https://sdiehl.github.io/prism/" />
+
+    <!-- Open Graph (Facebook, LinkedIn, WhatsApp, Slack, Discord, iMessage) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prism" />
+    <meta property="og:title" content="Prism playground" />
+    <meta property="og:description" content="An in-browser playground for Prism, a functional language with algebraic effect types. Edit, run, and inspect Core IR, all compiled to WebAssembly." />
+    <meta property="og:url" content="https://sdiehl.github.io/prism/" />
+    <meta property="og:image" content="https://sdiehl.github.io/prism/prism.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="256" />
+    <meta property="og:image:height" content="256" />
+    <meta property="og:image:alt" content="The Prism logo." />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Prism playground" />
+    <meta name="twitter:description" content="An in-browser playground for Prism, a functional language with algebraic effect types. Edit, run, and inspect Core IR, all compiled to WebAssembly." />
+    <meta name="twitter:image" content="https://sdiehl.github.io/prism/prism.png" />
+    <meta name="twitter:image:alt" content="The Prism logo." />
+    <script type="module" crossorigin src="./assets/main-BOsDYNHu.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-B5Qt9EMX.js">
+    <link rel="modulepreload" crossorigin href="./assets/prism-C7kyOHN-.js">
+    <link rel="modulepreload" crossorigin href="./assets/examples-CppqPAKv.js">
+    <link rel="stylesheet" crossorigin href="./assets/main-BXhdX3_D.css">
+  </head>
+  <body>
+    <header>
+      <a class="logo-link" href="https://github.com/sdiehl/prism" title="GitHub" target="_blank" rel="noopener"><img class="logo" src="./prism.png" alt="Prism" width="26" height="26" /></a>
+      <h1><b>Prism</b></h1>
+      <span class="tag">a tiny language with effect types</span>
+      <div class="grow"></div>
+      <div class="controls">
+        <select id="examples" title="Load an example"></select>
+        <button id="run" class="run" disabled>Run</button>
+        <button id="fmt" disabled>Format</button>
+        <button id="dump" class="toggle" disabled>Type signatures</button>
+        <button id="showir" class="toggle" disabled>Show IR</button>
+        <a class="navbtn" href="../gallery/" title="Interactive examples">Gallery</a>
+        <a class="navbtn" href="../play/" title="Playground">Playground</a>
+        <a id="docs" class="navbtn" href="https://sdiehl.github.io/prism/" target="_blank" rel="noopener" title="Documentation">Docs</a>
+      </div>
+      <a id="gh" href="https://github.com/sdiehl/prism" title="GitHub" aria-label="GitHub" target="_blank" rel="noopener"></a>
+    </header>
+    <main>
+      <section class="pane">
+        <div class="label">Source</div>
+        <div class="editor">
+          <div class="gutter"><div class="lines ed-shared" id="gutter"></div></div>
+          <div class="codewrap">
+            <pre class="hl ed-shared" id="hl" aria-hidden="true"></pre>
+            <textarea id="src" class="ed-shared" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" autofocus></textarea>
+          </div>
+        </div>
+      </section>
+      <section class="pane">
+        <div class="label">Output</div>
+        <pre id="out" class="out dim">Loading wasm...</pre>
+      </section>
+      <section class="pane sigpane">
+        <div class="label" id="siglabel">Type signatures</div>
+        <pre id="sigs" class="out dim"></pre>
+      </section>
+      <section class="pane irpane" id="irview">
+        <div class="irhalf">
+          <div class="label">HIR</div>
+          <pre id="ir-hir" class="out dim"></pre>
+        </div>
+        <div class="irhalf">
+          <div class="label">Core IR</div>
+          <pre id="ir-core" class="out dim"></pre>
+        </div>
+      </section>
+    </main>
+    <div id="tip" class="tip"></div>
+  </body>
+</html>

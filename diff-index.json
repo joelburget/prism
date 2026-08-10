@@ -1,0 +1,4218 @@
+{
+  "envelope": {
+    "format": "prism-index-diff-v1",
+    "compiler": "0.17.0",
+    "old": {
+      "title": "spectra",
+      "contract": "95cb1249588892420334a888e0f09edeac5fc75673f92bbbb737b0530b76427f",
+      "token_classes": [
+        "kw",
+        "ctor",
+        "op",
+        "ty",
+        "str",
+        "num"
+      ],
+      "type_table": [
+        "String",
+        "Theme.Theme",
+        "(String, List(Typst.Doc)) -> Typst.Doc",
+        "(String) -> Typst.Doc",
+        "Layout.Align",
+        "Layout.Inline",
+        "(String, Typst.Doc) -> Typst.Doc",
+        "List(Layout.Inline)",
+        "(String, List(Typst.Doc), Typst.Doc) -> Typst.Doc",
+        "forall a. List(a)",
+        "(List(Layout.Inline), Theme.Theme) -> Typst.Doc ! {e0}",
+        "(String, Theme.Theme) -> Typst.Doc",
+        "() -> Typst.Doc",
+        "(Layout.Inline, Theme.Theme) -> Typst.Doc ! {e0}",
+        "(List(Typst.Doc)) -> Typst.Doc",
+        "Int",
+        "List(Layout.Pict)",
+        "Layout.Pict",
+        "(Int, Int) -> Int",
+        "(Layout.Pict) -> Int ! {e0}",
+        "(List(Layout.Pict)) -> Int ! {e0}",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(Layout.Pict) -> List(String) ! {e0}",
+        "(List(Layout.Pict)) -> List(String) ! {e0}",
+        "forall a. (a, List(a)) -> List(a)",
+        "(Layout.Pict, Int, Theme.Theme) -> Typst.Doc ! {e0}",
+        "(List(Layout.Pict), Int, Theme.Theme) -> List(Typst.Doc) ! {e0}",
+        "Layout.TextStyle",
+        "(Layout.Align) -> Typst.Doc",
+        "(Int) -> Typst.Doc",
+        "(List(Layout.Inline), Theme.Theme) -> Typst.Doc",
+        "(Int, Typst.Doc) -> String",
+        "(Layout.Pict, Int, Theme.Theme) -> Typst.Doc",
+        "Option(String)",
+        "(Typst.Doc) -> Typst.Doc",
+        "(Option(String)) -> Typst.Doc",
+        "(List(Typst.Doc)) -> String",
+        "(String, List(Typst.Doc), List(Typst.Doc)) -> Typst.Doc",
+        "(String, String) -> Layout.Pict",
+        "(String) -> Layout.Inline",
+        "(String, Int) -> Int",
+        "(String, Int, Int) -> String",
+        "(String) -> Int",
+        "(String, String) -> Bool",
+        "(String, String) -> String",
+        "forall a. (a) -> Option(a)",
+        "Example@Region",
+        "forall a. Option(a)",
+        "(String) -> String",
+        "List(String)",
+        "forall a. (List(a)) -> List(a)",
+        "(List(String), List(String)) -> (List(String), List(String)) ! {e0}",
+        "List(Example.Example)",
+        "Example.Example",
+        "(List(String), Example@Region, List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example)) ! {e0}",
+        "(String) -> Option(Example@Region)",
+        "(String) -> Bool",
+        "(List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example)) ! {e0}",
+        "(List(String)) -> String",
+        "(String, List(Example.Example)) -> List(Example.Example)",
+        "(List(String), List(String)) -> (List(String), List(String))",
+        "(Int, String) -> List(String)",
+        "(List(String), Example@Region, List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example))",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(String) -> Example.Doc",
+        "(String) -> Layout.Pict",
+        "(Int, List(Layout.Pict)) -> Layout.Pict",
+        "(Example.Example) -> Layout.Pict",
+        "(String) -> List(Example.Example)",
+        "(Layout.TextStyle, List(Layout.Inline)) -> Layout.Pict",
+        "(List(Layout.Inline)) -> Layout.Pict",
+        "(String, List(Layout.Inline)) -> Layout.Inline",
+        "(Int, Layout.Align, List(Layout.Pict)) -> Layout.Pict",
+        "(List(Layout.Pict)) -> Layout.Pict",
+        "(Int, Int, Int, Int, Layout.Pict) -> Layout.Pict",
+        "SpectraCli.SpectraCommand",
+        "(String) -> Int ! {IO, Output}",
+        "Bool",
+        "(String, String, Bool) -> Int ! {FileSystem, IO, Output}",
+        "(String) -> Int ! {IO}",
+        "forall e0 a. ((Unit) -> a ! {Console, Entropy, Env, FileSystem, IO, Output, Random, e0}) -> a ! {IO, e0}",
+        "(List(Layout.Inline)) -> Layout.Inline",
+        "(Int, Layout.Pict) -> Layout.Pict",
+        "(Layout.Pict) -> Int",
+        "(Layout.Pict) -> List(String)",
+        "(Layout.Pict, Int, Theme.Theme) -> String",
+        "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "(Theme.Theme) -> String",
+        "Spectra.Metadata",
+        "List(Spectra.Slide)",
+        "(Layout.Pict) -> Unit",
+        "(Unit) -> Unit",
+        "() -> Unit ! {Spectra.SlideBuilder}",
+        "(Unit) -> (Int, List(Layout.Pict)) -> List(Layout.Pict) ! {e1} ! {e1}",
+        "(Int, List(Layout.Pict)) -> List(Layout.Pict)",
+        "(Spectra.Slide) -> Unit",
+        "(String, Layout.Pict) -> Spectra.Slide",
+        "(() -> Unit ! {Spectra.SlideBuilder}) -> List(Layout.Pict)",
+        "(String, String) -> Spectra.Slide",
+        "() -> Unit ! {Spectra.DeckBuilder}",
+        "(Unit) -> (List(Spectra.Slide)) -> Spectra.Deck ! {e1} ! {e1}",
+        "Spectra.Slide",
+        "(List(Spectra.Slide)) -> Spectra.Deck",
+        "forall e0 a b. ((a, b) -> a ! {e0}, a, List(b)) -> a ! {e0}",
+        "(Spectra.Slide) -> Int",
+        "(Spectra.Slide, Int, Theme.Theme) -> List(String) ! {e0}",
+        "(Spectra.Slide, Int, Theme.Theme) -> List(String)",
+        "(List(Spectra.Slide), Theme.Theme) -> List(String) ! {e0}",
+        "(List(Spectra.Slide)) -> List(String) ! {e0}",
+        "Spectra.Deck",
+        "(List(Spectra.Slide), Theme.Theme) -> List(String)",
+        "(String, List(String)) -> String",
+        "(List(Spectra.Slide)) -> Int ! {e0}",
+        "(List(Spectra.Slide)) -> Int",
+        "(List(Spectra.Slide)) -> List(String)",
+        "(Spectra.Deck) -> Backend.TypstDocument",
+        "(Json.Json) -> String",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(String) -> Json.Json",
+        "Backend.TypstDocument",
+        "(Int) -> Json.Json",
+        "(List(Json.Json)) -> Json.Json",
+        "forall a. (a) -> Unit ! {IO}",
+        "(Spectra.Deck) -> String",
+        "(String, Int, String) -> String ! {e0}",
+        "(Char) -> String",
+        "(Int) -> Char",
+        "(String, Int, String) -> String",
+        "List((String, Json.Json))",
+        "Json.Json",
+        "(String, List((String, Json.Json))) -> Option(Json.Json) ! {e0}",
+        "(String, List((String, Json.Json))) -> Option(Json.Json)",
+        "forall a e. (a) -> Result(a, e)",
+        "forall a e. (e) -> Result(a, e)",
+        "(String, List((String, Json.Json))) -> Result(String, String)",
+        "(String, List((String, Json.Json))) -> Result(Int, String)",
+        "(Bool) -> Bool",
+        "forall e0 a b c. ((c) -> b ! {e0}, Result(a, c)) -> Result(a, b) ! {e0}",
+        "(Json.JsonError) -> String",
+        "Json.JsonError",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(List((String, Json.Json))) -> Result(SpectraBuild.DeckEnvelope, String)",
+        "SpectraBuild.DeckEnvelope",
+        "(String, String) -> Result(Unit, String) ! {IO}",
+        "(String) -> Result(Unit, String) ! {IO}",
+        "(String) -> Unit",
+        "(String) -> Unit ! {IO}",
+        "(String) -> Result((SpectraBuild.DeckEnvelope, String), String)",
+        "(String) -> String ! {FileSystem}",
+        "(SpectraBuild.DeckEnvelope, String)",
+        "(String, String) -> Result((SpectraBuild.DeckEnvelope, String), String) ! {FileSystem, IO}",
+        "(String, String, String) -> Cli.Parser(String)",
+        "forall a b. ((b) -> a, Cli.Parser(b)) -> Cli.Parser(a)",
+        "(String) -> SpectraCli.SpectraCommand",
+        "() -> Cli.Parser(String)",
+        "forall a b c d. ((a) -> (b) -> (d) -> c, Cli.Parser(a), Cli.Parser(b), Cli.Parser(d)) -> Cli.Parser(c)",
+        "(String, String, Bool) -> SpectraCli.SpectraCommand",
+        "(String, String, String, String, String) -> Cli.Parser(String)",
+        "(String, String, String) -> Cli.Parser(Bool)",
+        "forall a. (List(Cli.SubCmd(a))) -> Cli.Body(a)",
+        "() -> Cli.Parser(SpectraCli.SpectraCommand)",
+        "forall a. (Cli.Command(a), List(String)) -> Cli.Outcome(a)",
+        "Cli.Command(SpectraCli.SpectraCommand)"
+      ]
+    },
+    "new": {
+      "title": "spectra",
+      "contract": "9e51cd1d794ab259ac7eee86fa7b2758b14c810e497a7c5c4cda3d9dca388f1f",
+      "token_classes": [
+        "kw",
+        "ctor",
+        "op",
+        "ty",
+        "str",
+        "num",
+        "lit"
+      ],
+      "type_table": [
+        "String",
+        "Theme.Theme",
+        "(String, List(Typst.Expr)) -> Typst.Expr",
+        "(String) -> Typst.Expr",
+        "Layout.Align",
+        "(Typst.Value.Alignment) -> Typst.Expr",
+        "Typst.Value.Alignment",
+        "Layout.Inline",
+        "(String, Typst.Expr) -> Typst.Expr",
+        "List(Layout.Inline)",
+        "(String, List(Typst.Expr), Typst.Expr) -> Typst.Expr",
+        "forall a. List(a)",
+        "(List(Layout.Inline), Theme.Theme) -> Typst.Expr ! {e0}",
+        "(String, Theme.Theme) -> Typst.Expr",
+        "(Layout.Inline, Theme.Theme) -> Typst.Expr ! {e0}",
+        "(List(Typst.Expr)) -> Typst.Expr",
+        "Int",
+        "List(Layout.Pict)",
+        "Layout.Pict",
+        "(Int, Int) -> Int",
+        "(Layout.Pict) -> Int ! {e0}",
+        "(List(Layout.Pict)) -> Int ! {e0}",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(Layout.Pict) -> List(String) ! {e0}",
+        "(List(Layout.Pict)) -> List(String) ! {e0}",
+        "forall a. (a, List(a)) -> List(a)",
+        "(Layout.Pict, Int, Theme.Theme) -> Typst.Expr ! {e0}",
+        "(List(Layout.Pict), Int, Theme.Theme) -> List(Typst.Expr) ! {e0}",
+        "() -> Typst.Expr",
+        "Layout.TextStyle",
+        "(Layout.Align) -> Typst.Expr",
+        "(Int) -> Typst.Expr",
+        "(List(Layout.Inline), Theme.Theme) -> Typst.Expr",
+        "(Bool) -> Typst.Expr",
+        "(Typst.Value.Dir) -> Typst.Expr",
+        "Typst.Value.Dir",
+        "(Typst.Doc) -> Typst.Expr",
+        "(String) -> Typst.Doc",
+        "(Int, Typst.Expr) -> String",
+        "(Layout.Pict, Int, Theme.Theme) -> Typst.Expr",
+        "Option(String)",
+        "(Int, Typst.Doc) -> String",
+        "(Typst.Expr) -> Typst.Doc",
+        "(Option(String)) -> Typst.Expr",
+        "(List(Typst.Doc)) -> String",
+        "(String, List(Typst.Expr)) -> Typst.Doc",
+        "(String, List(Typst.Expr), List(Typst.Expr)) -> Typst.Doc",
+        "() -> Typst.Doc",
+        "(String, String) -> Layout.Pict",
+        "(String) -> Layout.Inline",
+        "(String, Int) -> Int",
+        "(String, Int, Int) -> String",
+        "(String) -> Int",
+        "(String, String) -> Bool",
+        "(String, String) -> String",
+        "forall a. (a) -> Option(a)",
+        "Example@Region",
+        "forall a. Option(a)",
+        "(String) -> String",
+        "List(String)",
+        "forall a. (List(a)) -> List(a)",
+        "(List(String), List(String)) -> (List(String), List(String)) ! {e0}",
+        "List(Example.Example)",
+        "Example.Example",
+        "(List(String), Example@Region, List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example)) ! {e0}",
+        "(String) -> Option(Example@Region)",
+        "(String) -> Bool",
+        "(List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example)) ! {e0}",
+        "(List(String)) -> String",
+        "(String, List(Example.Example)) -> List(Example.Example)",
+        "(List(String), List(String)) -> (List(String), List(String))",
+        "(Int, String) -> List(String)",
+        "(List(String), Example@Region, List(String), List(String), List(Example.Example)) -> (List(String), List(Example.Example))",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(String) -> Example.Doc",
+        "(String) -> Layout.Pict",
+        "(Int, List(Layout.Pict)) -> Layout.Pict",
+        "(Example.Example) -> Layout.Pict",
+        "(String) -> List(Example.Example)",
+        "(Layout.TextStyle, List(Layout.Inline)) -> Layout.Pict",
+        "(List(Layout.Inline)) -> Layout.Pict",
+        "(String, List(Layout.Inline)) -> Layout.Inline",
+        "(Int, Layout.Align, List(Layout.Pict)) -> Layout.Pict",
+        "(List(Layout.Pict)) -> Layout.Pict",
+        "(Int, Int, Int, Int, Layout.Pict) -> Layout.Pict",
+        "SpectraCli.SpectraCommand",
+        "(String) -> Int ! {IO, Output}",
+        "Bool",
+        "(String, String, Bool) -> Int ! {FileSystem, IO, Output}",
+        "(String) -> Int ! {IO}",
+        "forall e0 a. ((Unit) -> a ! {Console, Entropy, Env, FileSystem, IO, Output, Random, e0}) -> a ! {IO, e0}",
+        "(List(Layout.Inline)) -> Layout.Inline",
+        "(Int, Layout.Pict) -> Layout.Pict",
+        "(Layout.Pict) -> Int",
+        "(Layout.Pict) -> List(String)",
+        "(Layout.Pict, Int, Theme.Theme) -> String",
+        "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "(Theme.Theme) -> String",
+        "Spectra.Metadata",
+        "List(Spectra.Slide)",
+        "(Layout.Pict) -> Unit",
+        "(Unit) -> Unit",
+        "() -> Unit ! {Spectra.SlideBuilder}",
+        "(Unit) -> (Int, List(Layout.Pict)) -> List(Layout.Pict) ! {e1} ! {e1}",
+        "(Int, List(Layout.Pict)) -> List(Layout.Pict)",
+        "(Spectra.Slide) -> Unit",
+        "(String, Layout.Pict) -> Spectra.Slide",
+        "(() -> Unit ! {Spectra.SlideBuilder}) -> List(Layout.Pict)",
+        "(String, String) -> Spectra.Slide",
+        "() -> Unit ! {Spectra.DeckBuilder}",
+        "(Unit) -> (List(Spectra.Slide)) -> Spectra.Deck ! {e1} ! {e1}",
+        "Spectra.Slide",
+        "(List(Spectra.Slide)) -> Spectra.Deck",
+        "forall e0 a b. ((a, b) -> a ! {e0}, a, List(b)) -> a ! {e0}",
+        "(Spectra.Slide) -> Int",
+        "(Spectra.Slide, Int, Theme.Theme) -> List(String) ! {e0}",
+        "(Spectra.Slide, Int, Theme.Theme) -> List(String)",
+        "(List(Spectra.Slide), Theme.Theme) -> List(String) ! {e0}",
+        "(List(Spectra.Slide)) -> List(String) ! {e0}",
+        "Spectra.Deck",
+        "(List(Spectra.Slide), Theme.Theme) -> List(String)",
+        "(String, List(String)) -> String",
+        "(List(Spectra.Slide)) -> Int ! {e0}",
+        "(List(Spectra.Slide)) -> Int",
+        "(List(Spectra.Slide)) -> List(String)",
+        "(Spectra.Deck) -> Backend.TypstDocument",
+        "(Json.Json) -> String",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(String) -> Json.Json",
+        "Backend.TypstDocument",
+        "(Int) -> Json.Json",
+        "(List(Json.Json)) -> Json.Json",
+        "forall a. (a) -> Unit ! {IO}",
+        "(Spectra.Deck) -> String",
+        "(String, Int, String) -> String ! {e0}",
+        "(Char) -> String",
+        "(Int) -> Char",
+        "(String, Int, String) -> String",
+        "List((String, Json.Json))",
+        "Json.Json",
+        "(String, List((String, Json.Json))) -> Option(Json.Json) ! {e0}",
+        "(String, List((String, Json.Json))) -> Option(Json.Json)",
+        "forall a e. (a) -> Result(a, e)",
+        "forall a e. (e) -> Result(a, e)",
+        "(String, List((String, Json.Json))) -> Result(String, String)",
+        "(String, List((String, Json.Json))) -> Result(Int, String)",
+        "(Bool) -> Bool",
+        "forall e0 a b c. ((c) -> b ! {e0}, Result(a, c)) -> Result(a, b) ! {e0}",
+        "(Json.JsonError) -> String",
+        "Json.JsonError",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(List((String, Json.Json))) -> Result(SpectraBuild.DeckEnvelope, String)",
+        "SpectraBuild.DeckEnvelope",
+        "(String, String) -> Result(Unit, String) ! {IO}",
+        "(String) -> Result(Unit, String) ! {IO}",
+        "(String) -> Unit",
+        "(String) -> Unit ! {IO}",
+        "(String) -> Result((SpectraBuild.DeckEnvelope, String), String)",
+        "(String) -> String ! {FileSystem}",
+        "(SpectraBuild.DeckEnvelope, String)",
+        "(String, String) -> Result((SpectraBuild.DeckEnvelope, String), String) ! {FileSystem, IO}",
+        "(String, String, String) -> Cli.Parser(String)",
+        "forall a b. ((b) -> a, Cli.Parser(b)) -> Cli.Parser(a)",
+        "(String) -> SpectraCli.SpectraCommand",
+        "() -> Cli.Parser(String)",
+        "forall a b c d. ((a) -> (b) -> (d) -> c, Cli.Parser(a), Cli.Parser(b), Cli.Parser(d)) -> Cli.Parser(c)",
+        "(String, String, Bool) -> SpectraCli.SpectraCommand",
+        "(String, String, String, String, String) -> Cli.Parser(String)",
+        "(String, String, String) -> Cli.Parser(Bool)",
+        "forall a. (List(Cli.SubCmd(a))) -> Cli.Body(a)",
+        "() -> Cli.Parser(SpectraCli.SpectraCommand)",
+        "forall a. (Cli.Command(a), List(String)) -> Cli.Outcome(a)",
+        "Cli.Command(SpectraCli.SpectraCommand)"
+      ]
+    },
+    "counts": {
+      "added": 0,
+      "removed": 0,
+      "moved": 0,
+      "changed": 9,
+      "cone": 10,
+      "cosmetic": 0,
+      "unchanged": 141
+    }
+  },
+  "entries": [
+    {
+      "status": "changed",
+      "id": "Backend.render_pict",
+      "old": {
+        "id": "Backend.render_pict",
+        "name": "render_pict",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "5834fa44db85d10ad3e4a987a60c69bf10a83b4c95c323a467e0793439d41b0e",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_pict(p : Pict, stage : Int, theme : Theme) : String =\n  T.render(96, pict_doc(p, stage, theme))",
+        "span": {
+          "start": 6597,
+          "end": 6702
+        },
+        "vis": "public",
+        "doc": "Render a pict for one concrete reveal stage.",
+        "types": "15 1 17 9 5 15 8 5 1 23 8 31 5 8 32 1 1 17 2 5 15 2 5 1",
+        "tokens": "0 2 0 12 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 8 1 0 1 2 0 2 5 0 1 2 9 1 2 1 1 2 6 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 66,
+            "end": 74,
+            "target": "Typst.render"
+          },
+          {
+            "start": 79,
+            "end": 87,
+            "target": "Backend@pict_doc"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend.render_pict",
+        "name": "render_pict",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "8cb32c143c0c7d56f91050ae90832e359dcd06e6c0366d8945a87922170d2363",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_pict(p : Pict, stage : Int, theme : Theme) : String =\n  T.render_expr(96, pict_doc(p, stage, theme))",
+        "span": {
+          "start": 7049,
+          "end": 7159
+        },
+        "vis": "public",
+        "doc": "Render a pict for one concrete reveal stage.",
+        "types": "15 1 18 9 5 16 8 5 1 23 13 38 5 8 39 1 1 18 2 5 16 2 5 1",
+        "tokens": "0 2 0 12 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 13 1 0 1 2 0 2 5 0 1 2 9 1 2 1 1 2 6 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 66,
+            "end": 79,
+            "target": "Typst.render_expr"
+          },
+          {
+            "start": 84,
+            "end": 92,
+            "target": "Backend@pict_doc"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend.typst_prelude",
+      "old": {
+        "id": "Backend.typst_prelude",
+        "name": "typst_prelude",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "7bfebd96c8e499df2bacf69eba7afc4f25ac4316b36e6ae8107bc20747bcea71",
+        "ty": "(Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn typst_prelude(theme : Theme) : String =\n  T.document([\n      T.atom(\"// Generated by Spectra. Inspect, diff, and keep this artifact.\"),\n      T.set_rule(\"document\", [T.named(\"date\", T.atom(\"none\"))]),\n      T.set_rule(\"page\", [\n          T.named(\"width\", T.atom(\"13.333in\")),\n          T.named(\"height\", T.atom(\"7.5in\")),\n          T.named(\"margin\", T.pt(theme.margin_pt)),\n          T.named(\"fill\", color(theme.background, theme)),\n        ]),\n      T.set_rule(\"text\", [\n          T.named(\"font\", T.string(theme.text_font)),\n          T.named(\"size\", T.pt(theme.body_size)),\n          T.named(\"fill\", color(theme.foreground, theme)),\n        ]),\n      T.set_rule(\"par\", [T.named(\"leading\", T.atom(\"0.65em\"))]),\n      T.let_function(\"spectra-slide\", [T.atom(\"title\"), T.atom(\"body\")], [\n          T.call(\"rect\", [\n              T.named(\"width\", T.percent(100)),\n              T.named(\"height\", T.pt(2)),\n              T.named(\"fill\", color(\"accent\", theme)),\n            ]),\n          T.call(\"v\", [T.pt(16)]),\n          T.concat_docs([\n              T.atom(\"set \"),\n              T.call(\"align\", [T.atom(\"left + top\")]),\n            ]),\n          T.if_suite(\"title != none\", [\n              T.content_call(\n                  \"text\",\n                  [\n                      T.named(\"size\", T.pt(theme.title_size)),\n                      T.named(\"weight\", T.atom(\"700\")),\n                      T.named(\"fill\", color(theme.accent, theme)),\n                    ],\n                  T.atom(\"title\"),\n                ),\n              T.call(\"v\", [T.pt(18)]),\n            ]),\n          T.atom(\"body\"),\n        ]),\n      T.empty(),\n    ])",
+        "span": {
+          "start": 7208,
+          "end": 8843
+        },
+        "vis": "public",
+        "doc": "The small presentation runtime prepended to every generated document.",
+        "types": "17 5 1 23 10 36 9 6 3 75 10 2 14 7 6 9 6 3 19 10 2 21 7 6 10 6 3 25 7 6 11 6 3 22 7 6 11 4 29 1 5 1 24 7 6 9 5 11 1 5 1 13 5 1 22 10 2 21 7 6 9 8 3 1 5 1 24 7 6 9 4 29 1 5 1 24 7 6 9 5 11 1 5 1 13 5 1 22 10 2 9 7 6 12 6 3 21 14 37 19 6 3 11 6 3 23 6 2 25 7 6 10 9 29 22 7 6 11 4 29 20 7 6 9 5 11 11 5 1 30 6 2 7 4 29 18 13 14 17 6 3 24 6 2 11 6 3 44 10 2 34 14 8 70 7 6 9 4 29 1 5 1 37 7 6 11 6 3 32 7 6 9 5 11 1 5 1 9 5 1 45 6 3 44 6 2 7 4 29 34 6 3 28 7 12",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 10 1 0 1 2 0 1 2 7 6 1 0 1 2 0 65 4 0 1 2 0 1 2 7 10 1 0 1 2 0 10 4 0 1 2 1 1 2 0 7 1 0 1 2 0 6 4 0 1 2 1 6 1 0 1 2 0 6 4 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 6 1 0 1 2 0 10 4 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 6 1 0 1 2 0 7 4 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 10 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 10 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 5 4 0 1 2 1 1 2 0 7 1 0 1 2 0 9 4 0 1 2 1 6 1 0 1 2 0 8 4 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 7 14 1 0 1 2 0 15 4 0 1 2 1 1 2 0 6 1 0 1 2 0 7 4 0 1 2 0 1 2 1 6 1 0 1 2 0 6 4 0 1 2 0 1 2 0 1 2 1 1 2 11 6 1 0 1 2 0 6 4 0 1 2 1 1 2 15 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 15 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 1 5 0 1 2 0 1 2 0 1 2 15 7 1 0 1 2 0 6 4 0 1 2 6 1 2 0 8 4 0 1 2 6 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 6 1 0 1 2 0 3 4 0 1 2 1 1 2 0 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 0 1 2 11 13 1 0 1 2 0 1 2 15 6 1 0 1 2 0 6 4 0 1 2 0 1 2 15 6 1 0 1 2 0 7 4 0 1 2 1 1 2 0 6 1 0 1 2 0 12 4 0 1 2 0 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 10 1 0 1 2 0 15 4 0 1 2 1 1 2 15 14 1 0 1 2 19 6 4 0 1 2 19 1 2 23 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 10 1 2 0 1 2 0 1 2 23 7 1 0 1 2 0 8 4 0 1 2 1 6 1 0 1 2 0 5 4 0 1 2 0 1 2 0 1 2 23 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 6 1 2 6 1 2 0 1 2 0 1 2 21 1 2 0 1 2 19 6 1 0 1 2 0 7 4 0 1 2 0 1 2 17 1 2 0 1 2 15 6 1 0 1 2 0 3 4 0 1 2 1 1 2 0 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 6 1 0 1 2 0 6 4 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 7 1 0 1 2 0 1 2 0 1 2 5 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 30,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 45,
+            "end": 55,
+            "target": "Typst.document"
+          },
+          {
+            "start": 64,
+            "end": 70,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 145,
+            "end": 155,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 169,
+            "end": 176,
+            "target": "Typst.named"
+          },
+          {
+            "start": 185,
+            "end": 191,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 210,
+            "end": 220,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 241,
+            "end": 248,
+            "target": "Typst.named"
+          },
+          {
+            "start": 258,
+            "end": 264,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 289,
+            "end": 296,
+            "target": "Typst.named"
+          },
+          {
+            "start": 307,
+            "end": 313,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 335,
+            "end": 342,
+            "target": "Typst.named"
+          },
+          {
+            "start": 353,
+            "end": 357,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 387,
+            "end": 394,
+            "target": "Typst.named"
+          },
+          {
+            "start": 403,
+            "end": 408,
+            "target": "Backend@color"
+          },
+          {
+            "start": 454,
+            "end": 464,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 485,
+            "end": 492,
+            "target": "Typst.named"
+          },
+          {
+            "start": 501,
+            "end": 509,
+            "target": "Typst.string"
+          },
+          {
+            "start": 539,
+            "end": 546,
+            "target": "Typst.named"
+          },
+          {
+            "start": 555,
+            "end": 559,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 589,
+            "end": 596,
+            "target": "Typst.named"
+          },
+          {
+            "start": 605,
+            "end": 610,
+            "target": "Backend@color"
+          },
+          {
+            "start": 656,
+            "end": 666,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 675,
+            "end": 682,
+            "target": "Typst.named"
+          },
+          {
+            "start": 694,
+            "end": 700,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 721,
+            "end": 735,
+            "target": "Typst.let_function"
+          },
+          {
+            "start": 754,
+            "end": 760,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 771,
+            "end": 777,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 800,
+            "end": 806,
+            "target": "Typst.call"
+          },
+          {
+            "start": 831,
+            "end": 838,
+            "target": "Typst.named"
+          },
+          {
+            "start": 848,
+            "end": 857,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 879,
+            "end": 886,
+            "target": "Typst.named"
+          },
+          {
+            "start": 897,
+            "end": 901,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 921,
+            "end": 928,
+            "target": "Typst.named"
+          },
+          {
+            "start": 937,
+            "end": 942,
+            "target": "Backend@color"
+          },
+          {
+            "start": 988,
+            "end": 994,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1001,
+            "end": 1005,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1023,
+            "end": 1036,
+            "target": "Typst.concat_docs"
+          },
+          {
+            "start": 1053,
+            "end": 1059,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1083,
+            "end": 1089,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1100,
+            "end": 1106,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1150,
+            "end": 1160,
+            "target": "Typst.if_suite"
+          },
+          {
+            "start": 1194,
+            "end": 1208,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 1278,
+            "end": 1285,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1294,
+            "end": 1298,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1341,
+            "end": 1348,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1359,
+            "end": 1365,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1397,
+            "end": 1404,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1413,
+            "end": 1418,
+            "target": "Backend@color"
+          },
+          {
+            "start": 1483,
+            "end": 1489,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1533,
+            "end": 1539,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1546,
+            "end": 1550,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1584,
+            "end": 1590,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1618,
+            "end": 1625,
+            "target": "Typst.empty"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend.typst_prelude",
+        "name": "typst_prelude",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "b32f4ba9cd4312ea3c3f736dc14c7c88c44ea90816f8bdd38e2ae1f3dd20b0aa",
+        "ty": "(Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn typst_prelude(theme : Theme) : String =\n  T.document([\n      T.atom(\"// Generated by Spectra. Inspect, diff, and keep this artifact.\"),\n      T.set_rule(\"document\", [T.named(\"date\", T.none_expr())]),\n      T.set_rule(\"page\", [\n          T.named(\"width\", T.sym(\"13.333in\")),\n          T.named(\"height\", T.sym(\"7.5in\")),\n          T.named(\"margin\", T.pt(theme.margin_pt)),\n          T.named(\"fill\", color(theme.background, theme)),\n        ]),\n      T.set_rule(\"text\", [\n          T.named(\"font\", T.string(theme.text_font)),\n          T.named(\"size\", T.pt(theme.body_size)),\n          T.named(\"fill\", color(theme.foreground, theme)),\n        ]),\n      T.set_rule(\"par\", [T.named(\"leading\", T.sym(\"0.65em\"))]),\n      T.let_function(\"spectra-slide\", [T.sym(\"title\"), T.sym(\"body\")], [\n          T.call(\"rect\", [\n              T.named(\"width\", T.percent(100)),\n              T.named(\"height\", T.pt(2)),\n              T.named(\"fill\", color(\"accent\", theme)),\n            ]),\n          T.call(\"v\", [T.pt(16)]),\n          T.concat_exprs([\n              T.sym(\"set \"),\n              T.call(\"align\", [\n                  T.sum([T.alignment(T.ALeft), T.alignment(T.ATop)]),\n                ]),\n            ]),\n          T.if_suite(\"title != none\", [\n              T.content_call(\n                  \"text\",\n                  [\n                      T.named(\"size\", T.pt(theme.title_size)),\n                      T.named(\"weight\", T.int(700)),\n                      T.named(\"fill\", color(theme.accent, theme)),\n                    ],\n                  T.sym(\"title\"),\n                ),\n              T.call(\"v\", [T.pt(18)]),\n            ]),\n          T.sym(\"body\"),\n        ]),\n      T.empty(),\n    ])",
+        "span": {
+          "start": 7665,
+          "end": 9356
+        },
+        "vis": "public",
+        "doc": "The small presentation runtime prepended to every generated document.",
+        "types": "17 5 1 23 10 44 9 6 37 75 10 45 14 7 8 9 11 28 13 10 45 21 7 8 10 5 3 25 7 8 11 5 3 22 7 8 11 4 31 1 5 1 24 7 8 9 5 13 1 5 1 13 5 1 22 10 45 21 7 8 9 8 3 1 5 1 24 7 8 9 4 31 1 5 1 24 7 8 9 5 13 1 5 1 13 5 1 22 10 45 9 7 8 12 5 3 21 14 46 19 5 3 11 5 3 23 6 2 25 7 8 10 9 31 22 7 8 11 4 31 20 7 8 9 5 13 11 5 1 30 6 2 7 4 31 18 14 15 17 5 3 24 6 2 30 5 15 2 11 5 1 7 6 3 11 5 1 6 6 51 10 2 34 14 10 70 7 8 9 4 31 1 5 1 37 7 8 11 5 31 30 7 8 9 5 13 1 5 1 9 5 1 45 5 3 44 6 2 7 4 31 34 5 3 28 7 47",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 10 1 0 1 2 0 1 2 7 6 1 0 1 2 0 65 4 0 1 2 0 1 2 7 10 1 0 1 2 0 10 4 0 1 2 1 1 2 0 7 1 0 1 2 0 6 4 0 1 2 1 11 1 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 5 1 0 1 2 0 10 4 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 5 1 0 1 2 0 7 4 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 10 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 10 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 10 1 0 1 2 0 5 4 0 1 2 1 1 2 0 7 1 0 1 2 0 9 4 0 1 2 1 5 1 0 1 2 0 8 4 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 7 14 1 0 1 2 0 15 4 0 1 2 1 1 2 0 5 1 0 1 2 0 7 4 0 1 2 0 1 2 1 5 1 0 1 2 0 6 4 0 1 2 0 1 2 0 1 2 1 1 2 11 6 1 0 1 2 0 6 4 0 1 2 1 1 2 15 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 15 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 1 5 0 1 2 0 1 2 0 1 2 15 7 1 0 1 2 0 6 4 0 1 2 6 1 2 0 8 4 0 1 2 6 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 6 1 0 1 2 0 3 4 0 1 2 1 1 2 0 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 0 1 2 11 14 1 0 1 2 0 1 2 15 5 1 0 1 2 0 6 4 0 1 2 0 1 2 15 6 1 0 1 2 0 7 4 0 1 2 1 1 2 19 5 1 0 1 2 0 1 2 0 11 1 0 1 2 0 7 1 0 1 2 0 1 2 1 11 1 0 1 2 0 6 1 0 1 2 0 1 2 0 1 2 0 1 2 17 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 10 1 0 1 2 0 15 4 0 1 2 1 1 2 15 14 1 0 1 2 19 6 4 0 1 2 19 1 2 23 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 10 1 2 0 1 2 0 1 2 23 7 1 0 1 2 0 8 4 0 1 2 1 5 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 23 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 6 1 2 6 1 2 0 1 2 0 1 2 21 1 2 0 1 2 19 5 1 0 1 2 0 7 4 0 1 2 0 1 2 17 1 2 0 1 2 15 6 1 0 1 2 0 3 4 0 1 2 1 1 2 0 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 0 1 2 13 1 2 0 1 2 0 1 2 11 5 1 0 1 2 0 6 4 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 7 7 1 0 1 2 0 1 2 0 1 2 5 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 30,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 45,
+            "end": 55,
+            "target": "Typst.document"
+          },
+          {
+            "start": 64,
+            "end": 70,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 145,
+            "end": 155,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 169,
+            "end": 176,
+            "target": "Typst.named"
+          },
+          {
+            "start": 185,
+            "end": 196,
+            "target": "Typst.none_expr"
+          },
+          {
+            "start": 209,
+            "end": 219,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 240,
+            "end": 247,
+            "target": "Typst.named"
+          },
+          {
+            "start": 257,
+            "end": 262,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 287,
+            "end": 294,
+            "target": "Typst.named"
+          },
+          {
+            "start": 305,
+            "end": 310,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 332,
+            "end": 339,
+            "target": "Typst.named"
+          },
+          {
+            "start": 350,
+            "end": 354,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 384,
+            "end": 391,
+            "target": "Typst.named"
+          },
+          {
+            "start": 400,
+            "end": 405,
+            "target": "Backend@color"
+          },
+          {
+            "start": 451,
+            "end": 461,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 482,
+            "end": 489,
+            "target": "Typst.named"
+          },
+          {
+            "start": 498,
+            "end": 506,
+            "target": "Typst.string"
+          },
+          {
+            "start": 536,
+            "end": 543,
+            "target": "Typst.named"
+          },
+          {
+            "start": 552,
+            "end": 556,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 586,
+            "end": 593,
+            "target": "Typst.named"
+          },
+          {
+            "start": 602,
+            "end": 607,
+            "target": "Backend@color"
+          },
+          {
+            "start": 653,
+            "end": 663,
+            "target": "Typst.set_rule"
+          },
+          {
+            "start": 672,
+            "end": 679,
+            "target": "Typst.named"
+          },
+          {
+            "start": 691,
+            "end": 696,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 717,
+            "end": 731,
+            "target": "Typst.let_function"
+          },
+          {
+            "start": 750,
+            "end": 755,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 766,
+            "end": 771,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 794,
+            "end": 800,
+            "target": "Typst.call"
+          },
+          {
+            "start": 825,
+            "end": 832,
+            "target": "Typst.named"
+          },
+          {
+            "start": 842,
+            "end": 851,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 873,
+            "end": 880,
+            "target": "Typst.named"
+          },
+          {
+            "start": 891,
+            "end": 895,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 915,
+            "end": 922,
+            "target": "Typst.named"
+          },
+          {
+            "start": 931,
+            "end": 936,
+            "target": "Backend@color"
+          },
+          {
+            "start": 982,
+            "end": 988,
+            "target": "Typst.call"
+          },
+          {
+            "start": 995,
+            "end": 999,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1017,
+            "end": 1031,
+            "target": "Typst.concat_exprs"
+          },
+          {
+            "start": 1048,
+            "end": 1053,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 1077,
+            "end": 1083,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1113,
+            "end": 1118,
+            "target": "Typst.sum"
+          },
+          {
+            "start": 1120,
+            "end": 1131,
+            "target": "Typst.alignment"
+          },
+          {
+            "start": 1132,
+            "end": 1139,
+            "target": "Typst.Value.ALeft"
+          },
+          {
+            "start": 1142,
+            "end": 1153,
+            "target": "Typst.alignment"
+          },
+          {
+            "start": 1154,
+            "end": 1160,
+            "target": "Typst.Value.ATop"
+          },
+          {
+            "start": 1211,
+            "end": 1221,
+            "target": "Typst.if_suite"
+          },
+          {
+            "start": 1255,
+            "end": 1269,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 1339,
+            "end": 1346,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1355,
+            "end": 1359,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1402,
+            "end": 1409,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1420,
+            "end": 1425,
+            "target": "Typst.int"
+          },
+          {
+            "start": 1455,
+            "end": 1462,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1471,
+            "end": 1476,
+            "target": "Backend@color"
+          },
+          {
+            "start": 1541,
+            "end": 1546,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 1590,
+            "end": 1596,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1603,
+            "end": 1607,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1641,
+            "end": 1646,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 1674,
+            "end": 1681,
+            "target": "Typst.empty"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@alignment",
+      "old": {
+        "id": "Backend@alignment",
+        "name": "alignment",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "1c34f84717df1137d64bfe76056df067289ade985b4508b50542c76580b9e0cb",
+        "ty": "(Layout.Align) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Layout.Align"
+          },
+          {
+            "start": 18,
+            "end": 27,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn alignment(align : Align) : T.Doc =\n  match align of\n    Left => T.atom(\"left\")\n    Center => T.atom(\"center\")\n    Right => T.atom(\"right\")",
+        "span": {
+          "start": 804,
+          "end": 945
+        },
+        "types": "13 5 4 28 5 4 16 6 3 23 6 3 24 6 3",
+        "tokens": "0 2 0 10 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 5 1 1 1 2 3 5 0 7 2 0 5 4 1 1 2 2 1 6 1 0 1 2 0 6 4 0 1 2 5 6 1 1 2 2 1 6 1 0 1 2 0 8 4 0 1 2 5 5 1 1 2 2 1 6 1 0 1 2 0 7 4 0 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 26,
+            "target": "Layout.Align"
+          },
+          {
+            "start": 30,
+            "end": 35,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 67,
+            "end": 73,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 96,
+            "end": 102,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 126,
+            "end": 132,
+            "target": "Typst.atom"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@alignment",
+        "name": "alignment",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "94ae27e763e3287957ce8b906ae222f25ea044caa602a5585339c63e18d52336",
+        "ty": "(Layout.Align) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 10 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Layout.Align"
+          }
+        ],
+        "source": "fn alignment(align : Align) : T.Expr =\n  match align of\n    Left => T.alignment(T.ALeft)\n    Center => T.alignment(T.ACenter)\n    Right => T.alignment(T.ARight)",
+        "span": {
+          "start": 1213,
+          "end": 1373
+        },
+        "types": "13 5 4 29 5 4 16 11 5 1 7 6 16 11 5 1 9 6 15 11 5 1 8 6",
+        "tokens": "0 2 0 10 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 6 1 1 1 2 3 5 0 7 2 0 5 4 1 1 2 2 1 11 1 0 1 2 0 7 1 0 1 2 5 6 1 1 2 2 1 11 1 0 1 2 0 9 1 0 1 2 5 5 1 1 2 2 1 11 1 0 1 2 0 8 1 0 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 26,
+            "target": "Layout.Align"
+          },
+          {
+            "start": 68,
+            "end": 79,
+            "target": "Typst.alignment"
+          },
+          {
+            "start": 80,
+            "end": 87,
+            "target": "Typst.Value.ALeft"
+          },
+          {
+            "start": 103,
+            "end": 114,
+            "target": "Typst.alignment"
+          },
+          {
+            "start": 115,
+            "end": 124,
+            "target": "Typst.Value.ACenter"
+          },
+          {
+            "start": 139,
+            "end": 150,
+            "target": "Typst.alignment"
+          },
+          {
+            "start": 151,
+            "end": 159,
+            "target": "Typst.Value.ARight"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@color",
+      "old": {
+        "id": "Backend@color",
+        "name": "color",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "19771592469067363cc72b91580f17b214a0a991137a035c0e02764b6a81ccc3",
+        "ty": "(String, Theme.Theme) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 6 3 0 1 2 1 11 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 9,
+            "end": 20,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 25,
+            "end": 34,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn color(name : String, theme : Theme) : T.Doc =\n  let value =\n    if name == \"\" then\n      theme.foreground\n    elif name == \"accent\" then\n      theme.accent\n    elif name == \"muted\" then\n      theme.muted\n    else\n      name\n  T.call(\"rgb\", [T.string(\"#{value}\")])",
+        "span": {
+          "start": 536,
+          "end": 802
+        },
+        "types": "9 4 0 11 5 1 41 4 0 18 5 1 21 4 0 24 5 1 17 4 0 23 5 1 22 4 0 3 6 2 9 8 3 4 5 0",
+        "tokens": "0 2 0 6 1 2 5 1 2 1 6 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 5 1 1 1 2 3 3 0 7 1 2 5 2 0 6 2 2 1 2 4 1 4 0 12 1 2 15 4 0 6 2 2 1 8 4 1 4 0 12 1 2 11 4 0 6 2 2 1 7 4 1 4 0 12 1 2 10 4 0 14 6 1 0 1 2 0 5 4 0 1 2 1 1 2 0 8 1 0 1 2 0 10 4 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 32,
+            "end": 37,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 41,
+            "end": 46,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 229,
+            "end": 235,
+            "target": "Typst.call"
+          },
+          {
+            "start": 244,
+            "end": 252,
+            "target": "Typst.string"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@color",
+        "name": "color",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "c8c4ba8664a5195edf1e0bd52789c3a38ad555b2f1f51f6a0441ba0ce151a77e",
+        "ty": "(String, Theme.Theme) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 6 3 0 1 2 1 11 1 0 1 2 1 2 2 1 10 1",
+        "ty_refs": [
+          {
+            "start": 9,
+            "end": 20,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn color(name : String, theme : Theme) : T.Expr =\n  let value =\n    if name == \"\" then\n      theme.foreground\n    elif name == \"accent\" then\n      theme.accent\n    elif name == \"muted\" then\n      theme.muted\n    else\n      name\n  T.call(\"rgb\", [T.string(\"#{value}\")])",
+        "span": {
+          "start": 944,
+          "end": 1211
+        },
+        "types": "9 4 0 11 5 1 42 4 0 18 5 1 21 4 0 24 5 1 17 4 0 23 5 1 22 4 0 3 6 2 9 8 3 4 5 0",
+        "tokens": "0 2 0 6 1 2 5 1 2 1 6 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 1 1 1 2 3 3 0 7 1 2 5 2 0 6 2 2 1 2 4 1 4 0 12 1 2 15 4 0 6 2 2 1 8 4 1 4 0 12 1 2 11 4 0 6 2 2 1 7 4 1 4 0 12 1 2 10 4 0 14 6 1 0 1 2 0 5 4 0 1 2 1 1 2 0 8 1 0 1 2 0 10 4 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 32,
+            "end": 37,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 230,
+            "end": 236,
+            "target": "Typst.call"
+          },
+          {
+            "start": 245,
+            "end": 253,
+            "target": "Typst.string"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@inline_doc",
+      "old": {
+        "id": "Backend@inline_doc",
+        "name": "inline_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "9ad6d173a82afb4531df6d3fd996f13eaca1c8cfaac10853c345e72462ce7b4a",
+        "ty": "(Layout.Inline, Theme.Theme) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 13 1 0 1 2 1 11 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 14,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 16,
+            "end": 27,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 32,
+            "end": 41,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn inline_doc(x : Inline, theme : Theme) : T.Doc =\n  match x of\n    Plain(s) => T.call(\"text\", [T.string(s)])\n    InlineCode(s) =>\n      T.call(\"raw\", [T.string(s), T.named(\"lang\", T.string(\"prism\"))])\n    Emphasis(xs) => T.content_call(\"emph\", Nil, inline_docs(xs, theme))\n    Strong(xs) => T.content_call(\"strong\", Nil, inline_docs(xs, theme))\n    Link(url, xs) =>\n      T.content_call(\"link\", [T.string(url)], inline_docs(xs, theme))\n    Colored(name, xs) =>\n      T.content_call(\n          \"text\",\n          [T.named(\"fill\", color(name, theme))],\n          inline_docs(xs, theme),\n        )",
+        "span": {
+          "start": 947,
+          "end": 1541
+        },
+        "types": "14 1 5 11 5 1 28 1 5 14 1 0 5 6 2 10 8 3 1 1 0 19 1 0 11 6 2 9 8 3 1 1 0 3 7 6 9 8 3 26 2 7 5 14 8 9 3 9 2 11 10 1 2 7 2 5 1 14 2 7 5 14 8 11 3 9 2 11 10 1 2 7 2 5 1 12 3 0 2 2 7 11 14 8 10 8 3 1 3 0 4 11 10 1 2 7 2 5 1 15 4 0 2 2 7 11 14 8 31 7 6 9 5 11 1 4 0 2 5 1 15 11 10 1 2 7 2 5 1",
+        "tokens": "0 2 0 11 1 2 2 1 2 1 6 1 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 5 1 1 1 2 3 5 0 3 2 0 5 5 1 0 1 2 1 1 2 1 2 2 1 6 1 0 1 2 0 6 4 0 1 2 1 1 2 0 8 1 0 1 2 1 1 2 0 1 2 0 1 2 5 10 1 0 1 2 1 1 2 1 2 2 7 6 1 0 1 2 0 5 4 0 1 2 1 1 2 0 8 1 0 1 2 1 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 0 7 4 0 1 2 0 1 2 0 1 2 0 1 2 5 8 1 0 1 2 2 1 2 1 2 2 1 14 1 0 1 2 0 6 4 0 1 2 1 3 1 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 6 1 0 1 2 2 1 2 1 2 2 1 14 1 0 1 2 0 8 4 0 1 2 1 3 1 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 4 1 0 1 2 3 1 2 3 1 2 1 2 2 7 14 1 0 1 2 0 6 4 0 1 2 1 1 2 0 8 1 0 1 2 3 1 2 0 1 2 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 7 1 0 1 2 4 1 2 3 1 2 1 2 2 7 14 1 0 1 2 11 6 4 0 1 2 11 1 2 0 7 1 0 1 2 0 6 4 0 1 2 6 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 22 1 2 2 1 2 6 1 2 0 1 2 9 1 2",
+        "refs": [
+          {
+            "start": 18,
+            "end": 24,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 34,
+            "end": 39,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 43,
+            "end": 48,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 80,
+            "end": 86,
+            "target": "Typst.call"
+          },
+          {
+            "start": 96,
+            "end": 104,
+            "target": "Typst.string"
+          },
+          {
+            "start": 137,
+            "end": 143,
+            "target": "Typst.call"
+          },
+          {
+            "start": 152,
+            "end": 160,
+            "target": "Typst.string"
+          },
+          {
+            "start": 165,
+            "end": 172,
+            "target": "Typst.named"
+          },
+          {
+            "start": 181,
+            "end": 189,
+            "target": "Typst.string"
+          },
+          {
+            "start": 222,
+            "end": 236,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 245,
+            "end": 248,
+            "target": "Nil"
+          },
+          {
+            "start": 250,
+            "end": 261,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 292,
+            "end": 306,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 317,
+            "end": 320,
+            "target": "Nil"
+          },
+          {
+            "start": 322,
+            "end": 333,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 373,
+            "end": 387,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 397,
+            "end": 405,
+            "target": "Typst.string"
+          },
+          {
+            "start": 413,
+            "end": 424,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 468,
+            "end": 482,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 513,
+            "end": 520,
+            "target": "Typst.named"
+          },
+          {
+            "start": 529,
+            "end": 534,
+            "target": "Backend@color"
+          },
+          {
+            "start": 561,
+            "end": 572,
+            "target": "Backend@inline_docs"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@inline_doc",
+        "name": "inline_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "309aed28fce1557c49388d812ee1aa4148f9a484249a19bc2b7ad348bcedc707",
+        "ty": "(Layout.Inline, Theme.Theme) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 13 1 0 1 2 1 11 1 0 1 2 1 2 2 1 10 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 14,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 16,
+            "end": 27,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn inline_doc(x : Inline, theme : Theme) : T.Expr =\n  match x of\n    Plain(s) => T.call(\"text\", [T.string(s)])\n    InlineCode(s) =>\n      T.call(\"raw\", [T.string(s), T.named(\"lang\", T.string(\"prism\"))])\n    Emphasis(xs) => T.content_call(\"emph\", Nil, inline_docs(xs, theme))\n    Strong(xs) => T.content_call(\"strong\", Nil, inline_docs(xs, theme))\n    Link(url, xs) =>\n      T.content_call(\"link\", [T.string(url)], inline_docs(xs, theme))\n    Colored(name, xs) =>\n      T.content_call(\n          \"text\",\n          [T.named(\"fill\", color(name, theme))],\n          inline_docs(xs, theme),\n        )",
+        "span": {
+          "start": 1375,
+          "end": 1970
+        },
+        "types": "14 1 7 11 5 1 29 1 7 14 1 0 5 6 2 10 8 3 1 1 0 19 1 0 11 6 2 9 8 3 1 1 0 3 7 8 9 8 3 26 2 9 5 14 10 9 3 11 2 11 12 1 2 9 2 5 1 14 2 9 5 14 10 11 3 11 2 11 12 1 2 9 2 5 1 12 3 0 2 2 9 11 14 10 10 8 3 1 3 0 4 11 12 1 2 9 2 5 1 15 4 0 2 2 9 11 14 10 31 7 8 9 5 13 1 4 0 2 5 1 15 11 12 1 2 9 2 5 1",
+        "tokens": "0 2 0 11 1 2 2 1 2 1 6 1 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 1 1 1 2 3 5 0 3 2 0 5 5 1 0 1 2 1 1 2 1 2 2 1 6 1 0 1 2 0 6 4 0 1 2 1 1 2 0 8 1 0 1 2 1 1 2 0 1 2 0 1 2 5 10 1 0 1 2 1 1 2 1 2 2 7 6 1 0 1 2 0 5 4 0 1 2 1 1 2 0 8 1 0 1 2 1 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 0 7 4 0 1 2 0 1 2 0 1 2 0 1 2 5 8 1 0 1 2 2 1 2 1 2 2 1 14 1 0 1 2 0 6 4 0 1 2 1 3 1 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 6 1 0 1 2 2 1 2 1 2 2 1 14 1 0 1 2 0 8 4 0 1 2 1 3 1 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 4 1 0 1 2 3 1 2 3 1 2 1 2 2 7 14 1 0 1 2 0 6 4 0 1 2 1 1 2 0 8 1 0 1 2 3 1 2 0 1 2 0 1 2 12 1 2 2 1 2 6 1 2 0 1 2 5 7 1 0 1 2 4 1 2 3 1 2 1 2 2 7 14 1 0 1 2 11 6 4 0 1 2 11 1 2 0 7 1 0 1 2 0 6 4 0 1 2 6 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 22 1 2 2 1 2 6 1 2 0 1 2 9 1 2",
+        "refs": [
+          {
+            "start": 18,
+            "end": 24,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 34,
+            "end": 39,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 81,
+            "end": 87,
+            "target": "Typst.call"
+          },
+          {
+            "start": 97,
+            "end": 105,
+            "target": "Typst.string"
+          },
+          {
+            "start": 138,
+            "end": 144,
+            "target": "Typst.call"
+          },
+          {
+            "start": 153,
+            "end": 161,
+            "target": "Typst.string"
+          },
+          {
+            "start": 166,
+            "end": 173,
+            "target": "Typst.named"
+          },
+          {
+            "start": 182,
+            "end": 190,
+            "target": "Typst.string"
+          },
+          {
+            "start": 223,
+            "end": 237,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 246,
+            "end": 249,
+            "target": "Nil"
+          },
+          {
+            "start": 251,
+            "end": 262,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 293,
+            "end": 307,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 318,
+            "end": 321,
+            "target": "Nil"
+          },
+          {
+            "start": 323,
+            "end": 334,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 374,
+            "end": 388,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 398,
+            "end": 406,
+            "target": "Typst.string"
+          },
+          {
+            "start": 414,
+            "end": 425,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 469,
+            "end": 483,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 514,
+            "end": 521,
+            "target": "Typst.named"
+          },
+          {
+            "start": 530,
+            "end": 535,
+            "target": "Backend@color"
+          },
+          {
+            "start": 562,
+            "end": 573,
+            "target": "Backend@inline_docs"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@inline_docs",
+      "old": {
+        "id": "Backend@inline_docs",
+        "name": "inline_docs",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "ed457123343082e5dc871196405c021fda993a85a87a2a1add909b89d0470deb",
+        "ty": "(List(Layout.Inline), Theme.Theme) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 13 1 0 1 2 0 1 2 1 11 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 22,
+            "end": 33,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 38,
+            "end": 47,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn inline_docs(xs : List(Inline), theme : Theme) : T.Doc =\n  match xs of\n    Nil => T.empty()\n    Cons(x, Nil) => inline_doc(x, theme)\n    Cons(x, rest) =>\n      T.concat_docs([\n          inline_doc(x, theme),\n          T.atom(\" + \"),\n          inline_docs(rest, theme),\n        ])",
+        "span": {
+          "start": 1543,
+          "end": 1824
+        },
+        "types": "15 2 7 17 5 1 28 2 7 15 7 12 12 1 5 10 10 13 1 1 5 2 5 1 11 1 5 2 4 7 11 13 14 13 10 13 1 1 5 2 5 1 13 6 3 19 11 10 1 4 7 2 5 1",
+        "tokens": "0 2 0 12 1 2 3 1 2 1 4 1 0 1 2 0 6 1 0 1 2 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 5 1 1 1 2 3 5 0 4 2 0 5 3 1 1 2 2 1 7 1 0 1 2 0 1 2 5 4 1 0 1 2 1 1 2 1 3 1 0 1 2 1 2 2 11 1 2 1 1 2 6 1 2 5 4 1 0 1 2 1 1 2 5 1 2 1 2 2 7 13 1 0 1 2 0 1 2 21 1 2 1 1 2 6 1 2 0 1 2 11 6 1 0 1 2 0 5 4 0 1 2 0 1 2 22 1 2 4 1 2 6 1 2 0 1 2 9 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 31,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 42,
+            "end": 47,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 51,
+            "end": 56,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 84,
+            "end": 91,
+            "target": "Typst.empty"
+          },
+          {
+            "start": 114,
+            "end": 124,
+            "target": "Backend@inline_doc"
+          },
+          {
+            "start": 162,
+            "end": 175,
+            "target": "Typst.concat_docs"
+          },
+          {
+            "start": 188,
+            "end": 198,
+            "target": "Backend@inline_doc"
+          },
+          {
+            "start": 220,
+            "end": 226,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 245,
+            "end": 256,
+            "target": "Backend@inline_docs"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@inline_docs",
+        "name": "inline_docs",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "5136b40587c2b0fadbc8a527f01d81a93da63285533c43a2ce82ba8549ce653f",
+        "ty": "(List(Layout.Inline), Theme.Theme) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 13 1 0 1 2 0 1 2 1 11 1 0 1 2 1 2 2 1 10 1",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 22,
+            "end": 33,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn inline_docs(xs : List(Inline), theme : Theme) : T.Expr =\n  match xs of\n    Nil => T.sym(\"\")\n    Cons(x, Nil) => inline_doc(x, theme)\n    Cons(x, rest) =>\n      T.concat_exprs([\n          inline_doc(x, theme),\n          T.sym(\" + \"),\n          inline_docs(rest, theme),\n        ])",
+        "span": {
+          "start": 1972,
+          "end": 2254
+        },
+        "types": "15 2 9 17 5 1 29 2 9 15 5 3 14 1 7 10 10 14 1 1 7 2 5 1 11 1 7 2 4 9 11 14 15 13 10 14 1 1 7 2 5 1 13 5 3 19 11 12 1 4 9 2 5 1",
+        "tokens": "0 2 0 12 1 2 3 1 2 1 4 1 0 1 2 0 6 1 0 1 2 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 1 1 1 2 3 5 0 4 2 0 5 3 1 1 2 2 1 5 1 0 1 2 0 2 4 0 1 2 5 4 1 0 1 2 1 1 2 1 3 1 0 1 2 1 2 2 11 1 2 1 1 2 6 1 2 5 4 1 0 1 2 1 1 2 5 1 2 1 2 2 7 14 1 0 1 2 0 1 2 21 1 2 1 1 2 6 1 2 0 1 2 11 5 1 0 1 2 0 5 4 0 1 2 0 1 2 22 1 2 4 1 2 6 1 2 0 1 2 9 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 31,
+            "target": "Layout.Inline"
+          },
+          {
+            "start": 42,
+            "end": 47,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 85,
+            "end": 90,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 115,
+            "end": 125,
+            "target": "Backend@inline_doc"
+          },
+          {
+            "start": 163,
+            "end": 177,
+            "target": "Typst.concat_exprs"
+          },
+          {
+            "start": 190,
+            "end": 200,
+            "target": "Backend@inline_doc"
+          },
+          {
+            "start": 222,
+            "end": 227,
+            "target": "Typst.sym"
+          },
+          {
+            "start": 246,
+            "end": 257,
+            "target": "Backend@inline_docs"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@pict_doc",
+      "old": {
+        "id": "Backend@pict_doc",
+        "name": "pict_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "109f59e5f4cb36c1c21b33c46a9034aeac1429995ac48abfc332376cc0be002e",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 35,
+            "end": 44,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn pict_doc(p : Pict, stage : Int, theme : Theme) : T.Doc =\n  match p of\n    Empty => T.atom(\"none\")\n    Text(style, xs) =>\n      let size =\n        if style.size <= 0 then\n          theme.body_size\n        else\n          style.size\n      T.call(\"align\", [\n          alignment(style.align),\n          T.content_call(\n              \"text\",\n              [\n                  T.named(\"size\", T.pt(size)),\n                  T.named(\"fill\", color(style.color, theme)),\n                ],\n              inline_docs(xs, theme),\n            ),\n        ])\n    CodeBlock(language, source) =>\n      T.content_call(\"block\", [T.named(\"width\", T.percent(100)), T.named(\"fill\", color(theme.code_background, theme)), T.named(\"inset\", T.pt(14)), T.named(\"radius\", T.pt(7))], T.content_call(\"text\", [T.named(\"fill\", color(theme.code_foreground, theme)), T.named(\"font\", T.string(theme.code_font)), T.named(\"size\", T.pt(theme.code_size))], T.call(\"raw\", [\n          T.string(source),\n          T.named(\"block\", T.atom(\"true\")),\n          T.named(\"lang\", T.string(language)),\n        ])))\n    Image(path) =>\n      T.call(\"image\", [\n          T.string(path),\n          T.named(\"width\", T.percent(100)),\n          T.named(\"height\", T.percent(100)),\n          T.named(\"fit\", T.string(\"contain\")),\n        ])\n    Rectangle(name, width, height) =>\n      T.call(\"rect\", [\n          T.named(\"width\", T.pt(width)),\n          T.named(\"height\", T.pt(height)),\n          T.named(\"fill\", color(name, theme)),\n        ])\n    Row(gap, children) =>\n      T.call(\n          \"stack\",\n          Cons(\n              T.named(\"dir\", T.atom(\"ltr\")),\n              Cons(\n                  T.named(\"spacing\", T.pt(gap)),\n                  pict_docs(children, stage, theme),\n                ),\n            ),\n        )\n    Column(gap, align, children) =>\n      T.call(\"align\", [\n          alignment(align),\n          T.call(\n              \"stack\",\n              Cons(\n                  T.named(\"dir\", T.atom(\"ttb\")),\n                  Cons(\n                      T.named(\"spacing\", T.pt(gap)),\n                      pict_docs(children, stage, theme),\n                    ),\n                ),\n            ),\n        ])\n    Overlay(children) =>\n      T.content_call(\n          \"block\",\n          [T.named(\"width\", T.percent(100)), T.named(\"height\", T.percent(100))],\n          T.call(\"stack\", pict_docs(children, stage, theme)),\n        )\n    Inset(top, right, bottom, left, child) =>\n      T.content_call(\n          \"block\",\n          [\n              T.named(\"inset\", T.tuple([\n                  T.named(\"top\", T.pt(top)),\n                  T.named(\"right\", T.pt(right)),\n                  T.named(\"bottom\", T.pt(bottom)),\n                  T.named(\"left\", T.pt(left)),\n                ])),\n            ],\n          pict_doc(child, stage, theme),\n        )\n    Fit(_, child) =>\n      T.content_call(\n          \"box\",\n          [T.named(\"width\", T.percent(100)), T.named(\"height\", T.percent(100))],\n          pict_doc(child, stage, theme),\n        )\n    Fragment(at, child) =>\n      if at <= stage then\n        pict_doc(child, stage, theme)\n      else\n        T.atom(\"none\")\n    RawTypst(source) => T.raw(source)",
+        "span": {
+          "start": 3375,
+          "end": 6541
+        },
+        "types": "12 1 17 9 5 15 8 5 1 28 1 17 17 6 3 18 5 27 2 2 7 33 5 27 26 5 1 34 5 27 12 6 2 22 9 28 1 5 27 19 14 8 58 7 6 9 4 29 1 4 15 22 7 6 9 5 11 1 5 27 8 5 1 37 11 30 1 2 7 2 5 1 43 8 0 2 6 0 11 14 8 11 7 6 10 9 29 8 7 6 9 5 11 1 5 1 18 5 1 4 7 6 10 4 29 7 7 6 11 4 29 7 14 8 10 7 6 9 5 11 1 5 1 18 5 1 4 7 6 9 8 3 1 5 1 14 7 6 9 4 29 1 5 1 15 6 2 20 8 3 1 6 0 13 7 6 10 6 3 21 7 6 9 8 3 1 8 0 27 4 0 11 6 2 22 8 3 1 4 0 13 7 6 10 9 29 18 7 6 11 9 29 18 7 6 8 8 3 39 4 0 2 5 15 2 6 15 11 6 2 21 7 6 10 4 29 1 5 15 14 7 6 11 4 29 1 6 15 14 7 6 9 5 11 1 4 0 2 5 1 23 3 15 2 8 16 11 6 2 31 4 24 16 7 6 8 6 3 24 4 24 20 7 6 12 4 29 1 3 15 22 9 26 1 8 16 2 5 15 2 5 1 58 3 15 2 5 4 2 8 16 11 6 2 22 9 28 1 5 4 13 6 2 39 4 24 20 7 6 8 6 3 28 4 24 24 7 6 12 4 29 1 3 15 26 9 26 1 8 16 2 5 15 2 5 1 83 8 16 11 14 8 32 7 6 10 9 29 8 7 6 11 9 29 19 6 2 10 9 26 1 8 16 2 5 15 2 5 1 24 3 15 2 5 15 2 6 15 2 4 15 2 5 17 11 14 8 47 7 6 10 7 14 21 7 6 8 4 29 1 3 15 22 7 6 10 4 29 1 5 15 22 7 6 11 4 29 1 6 15 22 7 6 9 4 29 1 4 15 50 8 25 1 5 17 2 5 15 2 5 1 24 5 17 11 14 8 30 7 6 10 9 29 8 7 6 11 9 29 19 8 25 1 5 17 2 5 15 2 5 1 26 2 15 2 5 17 14 2 15 4 5 15 14 8 25 1 5 17 2 5 15 2 5 1 21 6 3 22 6 0 5 5 3 1 6 0",
+        "tokens": "0 2 0 9 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 5 1 1 1 2 3 5 0 3 2 0 5 5 1 1 2 2 1 6 1 0 1 2 0 6 4 0 1 2 5 4 1 0 1 2 5 1 2 3 1 2 1 2 2 7 3 0 6 1 2 9 2 0 6 1 2 5 2 2 1 1 5 1 4 0 16 1 2 18 4 0 16 1 2 11 6 1 0 1 2 0 7 4 0 1 2 1 1 2 20 1 2 5 1 2 5 1 2 0 1 2 11 14 1 0 1 2 15 6 4 0 1 2 15 1 2 19 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 5 1 2 6 1 2 0 1 2 0 1 2 17 1 2 0 1 2 26 1 2 2 1 2 6 1 2 0 1 2 13 1 2 0 1 2 9 1 2 0 1 2 5 9 1 0 1 2 8 1 2 7 1 2 1 2 2 7 14 1 0 1 2 0 7 4 0 1 2 1 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 15 1 2 6 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 1 5 0 1 2 0 1 2 0 1 2 0 1 2 1 14 1 0 1 2 0 6 4 0 1 2 1 1 2 0 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 15 1 2 6 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 0 1 2 1 6 1 0 1 2 0 5 4 0 1 2 1 1 2 11 8 1 0 1 2 6 1 2 0 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 6 1 0 1 2 0 6 4 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 8 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 0 1 2 5 5 1 0 1 2 4 1 2 1 2 2 7 6 1 0 1 2 0 7 4 0 1 2 1 1 2 11 8 1 0 1 2 4 1 2 0 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 5 4 0 1 2 1 8 1 0 1 2 0 9 4 0 1 2 0 1 2 0 1 2 9 1 2 0 1 2 5 9 1 0 1 2 4 1 2 6 1 2 7 1 2 1 2 2 7 6 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 5 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 6 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 4 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 5 3 1 0 1 2 3 1 2 9 1 2 1 2 2 7 6 1 0 1 2 11 7 4 0 1 2 11 4 1 0 1 2 15 7 1 0 1 2 0 5 4 0 1 2 1 6 1 0 1 2 0 5 4 0 1 2 0 1 2 0 1 2 15 4 1 0 1 2 19 7 1 0 1 2 0 9 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 28 1 2 8 1 2 6 1 2 6 1 2 0 1 2 17 1 2 0 1 2 13 1 2 0 1 2 9 1 2 5 6 1 0 1 2 3 1 2 6 1 2 9 1 2 1 2 2 7 6 1 0 1 2 0 7 4 0 1 2 1 1 2 20 1 2 5 1 2 0 1 2 11 6 1 0 1 2 15 7 4 0 1 2 15 4 1 0 1 2 19 7 1 0 1 2 0 5 4 0 1 2 1 6 1 0 1 2 0 5 4 0 1 2 0 1 2 0 1 2 19 4 1 0 1 2 23 7 1 0 1 2 0 9 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 32 1 2 8 1 2 6 1 2 6 1 2 0 1 2 21 1 2 0 1 2 17 1 2 0 1 2 13 1 2 0 1 2 9 1 2 0 1 2 5 7 1 0 1 2 8 1 2 1 2 2 7 14 1 0 1 2 11 7 4 0 1 2 11 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 0 1 2 11 6 1 0 1 2 0 7 4 0 1 2 10 1 2 8 1 2 6 1 2 6 1 2 0 1 2 0 1 2 9 1 2 5 5 1 0 1 2 3 1 2 6 1 2 7 1 2 5 1 2 6 1 2 1 2 2 7 14 1 0 1 2 11 7 4 0 1 2 11 1 2 15 7 1 0 1 2 0 7 4 0 1 2 1 7 1 0 1 2 0 1 2 19 7 1 0 1 2 0 5 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 5 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 6 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 17 1 2 0 1 2 0 1 2 0 1 2 13 1 2 0 1 2 19 1 2 5 1 2 6 1 2 6 1 2 0 1 2 9 1 2 5 3 1 0 1 2 1 1 2 6 1 2 1 2 2 7 14 1 0 1 2 11 5 4 0 1 2 11 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 0 1 2 19 1 2 5 1 2 6 1 2 6 1 2 0 1 2 9 1 2 5 8 1 0 1 2 2 1 2 6 1 2 1 2 2 7 2 0 4 2 2 7 4 0 17 1 2 5 1 2 6 1 2 6 1 2 7 4 0 9 6 1 0 1 2 0 6 4 0 1 2 5 8 1 0 1 2 6 1 2 1 2 2 1 5 1 0 1 2 6 1 2",
+        "refs": [
+          {
+            "start": 16,
+            "end": 20,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 43,
+            "end": 48,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 52,
+            "end": 57,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 86,
+            "end": 92,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 239,
+            "end": 245,
+            "target": "Typst.call"
+          },
+          {
+            "start": 267,
+            "end": 276,
+            "target": "Backend@alignment"
+          },
+          {
+            "start": 301,
+            "end": 315,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 373,
+            "end": 380,
+            "target": "Typst.named"
+          },
+          {
+            "start": 389,
+            "end": 393,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 420,
+            "end": 427,
+            "target": "Typst.named"
+          },
+          {
+            "start": 436,
+            "end": 441,
+            "target": "Backend@color"
+          },
+          {
+            "start": 497,
+            "end": 508,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 588,
+            "end": 602,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 613,
+            "end": 620,
+            "target": "Typst.named"
+          },
+          {
+            "start": 630,
+            "end": 639,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 647,
+            "end": 654,
+            "target": "Typst.named"
+          },
+          {
+            "start": 663,
+            "end": 668,
+            "target": "Backend@color"
+          },
+          {
+            "start": 701,
+            "end": 708,
+            "target": "Typst.named"
+          },
+          {
+            "start": 718,
+            "end": 722,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 729,
+            "end": 736,
+            "target": "Typst.named"
+          },
+          {
+            "start": 747,
+            "end": 751,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 758,
+            "end": 772,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 782,
+            "end": 789,
+            "target": "Typst.named"
+          },
+          {
+            "start": 798,
+            "end": 803,
+            "target": "Backend@color"
+          },
+          {
+            "start": 836,
+            "end": 843,
+            "target": "Typst.named"
+          },
+          {
+            "start": 852,
+            "end": 860,
+            "target": "Typst.string"
+          },
+          {
+            "start": 880,
+            "end": 887,
+            "target": "Typst.named"
+          },
+          {
+            "start": 896,
+            "end": 900,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 921,
+            "end": 927,
+            "target": "Typst.call"
+          },
+          {
+            "start": 947,
+            "end": 955,
+            "target": "Typst.string"
+          },
+          {
+            "start": 975,
+            "end": 982,
+            "target": "Typst.named"
+          },
+          {
+            "start": 992,
+            "end": 998,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1019,
+            "end": 1026,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1035,
+            "end": 1043,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1094,
+            "end": 1100,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1122,
+            "end": 1130,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1148,
+            "end": 1155,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1165,
+            "end": 1174,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 1192,
+            "end": 1199,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1210,
+            "end": 1219,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 1237,
+            "end": 1244,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1252,
+            "end": 1260,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1329,
+            "end": 1335,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1356,
+            "end": 1363,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1373,
+            "end": 1377,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1397,
+            "end": 1404,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1415,
+            "end": 1419,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1440,
+            "end": 1447,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1456,
+            "end": 1461,
+            "target": "Backend@color"
+          },
+          {
+            "start": 1520,
+            "end": 1526,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1557,
+            "end": 1561,
+            "target": "Cons"
+          },
+          {
+            "start": 1577,
+            "end": 1584,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1592,
+            "end": 1598,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1622,
+            "end": 1626,
+            "target": "Cons"
+          },
+          {
+            "start": 1646,
+            "end": 1653,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1665,
+            "end": 1669,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1695,
+            "end": 1704,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 1816,
+            "end": 1822,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1844,
+            "end": 1853,
+            "target": "Backend@alignment"
+          },
+          {
+            "start": 1872,
+            "end": 1878,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1917,
+            "end": 1921,
+            "target": "Cons"
+          },
+          {
+            "start": 1941,
+            "end": 1948,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1956,
+            "end": 1962,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 1990,
+            "end": 1994,
+            "target": "Cons"
+          },
+          {
+            "start": 2018,
+            "end": 2025,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2037,
+            "end": 2041,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2071,
+            "end": 2080,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 2205,
+            "end": 2219,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2251,
+            "end": 2258,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2268,
+            "end": 2277,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2285,
+            "end": 2292,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2303,
+            "end": 2312,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2331,
+            "end": 2337,
+            "target": "Typst.call"
+          },
+          {
+            "start": 2347,
+            "end": 2356,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 2445,
+            "end": 2459,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2506,
+            "end": 2513,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2523,
+            "end": 2530,
+            "target": "Typst.tuple"
+          },
+          {
+            "start": 2551,
+            "end": 2558,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2566,
+            "end": 2570,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2596,
+            "end": 2603,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2613,
+            "end": 2617,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2645,
+            "end": 2652,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2663,
+            "end": 2667,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2696,
+            "end": 2703,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2712,
+            "end": 2716,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2771,
+            "end": 2779,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 2839,
+            "end": 2853,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2883,
+            "end": 2890,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2900,
+            "end": 2909,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2917,
+            "end": 2924,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2935,
+            "end": 2944,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2963,
+            "end": 2971,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 3065,
+            "end": 3073,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 3114,
+            "end": 3120,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 3153,
+            "end": 3158,
+            "target": "Typst.raw"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@pict_doc",
+        "name": "pict_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "91731e73ea1bce8a738165a9ef8968839dc7d9c3fe7028873fb9352ff01119e3",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 10 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn pict_doc(p : Pict, stage : Int, theme : Theme) : T.Expr =\n  match p of\n    Empty => T.none_expr()\n    Text(style, xs) =>\n      let size =\n        if style.size <= 0 then\n          theme.body_size\n        else\n          style.size\n      T.call(\"align\", [\n          alignment(style.align),\n          T.content_call(\n              \"text\",\n              [\n                  T.named(\"size\", T.pt(size)),\n                  T.named(\"fill\", color(style.color, theme)),\n                ],\n              inline_docs(xs, theme),\n            ),\n        ])\n    CodeBlock(language, source) =>\n      T.content_call(\"block\", [T.named(\"width\", T.percent(100)), T.named(\"fill\", color(theme.code_background, theme)), T.named(\"inset\", T.pt(14)), T.named(\"radius\", T.pt(7))], T.content_call(\"text\", [T.named(\"fill\", color(theme.code_foreground, theme)), T.named(\"font\", T.string(theme.code_font)), T.named(\"size\", T.pt(theme.code_size))], T.call(\"raw\", [\n          T.string(source),\n          T.named(\"block\", T.boolean(true)),\n          T.named(\"lang\", T.string(language)),\n        ])))\n    Image(path) =>\n      T.call(\"image\", [\n          T.string(path),\n          T.named(\"width\", T.percent(100)),\n          T.named(\"height\", T.percent(100)),\n          T.named(\"fit\", T.string(\"contain\")),\n        ])\n    Rectangle(name, width, height) =>\n      T.call(\"rect\", [\n          T.named(\"width\", T.pt(width)),\n          T.named(\"height\", T.pt(height)),\n          T.named(\"fill\", color(name, theme)),\n        ])\n    Row(gap, children) =>\n      T.call(\n          \"stack\",\n          Cons(\n              T.named(\"dir\", T.direction(T.Ltr)),\n              Cons(\n                  T.named(\"spacing\", T.pt(gap)),\n                  pict_docs(children, stage, theme),\n                ),\n            ),\n        )\n    Column(gap, align, children) =>\n      T.call(\"align\", [\n          alignment(align),\n          T.call(\n              \"stack\",\n              Cons(\n                  T.named(\"dir\", T.direction(T.Ttb)),\n                  Cons(\n                      T.named(\"spacing\", T.pt(gap)),\n                      pict_docs(children, stage, theme),\n                    ),\n                ),\n            ),\n        ])\n    Overlay(children) =>\n      T.content_call(\n          \"block\",\n          [T.named(\"width\", T.percent(100)), T.named(\"height\", T.percent(100))],\n          T.call(\"stack\", pict_docs(children, stage, theme)),\n        )\n    Inset(top, right, bottom, left, child) =>\n      T.content_call(\n          \"block\",\n          [\n              T.named(\"inset\", T.tuple([\n                  T.named(\"top\", T.pt(top)),\n                  T.named(\"right\", T.pt(right)),\n                  T.named(\"bottom\", T.pt(bottom)),\n                  T.named(\"left\", T.pt(left)),\n                ])),\n            ],\n          pict_doc(child, stage, theme),\n        )\n    Fit(_, child) =>\n      T.content_call(\n          \"box\",\n          [T.named(\"width\", T.percent(100)), T.named(\"height\", T.percent(100))],\n          pict_doc(child, stage, theme),\n        )\n    Fragment(at, child) =>\n      if at <= stage then\n        pict_doc(child, stage, theme)\n      else\n        T.none_expr()\n    RawTypst(source) => T.content(T.raw(source))",
+        "span": {
+          "start": 3806,
+          "end": 6993
+        },
+        "types": "12 1 18 9 5 16 8 5 1 29 1 18 17 11 28 12 5 29 2 2 9 33 5 29 26 5 1 34 5 29 12 6 2 22 9 30 1 5 29 19 14 10 58 7 8 9 4 31 1 4 16 22 7 8 9 5 13 1 5 29 8 5 1 37 11 32 1 2 9 2 5 1 43 8 0 2 6 0 11 14 10 11 7 8 10 9 31 8 7 8 9 5 13 1 5 1 18 5 1 4 7 8 10 4 31 7 7 8 11 4 31 7 14 10 10 7 8 9 5 13 1 5 1 18 5 1 4 7 8 9 8 3 1 5 1 14 7 8 9 4 31 1 5 1 15 6 2 20 8 3 1 6 0 13 7 8 10 9 33 19 7 8 9 8 3 1 8 0 27 4 0 11 6 2 22 8 3 1 4 0 13 7 8 10 9 31 18 7 8 11 9 31 18 7 8 8 8 3 39 4 0 2 5 16 2 6 16 11 6 2 21 7 8 10 4 31 1 5 16 14 7 8 11 4 31 1 6 16 14 7 8 9 5 13 1 4 0 2 5 1 23 3 16 2 8 17 11 6 2 31 4 25 16 7 8 8 11 34 1 5 35 18 4 25 20 7 8 12 4 31 1 3 16 22 9 27 1 8 17 2 5 16 2 5 1 58 3 16 2 5 4 2 8 17 11 6 2 22 9 30 1 5 4 13 6 2 39 4 25 20 7 8 8 11 34 1 5 35 22 4 25 24 7 8 12 4 31 1 3 16 26 9 27 1 8 17 2 5 16 2 5 1 83 8 17 11 14 10 32 7 8 10 9 31 8 7 8 11 9 31 19 6 2 10 9 27 1 8 17 2 5 16 2 5 1 24 3 16 2 5 16 2 6 16 2 4 16 2 5 18 11 14 10 47 7 8 10 7 15 21 7 8 8 4 31 1 3 16 22 7 8 10 4 31 1 5 16 22 7 8 11 4 31 1 6 16 22 7 8 9 4 31 1 4 16 50 8 26 1 5 18 2 5 16 2 5 1 24 5 18 11 14 10 30 7 8 10 9 31 8 7 8 11 9 31 19 8 26 1 5 18 2 5 16 2 5 1 26 2 16 2 5 18 14 2 16 4 5 16 14 8 26 1 5 18 2 5 16 2 5 1 21 11 28 16 6 0 5 9 36 1 5 37 1 6 0",
+        "tokens": "0 2 0 9 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 1 1 1 2 3 5 0 3 2 0 5 5 1 1 2 2 1 11 1 0 1 2 0 1 2 5 4 1 0 1 2 5 1 2 3 1 2 1 2 2 7 3 0 6 1 2 9 2 0 6 1 2 5 2 2 1 1 5 1 4 0 16 1 2 18 4 0 16 1 2 11 6 1 0 1 2 0 7 4 0 1 2 1 1 2 20 1 2 5 1 2 5 1 2 0 1 2 11 14 1 0 1 2 15 6 4 0 1 2 15 1 2 19 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 5 1 2 6 1 2 0 1 2 0 1 2 17 1 2 0 1 2 26 1 2 2 1 2 6 1 2 0 1 2 13 1 2 0 1 2 9 1 2 0 1 2 5 9 1 0 1 2 8 1 2 7 1 2 1 2 2 7 14 1 0 1 2 0 7 4 0 1 2 1 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 15 1 2 6 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 0 2 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 1 5 0 1 2 0 1 2 0 1 2 0 1 2 1 14 1 0 1 2 0 6 4 0 1 2 1 1 2 0 7 1 0 1 2 0 6 4 0 1 2 6 1 2 5 1 2 15 1 2 6 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 5 1 2 9 1 2 0 1 2 0 1 2 0 1 2 1 6 1 0 1 2 0 5 4 0 1 2 1 1 2 11 8 1 0 1 2 6 1 2 0 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 4 6 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 1 8 1 0 1 2 8 1 2 0 1 2 0 1 2 9 1 2 0 1 2 0 1 2 0 1 2 5 5 1 0 1 2 4 1 2 1 2 2 7 6 1 0 1 2 0 7 4 0 1 2 1 1 2 11 8 1 0 1 2 4 1 2 0 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 5 4 0 1 2 1 8 1 0 1 2 0 9 4 0 1 2 0 1 2 0 1 2 9 1 2 0 1 2 5 9 1 0 1 2 4 1 2 6 1 2 7 1 2 1 2 2 7 6 1 0 1 2 0 6 4 0 1 2 1 1 2 11 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 5 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 6 1 2 0 1 2 0 1 2 11 7 1 0 1 2 0 6 4 0 1 2 6 1 2 4 1 2 6 1 2 0 1 2 0 1 2 9 1 2 0 1 2 5 3 1 0 1 2 3 1 2 9 1 2 1 2 2 7 6 1 0 1 2 11 7 4 0 1 2 11 4 1 0 1 2 15 7 1 0 1 2 0 5 4 0 1 2 1 11 1 0 1 2 0 5 1 0 1 2 0 1 2 0 1 2 15 4 1 0 1 2 19 7 1 0 1 2 0 9 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 28 1 2 8 1 2 6 1 2 6 1 2 0 1 2 17 1 2 0 1 2 13 1 2 0 1 2 9 1 2 5 6 1 0 1 2 3 1 2 6 1 2 9 1 2 1 2 2 7 6 1 0 1 2 0 7 4 0 1 2 1 1 2 20 1 2 5 1 2 0 1 2 11 6 1 0 1 2 15 7 4 0 1 2 15 4 1 0 1 2 19 7 1 0 1 2 0 5 4 0 1 2 1 11 1 0 1 2 0 5 1 0 1 2 0 1 2 0 1 2 19 4 1 0 1 2 23 7 1 0 1 2 0 9 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 32 1 2 8 1 2 6 1 2 6 1 2 0 1 2 21 1 2 0 1 2 17 1 2 0 1 2 13 1 2 0 1 2 9 1 2 0 1 2 5 7 1 0 1 2 8 1 2 1 2 2 7 14 1 0 1 2 11 7 4 0 1 2 11 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 0 1 2 11 6 1 0 1 2 0 7 4 0 1 2 10 1 2 8 1 2 6 1 2 6 1 2 0 1 2 0 1 2 9 1 2 5 5 1 0 1 2 3 1 2 6 1 2 7 1 2 5 1 2 6 1 2 1 2 2 7 14 1 0 1 2 11 7 4 0 1 2 11 1 2 15 7 1 0 1 2 0 7 4 0 1 2 1 7 1 0 1 2 0 1 2 19 7 1 0 1 2 0 5 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 7 4 0 1 2 1 4 1 0 1 2 5 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 8 4 0 1 2 1 4 1 0 1 2 6 1 2 0 1 2 0 1 2 19 7 1 0 1 2 0 6 4 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 17 1 2 0 1 2 0 1 2 0 1 2 13 1 2 0 1 2 19 1 2 5 1 2 6 1 2 6 1 2 0 1 2 9 1 2 5 3 1 0 1 2 1 1 2 6 1 2 1 2 2 7 14 1 0 1 2 11 5 4 0 1 2 11 1 2 0 7 1 0 1 2 0 7 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 1 7 1 0 1 2 0 8 4 0 1 2 1 9 1 0 1 2 0 3 5 0 1 2 0 1 2 0 1 2 0 1 2 19 1 2 5 1 2 6 1 2 6 1 2 0 1 2 9 1 2 5 8 1 0 1 2 2 1 2 6 1 2 1 2 2 7 2 0 4 2 2 7 4 0 17 1 2 5 1 2 6 1 2 6 1 2 7 4 0 9 11 1 0 1 2 0 1 2 5 8 1 0 1 2 6 1 2 1 2 2 1 9 1 0 1 2 0 5 1 0 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 16,
+            "end": 20,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 43,
+            "end": 48,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 87,
+            "end": 98,
+            "target": "Typst.none_expr"
+          },
+          {
+            "start": 239,
+            "end": 245,
+            "target": "Typst.call"
+          },
+          {
+            "start": 267,
+            "end": 276,
+            "target": "Backend@alignment"
+          },
+          {
+            "start": 301,
+            "end": 315,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 373,
+            "end": 380,
+            "target": "Typst.named"
+          },
+          {
+            "start": 389,
+            "end": 393,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 420,
+            "end": 427,
+            "target": "Typst.named"
+          },
+          {
+            "start": 436,
+            "end": 441,
+            "target": "Backend@color"
+          },
+          {
+            "start": 497,
+            "end": 508,
+            "target": "Backend@inline_docs"
+          },
+          {
+            "start": 588,
+            "end": 602,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 613,
+            "end": 620,
+            "target": "Typst.named"
+          },
+          {
+            "start": 630,
+            "end": 639,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 647,
+            "end": 654,
+            "target": "Typst.named"
+          },
+          {
+            "start": 663,
+            "end": 668,
+            "target": "Backend@color"
+          },
+          {
+            "start": 701,
+            "end": 708,
+            "target": "Typst.named"
+          },
+          {
+            "start": 718,
+            "end": 722,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 729,
+            "end": 736,
+            "target": "Typst.named"
+          },
+          {
+            "start": 747,
+            "end": 751,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 758,
+            "end": 772,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 782,
+            "end": 789,
+            "target": "Typst.named"
+          },
+          {
+            "start": 798,
+            "end": 803,
+            "target": "Backend@color"
+          },
+          {
+            "start": 836,
+            "end": 843,
+            "target": "Typst.named"
+          },
+          {
+            "start": 852,
+            "end": 860,
+            "target": "Typst.string"
+          },
+          {
+            "start": 880,
+            "end": 887,
+            "target": "Typst.named"
+          },
+          {
+            "start": 896,
+            "end": 900,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 921,
+            "end": 927,
+            "target": "Typst.call"
+          },
+          {
+            "start": 947,
+            "end": 955,
+            "target": "Typst.string"
+          },
+          {
+            "start": 975,
+            "end": 982,
+            "target": "Typst.named"
+          },
+          {
+            "start": 992,
+            "end": 1001,
+            "target": "Typst.boolean"
+          },
+          {
+            "start": 1020,
+            "end": 1027,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1036,
+            "end": 1044,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1095,
+            "end": 1101,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1123,
+            "end": 1131,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1149,
+            "end": 1156,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1166,
+            "end": 1175,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 1193,
+            "end": 1200,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1211,
+            "end": 1220,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 1238,
+            "end": 1245,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1253,
+            "end": 1261,
+            "target": "Typst.string"
+          },
+          {
+            "start": 1330,
+            "end": 1336,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1357,
+            "end": 1364,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1374,
+            "end": 1378,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1398,
+            "end": 1405,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1416,
+            "end": 1420,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1441,
+            "end": 1448,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1457,
+            "end": 1462,
+            "target": "Backend@color"
+          },
+          {
+            "start": 1521,
+            "end": 1527,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1558,
+            "end": 1562,
+            "target": "Cons"
+          },
+          {
+            "start": 1578,
+            "end": 1585,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1593,
+            "end": 1604,
+            "target": "Typst.direction"
+          },
+          {
+            "start": 1605,
+            "end": 1610,
+            "target": "Typst.Value.Ltr"
+          },
+          {
+            "start": 1628,
+            "end": 1632,
+            "target": "Cons"
+          },
+          {
+            "start": 1652,
+            "end": 1659,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1671,
+            "end": 1675,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 1701,
+            "end": 1710,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 1822,
+            "end": 1828,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1850,
+            "end": 1859,
+            "target": "Backend@alignment"
+          },
+          {
+            "start": 1878,
+            "end": 1884,
+            "target": "Typst.call"
+          },
+          {
+            "start": 1923,
+            "end": 1927,
+            "target": "Cons"
+          },
+          {
+            "start": 1947,
+            "end": 1954,
+            "target": "Typst.named"
+          },
+          {
+            "start": 1962,
+            "end": 1973,
+            "target": "Typst.direction"
+          },
+          {
+            "start": 1974,
+            "end": 1979,
+            "target": "Typst.Value.Ttb"
+          },
+          {
+            "start": 2001,
+            "end": 2005,
+            "target": "Cons"
+          },
+          {
+            "start": 2029,
+            "end": 2036,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2048,
+            "end": 2052,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2082,
+            "end": 2091,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 2216,
+            "end": 2230,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2262,
+            "end": 2269,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2279,
+            "end": 2288,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2296,
+            "end": 2303,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2314,
+            "end": 2323,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2342,
+            "end": 2348,
+            "target": "Typst.call"
+          },
+          {
+            "start": 2358,
+            "end": 2367,
+            "target": "Backend@pict_docs"
+          },
+          {
+            "start": 2456,
+            "end": 2470,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2517,
+            "end": 2524,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2534,
+            "end": 2541,
+            "target": "Typst.tuple"
+          },
+          {
+            "start": 2562,
+            "end": 2569,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2577,
+            "end": 2581,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2607,
+            "end": 2614,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2624,
+            "end": 2628,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2656,
+            "end": 2663,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2674,
+            "end": 2678,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2707,
+            "end": 2714,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2723,
+            "end": 2727,
+            "target": "Typst.pt"
+          },
+          {
+            "start": 2782,
+            "end": 2790,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 2850,
+            "end": 2864,
+            "target": "Typst.content_call"
+          },
+          {
+            "start": 2894,
+            "end": 2901,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2911,
+            "end": 2920,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2928,
+            "end": 2935,
+            "target": "Typst.named"
+          },
+          {
+            "start": 2946,
+            "end": 2955,
+            "target": "Typst.percent"
+          },
+          {
+            "start": 2974,
+            "end": 2982,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 3076,
+            "end": 3084,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 3125,
+            "end": 3136,
+            "target": "Typst.none_expr"
+          },
+          {
+            "start": 3163,
+            "end": 3172,
+            "target": "Typst.content"
+          },
+          {
+            "start": 3173,
+            "end": 3178,
+            "target": "Typst.raw"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@pict_docs",
+      "old": {
+        "id": "Backend@pict_docs",
+        "name": "pict_docs",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "169f7f981aa0c7e568848716a6685147c1f478d6e04f2e2061d6baeb1dd53149",
+        "ty": "(List(Layout.Pict), Int, Theme.Theme) -> List(Typst.Doc)",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 11 1 0 1 2 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 9 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 17,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 25,
+            "end": 36,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 46,
+            "end": 55,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn pict_docs(xs : List(Pict), stage : Int, theme : Theme) : List(T.Doc) =\n  match xs of\n    Nil => Nil\n    Cons(p, rest) =>\n      Cons(pict_doc(p, stage, theme), pict_docs(rest, stage, theme))",
+        "span": {
+          "start": 3181,
+          "end": 3373
+        },
+        "types": "13 2 16 15 5 15 8 5 1 34 2 16 15 3 9 10 1 17 2 4 16 11 4 24 1 8 25 1 1 17 2 5 15 2 5 1 3 9 26 1 4 16 2 5 15 2 5 1",
+        "tokens": "0 2 0 10 1 2 3 1 2 1 4 1 0 1 2 0 4 1 0 1 2 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 5 1 0 1 2 1 1 2 3 5 0 4 2 0 5 3 1 1 2 2 1 3 1 5 4 1 0 1 2 1 1 2 5 1 2 1 2 2 7 4 1 0 1 2 8 1 2 1 1 2 6 1 2 6 1 2 0 1 2 10 1 2 4 1 2 6 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 51,
+            "end": 56,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 65,
+            "end": 70,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 99,
+            "end": 102,
+            "target": "Nil"
+          },
+          {
+            "start": 130,
+            "end": 134,
+            "target": "Cons"
+          },
+          {
+            "start": 135,
+            "end": 143,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 162,
+            "end": 171,
+            "target": "Backend@pict_docs"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@pict_docs",
+        "name": "pict_docs",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "d81305c037029bfc8bda0598651ad8f36dbe19f0c578a7e43388f58999cbaaa1",
+        "ty": "(List(Layout.Pict), Int, Theme.Theme) -> List(Typst.Expr)",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 11 1 0 1 2 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 10 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 17,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 25,
+            "end": 36,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn pict_docs(xs : List(Pict), stage : Int, theme : Theme) : List(T.Expr) =\n  match xs of\n    Nil => Nil\n    Cons(p, rest) =>\n      Cons(pict_doc(p, stage, theme), pict_docs(rest, stage, theme))",
+        "span": {
+          "start": 3611,
+          "end": 3804
+        },
+        "types": "13 2 17 15 5 16 8 5 1 35 2 17 15 3 11 10 1 18 2 4 17 11 4 25 1 8 26 1 1 18 2 5 16 2 5 1 3 9 27 1 4 17 2 5 16 2 5 1",
+        "tokens": "0 2 0 10 1 2 3 1 2 1 4 1 0 1 2 0 4 1 0 1 2 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 6 1 0 1 2 1 1 2 3 5 0 4 2 0 5 3 1 1 2 2 1 3 1 5 4 1 0 1 2 1 1 2 5 1 2 1 2 2 7 4 1 0 1 2 8 1 2 1 1 2 6 1 2 6 1 2 0 1 2 10 1 2 4 1 2 6 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 51,
+            "end": 56,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 100,
+            "end": 103,
+            "target": "Nil"
+          },
+          {
+            "start": 131,
+            "end": 135,
+            "target": "Cons"
+          },
+          {
+            "start": 136,
+            "end": 144,
+            "target": "Backend@pict_doc"
+          },
+          {
+            "start": 163,
+            "end": 172,
+            "target": "Backend@pict_docs"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Backend@title_doc",
+      "old": {
+        "id": "Backend@title_doc",
+        "name": "title_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "04e13663b8899373d449a140c8978ceeae639e31e84a0b140b9221b58d3eb2d8",
+        "ty": "(Option(String)) -> Typst.Doc",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Example.Doc"
+          }
+        ],
+        "source": "fn title_doc(title : Option(String)) : T.Doc =\n  match title of\n    None => T.atom(\"none\")\n    Some(value) => T.string(value)",
+        "span": {
+          "start": 6704,
+          "end": 6829
+        },
+        "types": "13 5 33 37 5 33 16 6 3 18 5 0 5 8 3 1 5 0",
+        "tokens": "0 2 0 10 1 2 6 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 1 2 1 5 1 1 1 2 3 5 0 7 2 0 5 4 1 1 2 2 1 6 1 0 1 2 0 6 4 0 1 2 5 4 1 0 1 2 5 1 2 1 2 2 1 8 1 0 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 39,
+            "end": 44,
+            "target": "Example.Doc"
+          },
+          {
+            "start": 76,
+            "end": 82,
+            "target": "Typst.atom"
+          },
+          {
+            "start": 110,
+            "end": 118,
+            "target": "Typst.string"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@title_doc",
+        "name": "title_doc",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "6c99282d38081f69db483b712fa079fb96ff26f6e951b54bf889510ad40d45be",
+        "ty": "(Option(String)) -> Typst.Expr",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 2 2 1 10 1",
+        "source": "fn title_doc(title : Option(String)) : T.Expr =\n  match title of\n    None => T.none_expr()\n    Some(value) => T.string(value)",
+        "span": {
+          "start": 7161,
+          "end": 7286
+        },
+        "types": "13 5 40 38 5 40 16 11 28 12 5 0 5 8 3 1 5 0",
+        "tokens": "0 2 0 10 1 2 6 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 1 2 1 6 1 1 1 2 3 5 0 7 2 0 5 4 1 1 2 2 1 11 1 0 1 2 0 1 2 5 4 1 0 1 2 5 1 2 1 2 2 1 8 1 0 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 77,
+            "end": 88,
+            "target": "Typst.none_expr"
+          },
+          {
+            "start": 110,
+            "end": 118,
+            "target": "Typst.string"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Backend.render_slide_page",
+      "old": {
+        "id": "Backend.render_slide_page",
+        "name": "render_slide_page",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "820854e6c164035cd95df92a69e810c496ff00e987e5783ca8fa294e5c6794ca",
+        "ty": "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 17,
+            "end": 28,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 35,
+            "end": 46,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slide_page(\n  title : Option(String),\n  body : Pict,\n  stage : Int,\n  theme : Theme\n) : String =\n  T.render(96, T.code(T.call(\"spectra-slide\", [\n      title_doc(title),\n      pict_doc(body, stage, theme),\n    ])))",
+        "span": {
+          "start": 6904,
+          "end": 7127
+        },
+        "vis": "public",
+        "doc": "Render one physical page from a logical slide and reveal stage.",
+        "types": "24 5 33 21 4 17 11 5 15 10 5 1 24 8 31 5 6 34 1 6 2 26 9 35 1 5 33 9 8 32 1 4 17 2 5 15 2 5 1",
+        "tokens": "0 2 0 18 1 2 9 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 8 1 2 1 4 1 0 1 2 9 1 2 1 3 3 0 1 2 9 1 2 1 5 1 1 1 2 1 1 2 1 6 3 1 1 2 3 8 1 0 1 2 0 2 5 0 1 2 1 6 1 0 1 2 0 6 1 0 1 2 0 15 4 0 1 2 1 1 2 16 1 2 5 1 2 0 1 2 15 1 2 4 1 2 6 1 2 6 1 2 0 1 2 5 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 88,
+            "end": 93,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 109,
+            "end": 117,
+            "target": "Typst.render"
+          },
+          {
+            "start": 122,
+            "end": 128,
+            "target": "Typst.code"
+          },
+          {
+            "start": 129,
+            "end": 135,
+            "target": "Typst.call"
+          },
+          {
+            "start": 161,
+            "end": 170,
+            "target": "Backend@title_doc"
+          },
+          {
+            "start": 185,
+            "end": 193,
+            "target": "Backend@pict_doc"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend.render_slide_page",
+        "name": "render_slide_page",
+        "module": "Backend",
+        "kind": "value",
+        "hash": "6a84b08be728b36daf4c4c549556dfabe2d48867dad231e4616ee8645d914363",
+        "ty": "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 17,
+            "end": 28,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 35,
+            "end": 46,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slide_page(\n  title : Option(String),\n  body : Pict,\n  stage : Int,\n  theme : Theme\n) : String =\n  T.render(96, T.code(T.call(\"spectra-slide\", [\n      title_doc(title),\n      pict_doc(body, stage, theme),\n    ])))",
+        "span": {
+          "start": 7361,
+          "end": 7584
+        },
+        "vis": "public",
+        "doc": "Render one physical page from a logical slide and reveal stage.",
+        "types": "24 5 40 21 4 18 11 5 16 10 5 1 24 8 41 5 6 42 1 6 2 26 9 43 1 5 40 9 8 39 1 4 18 2 5 16 2 5 1",
+        "tokens": "0 2 0 18 1 2 9 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 8 1 2 1 4 1 0 1 2 9 1 2 1 3 3 0 1 2 9 1 2 1 5 1 1 1 2 1 1 2 1 6 3 1 1 2 3 8 1 0 1 2 0 2 5 0 1 2 1 6 1 0 1 2 0 6 1 0 1 2 0 15 4 0 1 2 1 1 2 16 1 2 5 1 2 0 1 2 15 1 2 4 1 2 6 1 2 6 1 2 0 1 2 5 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 88,
+            "end": 93,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 109,
+            "end": 117,
+            "target": "Typst.render"
+          },
+          {
+            "start": 122,
+            "end": 128,
+            "target": "Typst.code"
+          },
+          {
+            "start": 129,
+            "end": 135,
+            "target": "Typst.call"
+          },
+          {
+            "start": 161,
+            "end": 170,
+            "target": "Backend@title_doc"
+          },
+          {
+            "start": 185,
+            "end": 193,
+            "target": "Backend@pict_doc"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Backend@prelude_disables_ambient_pdf_dates",
+      "old": {
+        "id": "Backend@prelude_disables_ambient_pdf_dates",
+        "name": "prelude_disables_ambient_pdf_dates",
+        "module": "Backend",
+        "kind": "test",
+        "hash": "50a875f27383e7f1a9e836f08fa553870ef17bad2542cf22e4ce1d9e5c60d799",
+        "ty": "() -> Unit ! {Fail}",
+        "ty_tokens": "0 1 2 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 4 1 0 1 2",
+        "effects": "{Fail}",
+        "eff_tokens": "0 1 2 0 4 1 0 1 2",
+        "source": "test fn prelude_disables_ambient_pdf_dates() =\n  if (contains(\"#set document(date: none)\", typst_prelude(prism_theme))) then\n    ()\n  else\n    fail()",
+        "span": {
+          "start": 8845,
+          "end": 8994
+        },
+        "tokens": "5 2 0 35 1 2 0 1 2 1 1 2 3 2 0 1 1 2 8 1 2 0 27 4 0 1 2 14 1 2 11 1 2 0 1 2 0 1 2 1 4 0 5 1 2 0 1 2 3 4 0 9 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 53,
+            "end": 61,
+            "target": "Data.String.contains"
+          },
+          {
+            "start": 91,
+            "end": 104,
+            "target": "Backend.typst_prelude"
+          },
+          {
+            "start": 105,
+            "end": 116,
+            "target": "Theme.prism_theme"
+          },
+          {
+            "start": 143,
+            "end": 147,
+            "target": "fail"
+          }
+        ]
+      },
+      "new": {
+        "id": "Backend@prelude_disables_ambient_pdf_dates",
+        "name": "prelude_disables_ambient_pdf_dates",
+        "module": "Backend",
+        "kind": "test",
+        "hash": "f806da995e0f90c233fae00b06235b821ebe65581b6ac5fc03a7c9541528708a",
+        "ty": "() -> Unit ! {Fail}",
+        "ty_tokens": "0 1 2 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 4 1 0 1 2",
+        "effects": "{Fail}",
+        "eff_tokens": "0 1 2 0 4 1 0 1 2",
+        "source": "test fn prelude_disables_ambient_pdf_dates() =\n  if (contains(\"#set document(date: none)\", typst_prelude(prism_theme))) then\n    ()\n  else\n    fail()",
+        "span": {
+          "start": 9358,
+          "end": 9507
+        },
+        "tokens": "5 2 0 35 1 2 0 1 2 1 1 2 3 2 0 1 1 2 8 1 2 0 27 4 0 1 2 14 1 2 11 1 2 0 1 2 0 1 2 1 4 0 5 1 2 0 1 2 3 4 0 9 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 53,
+            "end": 61,
+            "target": "Data.String.contains"
+          },
+          {
+            "start": 91,
+            "end": 104,
+            "target": "Backend.typst_prelude"
+          },
+          {
+            "start": 105,
+            "end": 116,
+            "target": "Theme.prism_theme"
+          },
+          {
+            "start": 143,
+            "end": 147,
+            "target": "fail"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.emit_deck",
+      "old": {
+        "id": "Spectra.emit_deck",
+        "name": "emit_deck",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "de8ba462aa9f45547add8673ff978ac2162a54c966987d0638464403c49137e7",
+        "ty": "(Spectra.Deck) -> Unit ! {IO}",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 2 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 2 0 2 1 0 1 2",
+        "source": "fn emit_deck(d : Deck) : Unit = println(concat(\"SPECTRA/1 \", envelope(d)))",
+        "span": {
+          "start": 8006,
+          "end": 8080
+        },
+        "vis": "public",
+        "doc": "Emit exactly one framed envelope. The host rejects any extra output, so a stray debug print can never be interpreted as Typst source.",
+        "types": "13 1 109 18 7 122 1 6 44 15 8 123 1 1 109",
+        "tokens": "0 2 0 10 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 4 3 1 1 2 8 1 2 6 1 2 0 12 4 0 1 2 9 1 2 1 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 17,
+            "end": 21,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 32,
+            "end": 39,
+            "target": "println"
+          },
+          {
+            "start": 40,
+            "end": 46,
+            "target": "concat"
+          },
+          {
+            "start": 61,
+            "end": 69,
+            "target": "Spectra.envelope"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.emit_deck",
+        "name": "emit_deck",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "103e55d8add9a226d33becd913fe62a0d28186984c41e11cc28fd876224a2733",
+        "ty": "(Spectra.Deck) -> Unit ! {IO}",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 2 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 2 0 2 1 0 1 2",
+        "source": "fn emit_deck(d : Deck) : Unit = println(concat(\"SPECTRA/1 \", envelope(d)))",
+        "span": {
+          "start": 8984,
+          "end": 9058
+        },
+        "vis": "public",
+        "doc": "Emit exactly one framed envelope. The host rejects any extra output, so a stray debug print can never be interpreted as Typst source.",
+        "types": "13 1 119 18 7 132 1 6 54 15 8 133 1 1 119",
+        "tokens": "0 2 0 10 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 4 3 1 1 2 8 1 2 6 1 2 0 12 4 0 1 2 9 1 2 1 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 17,
+            "end": 21,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 32,
+            "end": 39,
+            "target": "println"
+          },
+          {
+            "start": 40,
+            "end": 46,
+            "target": "concat"
+          },
+          {
+            "start": 61,
+            "end": 69,
+            "target": "Spectra.envelope"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.envelope",
+      "old": {
+        "id": "Spectra.envelope",
+        "name": "envelope",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "602848cec172c90edb0a1e91fa6e048b21f13920b9469e8377645d38d054cefd",
+        "ty": "(Spectra.Deck) -> String",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          }
+        ],
+        "source": "fn envelope(d : Deck) : String =\n  let doc = render_typst(d)\n  encode(JObj([\n      (\"format\", JStr(\"spectra-envelope-v1\")),\n      (\"document_format\", JStr(doc.format)),\n      (\"source\", JStr(doc.source)),\n      (\"logical_slides\", JInt(doc.logical_slides)),\n      (\"physical_pages\", JInt(doc.physical_pages)),\n      (\"theme\", JStr(d.theme.name)),\n      (\"title\", JStr(d.metadata.title)),\n      (\"author\", JStr(d.metadata.author)),\n      (\"assets\", JArr(map(\\(asset) -> JStr(asset), doc.assets))),\n    ]))",
+        "span": {
+          "start": 7355,
+          "end": 7858
+        },
+        "vis": "public",
+        "doc": "The exact one-line envelope consumed by the `spectra` host frontend.",
+        "types": "12 1 109 32 12 115 1 1 109 4 6 116 1 4 117 20 4 118 52 4 118 1 3 119 28 4 118 1 3 119 36 4 120 1 3 119 44 4 120 1 3 119 35 4 118 1 1 109 31 4 118 1 1 109 36 4 118 1 1 109 37 4 121 1 3 63 13 4 118 1 5 0 3 3 119",
+        "tokens": "0 2 0 9 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 6 3 1 1 2 3 3 0 5 1 2 13 1 2 1 1 2 9 1 2 0 4 1 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 21 4 0 1 2 0 1 2 0 1 2 7 1 2 0 17 4 0 1 2 1 4 1 0 1 2 3 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 3 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 16 4 0 1 2 1 4 1 0 1 2 3 1 2 14 1 2 0 1 2 0 1 2 7 1 2 0 16 4 0 1 2 1 4 1 0 1 2 3 1 2 14 1 2 0 1 2 0 1 2 7 1 2 0 7 4 0 1 2 1 4 1 0 1 2 1 1 2 5 1 2 4 1 2 0 1 2 0 1 2 7 1 2 0 7 4 0 1 2 1 4 1 0 1 2 1 1 2 8 1 2 5 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 1 1 2 8 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 5 1 2 1 2 2 1 4 1 0 1 2 5 1 2 0 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 16,
+            "end": 20,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 45,
+            "end": 57,
+            "target": "Spectra.render_typst"
+          },
+          {
+            "start": 63,
+            "end": 69,
+            "target": "Json.encode"
+          },
+          {
+            "start": 70,
+            "end": 74,
+            "target": "Json.JObj"
+          },
+          {
+            "start": 94,
+            "end": 98,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 150,
+            "end": 154,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 186,
+            "end": 190,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 230,
+            "end": 234,
+            "target": "Json.JInt"
+          },
+          {
+            "start": 282,
+            "end": 286,
+            "target": "Json.JInt"
+          },
+          {
+            "start": 325,
+            "end": 329,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 362,
+            "end": 366,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 404,
+            "end": 408,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 447,
+            "end": 451,
+            "target": "Json.JArr"
+          },
+          {
+            "start": 452,
+            "end": 455,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 468,
+            "end": 472,
+            "target": "Json.JStr"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.envelope",
+        "name": "envelope",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "57c0582c320444475fd10de049c78dd0f5692f12689feea815e4ce02d289a52a",
+        "ty": "(Spectra.Deck) -> String",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          }
+        ],
+        "source": "fn envelope(d : Deck) : String =\n  let doc = render_typst(d)\n  encode(JObj([\n      (\"format\", JStr(\"spectra-envelope-v1\")),\n      (\"document_format\", JStr(doc.format)),\n      (\"source\", JStr(doc.source)),\n      (\"logical_slides\", JInt(doc.logical_slides)),\n      (\"physical_pages\", JInt(doc.physical_pages)),\n      (\"theme\", JStr(d.theme.name)),\n      (\"title\", JStr(d.metadata.title)),\n      (\"author\", JStr(d.metadata.author)),\n      (\"assets\", JArr(map(\\(asset) -> JStr(asset), doc.assets))),\n    ]))",
+        "span": {
+          "start": 8333,
+          "end": 8836
+        },
+        "vis": "public",
+        "doc": "The exact one-line envelope consumed by the `spectra` host frontend.",
+        "types": "12 1 119 32 12 125 1 1 119 4 6 126 1 4 127 20 4 128 52 4 128 1 3 129 28 4 128 1 3 129 36 4 130 1 3 129 44 4 130 1 3 129 35 4 128 1 1 119 31 4 128 1 1 119 36 4 128 1 1 119 37 4 131 1 3 73 13 4 128 1 5 0 3 3 129",
+        "tokens": "0 2 0 9 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 6 3 1 1 2 3 3 0 5 1 2 13 1 2 1 1 2 9 1 2 0 4 1 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 0 21 4 0 1 2 0 1 2 0 1 2 7 1 2 0 17 4 0 1 2 1 4 1 0 1 2 3 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 3 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 16 4 0 1 2 1 4 1 0 1 2 3 1 2 14 1 2 0 1 2 0 1 2 7 1 2 0 16 4 0 1 2 1 4 1 0 1 2 3 1 2 14 1 2 0 1 2 0 1 2 7 1 2 0 7 4 0 1 2 1 4 1 0 1 2 1 1 2 5 1 2 4 1 2 0 1 2 0 1 2 7 1 2 0 7 4 0 1 2 1 4 1 0 1 2 1 1 2 8 1 2 5 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 1 1 2 8 1 2 6 1 2 0 1 2 0 1 2 7 1 2 0 8 4 0 1 2 1 4 1 0 1 2 3 1 2 0 1 2 0 1 2 5 1 2 1 2 2 1 4 1 0 1 2 5 1 2 0 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 16,
+            "end": 20,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 45,
+            "end": 57,
+            "target": "Spectra.render_typst"
+          },
+          {
+            "start": 63,
+            "end": 69,
+            "target": "Json.encode"
+          },
+          {
+            "start": 70,
+            "end": 74,
+            "target": "Json.JObj"
+          },
+          {
+            "start": 94,
+            "end": 98,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 150,
+            "end": 154,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 186,
+            "end": 190,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 230,
+            "end": 234,
+            "target": "Json.JInt"
+          },
+          {
+            "start": 282,
+            "end": 286,
+            "target": "Json.JInt"
+          },
+          {
+            "start": 325,
+            "end": 329,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 362,
+            "end": 366,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 404,
+            "end": 408,
+            "target": "Json.JStr"
+          },
+          {
+            "start": 447,
+            "end": 451,
+            "target": "Json.JArr"
+          },
+          {
+            "start": 452,
+            "end": 455,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 468,
+            "end": 472,
+            "target": "Json.JStr"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.render_pict",
+      "old": {
+        "id": "Spectra.render_pict",
+        "name": "render_pict",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "d4bbc19271e8563ca283c1ff52c83a2ce60de019b66f2ec2494365f05ad84185",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_pict(p : Pict, stage : Int, theme : Theme) : String =\n  TypstBackend.render_pict(p, stage, theme)",
+        "span": {
+          "start": 3363,
+          "end": 3470
+        },
+        "vis": "public",
+        "types": "15 1 17 9 5 15 8 5 1 23 24 85 1 1 17 2 5 15 2 5 1",
+        "tokens": "0 2 0 12 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 24 1 0 1 2 1 1 2 6 1 2 6 1 2",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 66,
+            "end": 90,
+            "target": "Backend.render_pict"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.render_pict",
+        "name": "render_pict",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "1d99b68a1c06b656b3c8a9b98017e6a949f32e3e7901479c9641e799527a9973",
+        "ty": "(Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_pict(p : Pict, stage : Int, theme : Theme) : String =\n  TypstBackend.render_pict(p, stage, theme)",
+        "span": {
+          "start": 4341,
+          "end": 4448
+        },
+        "vis": "public",
+        "types": "15 1 18 9 5 16 8 5 1 23 24 95 1 1 18 2 5 16 2 5 1",
+        "tokens": "0 2 0 12 1 2 2 1 2 1 4 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 3 24 1 0 1 2 1 1 2 6 1 2 6 1 2",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 66,
+            "end": 90,
+            "target": "Backend.render_pict"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.render_slide_page",
+      "old": {
+        "id": "Spectra.render_slide_page",
+        "name": "render_slide_page",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "b236ab69e4af8face31e867d84d1ad937176cdca03659e04c5111f0520d9fce4",
+        "ty": "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 17,
+            "end": 28,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 35,
+            "end": 46,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slide_page(\n  title : Option(String),\n  body : Pict,\n  stage : Int,\n  theme : Theme\n) : String =\n  TypstBackend.render_slide_page(title, body, stage, theme)",
+        "span": {
+          "start": 3476,
+          "end": 3642
+        },
+        "vis": "public",
+        "types": "24 5 33 21 4 17 11 5 15 10 5 1 24 30 86 1 5 33 2 4 17 2 5 15 2 5 1",
+        "tokens": "0 2 0 18 1 2 9 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 8 1 2 1 4 1 0 1 2 9 1 2 1 3 3 0 1 2 9 1 2 1 5 1 1 1 2 1 1 2 1 6 3 1 1 2 3 30 1 0 1 2 5 1 2 5 1 2 6 1 2 6 1 2",
+        "refs": [
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 88,
+            "end": 93,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 109,
+            "end": 139,
+            "target": "Backend.render_slide_page"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.render_slide_page",
+        "name": "render_slide_page",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "533993eb3422c4a0304ef3421e023f99ab8f8fd31841adc5283c48533cdaa217",
+        "ty": "(Option(String), Layout.Pict, Int, Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 6 3 0 1 2 0 1 2 1 11 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 17,
+            "end": 28,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 35,
+            "end": 46,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slide_page(\n  title : Option(String),\n  body : Pict,\n  stage : Int,\n  theme : Theme\n) : String =\n  TypstBackend.render_slide_page(title, body, stage, theme)",
+        "span": {
+          "start": 4454,
+          "end": 4620
+        },
+        "vis": "public",
+        "types": "24 5 40 21 4 18 11 5 16 10 5 1 24 30 96 1 5 40 2 4 18 2 5 16 2 5 1",
+        "tokens": "0 2 0 18 1 2 9 1 2 1 6 1 0 1 2 0 6 3 0 1 2 0 1 2 8 1 2 1 4 1 0 1 2 9 1 2 1 3 3 0 1 2 9 1 2 1 5 1 1 1 2 1 1 2 1 6 3 1 1 2 3 30 1 0 1 2 5 1 2 5 1 2 6 1 2 6 1 2",
+        "refs": [
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Layout.Pict"
+          },
+          {
+            "start": 88,
+            "end": 93,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 109,
+            "end": 139,
+            "target": "Backend.render_slide_page"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.render_typst",
+      "old": {
+        "id": "Spectra.render_typst",
+        "name": "render_typst",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "7868143c5406fda44ee6c7de644badb6137c84d9f73b80288efeedbcfdc4b175",
+        "ty": "(Spectra.Deck) -> Backend.TypstDocument",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 21 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 18,
+            "end": 39,
+            "target": "Backend.TypstDocument"
+          }
+        ],
+        "source": "fn render_typst(d : Deck) : TypstDocument =\n  let pages = render_slides(d.slides, d.theme)\n  TypstDocument {\n    format = \"spectra-typst-document-v1\",\n    source = concat(\n        typst_prelude(d.theme),\n        concat(str_join(\"\\n#pagebreak()\\n\", pages), \"\\n\"),\n      ),\n    logical_slides = length(d.slides),\n    physical_pages = page_count(d.slides),\n    assets = deck_assets(d.slides)\n  }",
+        "span": {
+          "start": 6883,
+          "end": 7275
+        },
+        "vis": "public",
+        "doc": "Pure, deterministic Typst lowering. Logical slides with reveals expand to one physical PDF page per stage.",
+        "types": "16 1 109 41 13 110 1 1 109 9 1 109 81 6 44 10 13 87 1 1 109 17 6 44 1 8 111 21 5 49 40 6 112 1 1 109 31 10 113 1 1 109 23 11 114 1 1 109",
+        "tokens": "0 2 0 13 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 13 1 1 1 2 3 3 0 7 1 2 14 1 2 1 1 2 6 1 2 2 1 2 5 1 2 3 13 1 1 1 2 12 1 2 1 27 4 0 1 2 12 1 2 7 1 2 22 1 2 1 1 2 5 1 2 0 1 2 15 1 2 8 1 2 0 18 4 0 1 2 6 1 2 0 1 2 1 4 4 0 1 2 0 1 2 7 1 2 0 1 2 20 1 2 7 1 2 1 1 2 6 1 2 0 1 2 20 1 2 11 1 2 1 1 2 6 1 2 0 1 2 12 1 2 12 1 2 1 1 2 6 1 2 3 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 24,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 28,
+            "end": 41,
+            "target": "Backend.TypstDocument"
+          },
+          {
+            "start": 58,
+            "end": 71,
+            "target": "Spectra@render_slides"
+          },
+          {
+            "start": 93,
+            "end": 106,
+            "target": "Backend.TypstDocument"
+          },
+          {
+            "start": 164,
+            "end": 170,
+            "target": "concat"
+          },
+          {
+            "start": 180,
+            "end": 193,
+            "target": "Spectra.typst_prelude"
+          },
+          {
+            "start": 212,
+            "end": 218,
+            "target": "concat"
+          },
+          {
+            "start": 219,
+            "end": 227,
+            "target": "Data.String.str_join"
+          },
+          {
+            "start": 293,
+            "end": 299,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 332,
+            "end": 342,
+            "target": "Spectra@page_count"
+          },
+          {
+            "start": 367,
+            "end": 378,
+            "target": "Spectra@deck_assets"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.render_typst",
+        "name": "render_typst",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "867806a580f4fbd737e6c8d18785c2545f48c921d2ec60202b787a49175cf922",
+        "ty": "(Spectra.Deck) -> Backend.TypstDocument",
+        "ty_tokens": "0 1 2 0 12 1 0 1 2 1 2 2 1 21 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 18,
+            "end": 39,
+            "target": "Backend.TypstDocument"
+          }
+        ],
+        "source": "fn render_typst(d : Deck) : TypstDocument =\n  let pages = render_slides(d.slides, d.theme)\n  TypstDocument {\n    format = \"spectra-typst-document-v1\",\n    source = concat(\n        typst_prelude(d.theme),\n        concat(str_join(\"\\n#pagebreak()\\n\", pages), \"\\n\"),\n      ),\n    logical_slides = length(d.slides),\n    physical_pages = page_count(d.slides),\n    assets = deck_assets(d.slides)\n  }",
+        "span": {
+          "start": 7861,
+          "end": 8253
+        },
+        "vis": "public",
+        "doc": "Pure, deterministic Typst lowering. Logical slides with reveals expand to one physical PDF page per stage.",
+        "types": "16 1 119 41 13 120 1 1 119 9 1 119 81 6 54 10 13 97 1 1 119 17 6 54 1 8 121 21 5 59 40 6 122 1 1 119 31 10 123 1 1 119 23 11 124 1 1 119",
+        "tokens": "0 2 0 13 1 2 2 1 2 1 4 1 0 1 2 1 1 2 1 13 1 1 1 2 3 3 0 7 1 2 14 1 2 1 1 2 6 1 2 2 1 2 5 1 2 3 13 1 1 1 2 12 1 2 1 27 4 0 1 2 12 1 2 7 1 2 22 1 2 1 1 2 5 1 2 0 1 2 15 1 2 8 1 2 0 18 4 0 1 2 6 1 2 0 1 2 1 4 4 0 1 2 0 1 2 7 1 2 0 1 2 20 1 2 7 1 2 1 1 2 6 1 2 0 1 2 20 1 2 11 1 2 1 1 2 6 1 2 0 1 2 12 1 2 12 1 2 1 1 2 6 1 2 3 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 24,
+            "target": "Spectra.Deck"
+          },
+          {
+            "start": 28,
+            "end": 41,
+            "target": "Backend.TypstDocument"
+          },
+          {
+            "start": 58,
+            "end": 71,
+            "target": "Spectra@render_slides"
+          },
+          {
+            "start": 93,
+            "end": 106,
+            "target": "Backend.TypstDocument"
+          },
+          {
+            "start": 164,
+            "end": 170,
+            "target": "concat"
+          },
+          {
+            "start": 180,
+            "end": 193,
+            "target": "Spectra.typst_prelude"
+          },
+          {
+            "start": 212,
+            "end": 218,
+            "target": "concat"
+          },
+          {
+            "start": 219,
+            "end": 227,
+            "target": "Data.String.str_join"
+          },
+          {
+            "start": 293,
+            "end": 299,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 332,
+            "end": 342,
+            "target": "Spectra@page_count"
+          },
+          {
+            "start": 367,
+            "end": 378,
+            "target": "Spectra@deck_assets"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra.typst_prelude",
+      "old": {
+        "id": "Spectra.typst_prelude",
+        "name": "typst_prelude",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "5f0bf53d16001ebaadedf9b63b557e1161699f70f5c2d531e56ec6296685c233",
+        "ty": "(Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn typst_prelude(theme : Theme) : String = TypstBackend.typst_prelude(theme)",
+        "span": {
+          "start": 3648,
+          "end": 3724
+        },
+        "vis": "public",
+        "types": "17 5 1 21 26 87 1 5 1",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 1 26 1 0 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 30,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 43,
+            "end": 69,
+            "target": "Backend.typst_prelude"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra.typst_prelude",
+        "name": "typst_prelude",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "68d732429caf998fdbadcfd83ed49edc4dcef98a5cca968db92f9e3f1e72bd4f",
+        "ty": "(Theme.Theme) -> String",
+        "ty_tokens": "0 1 2 0 11 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 12,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn typst_prelude(theme : Theme) : String = TypstBackend.typst_prelude(theme)",
+        "span": {
+          "start": 4626,
+          "end": 4702
+        },
+        "vis": "public",
+        "types": "17 5 1 21 26 97 1 5 1",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 5 1 0 1 2 1 1 2 1 6 3 1 1 2 1 26 1 0 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 30,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 43,
+            "end": 69,
+            "target": "Backend.typst_prelude"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra@render_slides",
+      "old": {
+        "id": "Spectra@render_slides",
+        "name": "render_slides",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "c4400cf034bfa0431ff4a87a56dac733547092f77cc920f1873c643b194dedcc",
+        "ty": "(List(Spectra.Slide), Theme.Theme) -> List(String)",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 13 1 0 1 2 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 22,
+            "end": 33,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slides(slides : List(Slide), theme : Theme) : List(String) =\n  match slides of\n    Nil => Nil\n    Cons(slide, rest) =>\n      append(stages_for(slide, 0, theme), render_slides(rest, theme))",
+        "span": {
+          "start": 6400,
+          "end": 6598
+        },
+        "types": "17 6 89 16 5 1 35 6 89 15 3 9 10 5 101 2 4 89 11 6 21 1 10 106 1 5 101 5 5 1 3 13 107 1 4 89 2 5 1",
+        "tokens": "0 2 0 14 1 2 7 1 2 1 4 1 0 1 2 0 5 1 0 1 2 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 6 3 0 1 2 1 1 2 3 5 0 8 2 0 5 3 1 1 2 2 1 3 1 5 4 1 0 1 2 5 1 2 5 1 2 1 2 2 13 1 2 10 1 2 5 1 2 1 1 5 0 1 2 6 1 2 0 1 2 14 1 2 4 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 31,
+            "end": 36,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 47,
+            "end": 52,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 100,
+            "end": 103,
+            "target": "Nil"
+          },
+          {
+            "start": 135,
+            "end": 141,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 142,
+            "end": 152,
+            "target": "Spectra@stages_for"
+          },
+          {
+            "start": 171,
+            "end": 184,
+            "target": "Spectra@render_slides"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra@render_slides",
+        "name": "render_slides",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "539d953b56a93f8d7f254e75e4eb79700a4d6c24a742d16dce10b866be4b3a41",
+        "ty": "(List(Spectra.Slide), Theme.Theme) -> List(String)",
+        "ty_tokens": "0 1 2 0 4 1 0 1 2 0 13 1 0 1 2 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 22,
+            "end": 33,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn render_slides(slides : List(Slide), theme : Theme) : List(String) =\n  match slides of\n    Nil => Nil\n    Cons(slide, rest) =>\n      append(stages_for(slide, 0, theme), render_slides(rest, theme))",
+        "span": {
+          "start": 7378,
+          "end": 7576
+        },
+        "types": "17 6 99 16 5 1 35 6 99 15 3 11 10 5 111 2 4 99 11 6 22 1 10 116 1 5 111 5 5 1 3 13 117 1 4 99 2 5 1",
+        "tokens": "0 2 0 14 1 2 7 1 2 1 4 1 0 1 2 0 5 1 0 1 2 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 6 3 0 1 2 1 1 2 3 5 0 8 2 0 5 3 1 1 2 2 1 3 1 5 4 1 0 1 2 5 1 2 5 1 2 1 2 2 13 1 2 10 1 2 5 1 2 1 1 5 0 1 2 6 1 2 0 1 2 14 1 2 4 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 31,
+            "end": 36,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 47,
+            "end": 52,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 100,
+            "end": 103,
+            "target": "Nil"
+          },
+          {
+            "start": 135,
+            "end": 141,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 142,
+            "end": 152,
+            "target": "Spectra@stages_for"
+          },
+          {
+            "start": 171,
+            "end": 184,
+            "target": "Spectra@render_slides"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Spectra@stages_for",
+      "old": {
+        "id": "Spectra@stages_for",
+        "name": "stages_for",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "b1a37e8a0c0daa3b7a930ffc0f697386c32e6b6ce9930252d6aa36e0fb1d87ad",
+        "ty": "(Spectra.Slide, Int, Theme.Theme) -> List(String)",
+        "ty_tokens": "0 1 2 0 13 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 14,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 21,
+            "end": 32,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn stages_for(slide : Slide, stage : Int, theme : Theme) : List(String) =\n  let page = render_slide_page(slide.title, slide.body, stage, theme)\n  if stage >= max_stage(slide.body) then\n    [page]\n  else\n    Cons(page, stages_for(slide, stage + 1, theme))",
+        "span": {
+          "start": 6144,
+          "end": 6398
+        },
+        "types": "14 5 101 10 5 15 8 5 1 40 17 86 1 5 101 8 5 101 7 5 15 2 5 1 7 5 15 4 9 83 1 5 101 17 4 0 13 4 24 1 4 0 2 10 105 1 5 101 2 5 15 6 5 1",
+        "tokens": "0 2 0 11 1 2 6 1 2 1 5 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 6 3 0 1 2 1 1 2 3 3 0 6 1 2 18 1 2 5 1 2 5 1 2 6 1 2 4 1 2 6 1 2 6 1 2 3 2 0 7 2 2 10 1 2 5 1 2 4 1 2 1 4 0 5 1 2 4 1 2 3 4 0 5 4 1 0 1 2 4 1 2 11 1 2 5 1 2 7 1 2 1 1 5 0 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 22,
+            "end": 27,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 50,
+            "end": 55,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 87,
+            "end": 104,
+            "target": "Spectra.render_slide_page"
+          },
+          {
+            "start": 158,
+            "end": 167,
+            "target": "Spectra.max_stage"
+          },
+          {
+            "start": 207,
+            "end": 211,
+            "target": "Cons"
+          },
+          {
+            "start": 218,
+            "end": 228,
+            "target": "Spectra@stages_for"
+          }
+        ]
+      },
+      "new": {
+        "id": "Spectra@stages_for",
+        "name": "stages_for",
+        "module": "Spectra",
+        "kind": "value",
+        "hash": "f1679c49eeb5b006d0d28b026efea80ade2a823c373ce455781e111091ffb15c",
+        "ty": "(Spectra.Slide, Int, Theme.Theme) -> List(String)",
+        "ty_tokens": "0 1 2 0 13 1 0 1 2 1 3 3 0 1 2 1 11 1 0 1 2 1 2 2 1 4 1 0 1 2 0 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 14,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 21,
+            "end": 32,
+            "target": "Theme.Theme"
+          }
+        ],
+        "source": "fn stages_for(slide : Slide, stage : Int, theme : Theme) : List(String) =\n  let page = render_slide_page(slide.title, slide.body, stage, theme)\n  if stage >= max_stage(slide.body) then\n    [page]\n  else\n    Cons(page, stages_for(slide, stage + 1, theme))",
+        "span": {
+          "start": 7122,
+          "end": 7376
+        },
+        "types": "14 5 111 10 5 16 8 5 1 40 17 96 1 5 111 8 5 111 7 5 16 2 5 1 7 5 16 4 9 93 1 5 111 17 4 0 13 4 25 1 4 0 2 10 115 1 5 111 2 5 16 6 5 1",
+        "tokens": "0 2 0 11 1 2 6 1 2 1 5 1 0 1 2 7 1 2 1 3 3 0 1 2 7 1 2 1 5 1 0 1 2 1 1 2 1 4 1 0 1 2 0 6 3 0 1 2 1 1 2 3 3 0 6 1 2 18 1 2 5 1 2 5 1 2 6 1 2 4 1 2 6 1 2 6 1 2 3 2 0 7 2 2 10 1 2 5 1 2 4 1 2 1 4 0 5 1 2 4 1 2 3 4 0 5 4 1 0 1 2 4 1 2 11 1 2 5 1 2 7 1 2 1 1 5 0 1 2 6 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 22,
+            "end": 27,
+            "target": "Spectra.Slide"
+          },
+          {
+            "start": 50,
+            "end": 55,
+            "target": "Theme.Theme"
+          },
+          {
+            "start": 87,
+            "end": 104,
+            "target": "Spectra.render_slide_page"
+          },
+          {
+            "start": 158,
+            "end": 167,
+            "target": "Spectra.max_stage"
+          },
+          {
+            "start": 207,
+            "end": 211,
+            "target": "Cons"
+          },
+          {
+            "start": 218,
+            "end": 228,
+            "target": "Spectra@stages_for"
+          }
+        ]
+      }
+    }
+  ]
+}

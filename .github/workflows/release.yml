@@ -1,0 +1,365 @@
+name: Release
+
+# Cut a release by pushing a version tag (`git tag v0.4.0 && git push --tags`,
+# or `just release 0.4.0`). The build matrix produces the macOS arm64 and Linux
+# x64 binaries; a single publish job then attaches both tarballs, their
+# checksums, and build provenance to one GitHub Release and bumps the Homebrew
+# tap. A `gate` job asserts ci.yml already passed for the tagged commit, so the
+# release only builds + smokes (no full test re-run) and stays fast.
+#
+# The macOS binary loads only dylibs that ship with macOS, so `--version`,
+# `check`, and `run` work on a bare machine; native codegen (`-o`) still shells
+# out to the clang from `brew install llvm@22`. A step below asserts that
+# self-containment holds, because the failure is invisible on a runner that has
+# Homebrew. The Linux binary links the libs from the apt llvm-22 packages and
+# likewise shells out to clang, so it needs llvm-22 installed
+# (`apt-get install llvm-22 clang-22`).
+on:
+  push:
+    tags: ['v*']
+  # Exercise the build/package path without cutting a tag (skips publish + tap).
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # create the release and upload assets
+  id-token: write      # provenance attestation (OIDC)
+  attestations: write  # provenance attestation
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # A tag must be cut from a green main: assert the CI workflow already passed for
+  # this commit. Nothing here re-runs the test suite (ci.yml owns correctness); the
+  # release only builds + smokes, so tags are fast. Skipped on workflow_dispatch.
+  gate:
+    name: main is green
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/require-green-ci.sh "${{ github.sha }}"
+
+  build:
+    name: ${{ matrix.target }}
+    needs: gate
+    # Run on a dispatch (gate skipped) or a tag whose gate passed.
+    if: ${{ always() && (!startsWith(github.ref, 'refs/tags/v') || needs.gate.result == 'success') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14  # Apple Silicon runner; host target is aarch64-apple-darwin
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm  # GitHub public ARM64 runner
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v7
+
+      # The tag must name the version the manifest will ship. Catches a stray
+      # `git tag v0.5.0` while Cargo.toml still says 0.4.0 before anything builds.
+      - name: Tag matches Cargo.toml version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"(.*)"/\1/')"
+          if [ "$tag" != "$manifest" ]; then
+            echo "tag v$tag does not match Cargo.toml version $manifest"; exit 1
+          fi
+          echo "VERSION=$manifest" >> "$GITHUB_ENV"
+
+      # On a manual dispatch (no tag) take the version straight from the manifest
+      # so the package still names itself correctly.
+      - name: Version from manifest (dispatch)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          manifest="$(grep -m1 '^version' Cargo.toml | sed -E 's/version *= *"(.*)"/\1/')"
+          echo "VERSION=$manifest" >> "$GITHUB_ENV"
+
+      # Toolchain version + components come from rust-toolchain.toml, so the
+      # release builds with the same pinned rustc as CI.
+      - name: Setup Rust toolchain
+        run: rustup show
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      # macOS: llvm@22 pins the major inkwell links against (llvm22-1); the bare
+      # `llvm` formula would drift to 23+ and break the build. It also provides
+      # the clang the binary compiles with.
+      - name: Install LLVM 22 (macOS)
+        if: runner.os == 'macOS'
+        # Silence the runner's preinstalled aws/tap trust warning (unrelated to us).
+        env:
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
+        run: |
+          brew install llvm@22
+          prefix="$(brew --prefix llvm@22)"
+          echo "LLVM_SYS_221_PREFIX=$prefix" >> "$GITHUB_ENV"
+          echo "PRISM_CC=$prefix/bin/clang" >> "$GITHUB_ENV"
+
+      # Linux: the same LLVM 22 from the apt.llvm.org snapshot CI builds against.
+      - name: Install LLVM 22 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y llvm-22-dev libpolly-22-dev clang-22
+          echo "LLVM_SYS_221_PREFIX=/usr/lib/llvm-22" >> "$GITHUB_ENV"
+          echo "PRISM_CC=/usr/lib/llvm-22/bin/clang" >> "$GITHUB_ENV"
+
+      # No test run here: the `gate` job already confirmed ci.yml passed for this
+      # commit, and the parity oracle is platform-independent, so re-running the
+      # full suite per platform is redundant. Just build + smoke.
+      - name: Build release
+        run: cargo build --release
+
+      # The standard library's content-addressed Merkle root is platform
+      # independent, so compute it once (on the Linux runner, which has the
+      # binary and its LLVM runtime) and ship it as a standalone release asset:
+      # a flat file recording the fingerprint this release was cut from, for
+      # byte-for-byte verification against the docs badge and the store. The
+      # file argument is an ignored CLI placeholder (`dump stdlib-hash` reads the
+      # embedded stdlib, not the file), so any readable `.pr` serves.
+      - name: Record stdlib Merkle root
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          set -euo pipefail
+          root="$(target/release/prism dump stdlib-hash examples/accum.pr | awk '/^root/{print $2}')"
+          [ -n "$root" ] || { echo "empty stdlib Merkle root"; exit 1; }
+          printf '%s\n' "$root" > stdlib-merkle-root.txt
+          echo "stdlib Merkle root: $root"
+
+      - name: Upload stdlib Merkle root
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v7
+        with:
+          name: stdlib-merkle-root
+          path: stdlib-merkle-root.txt
+          if-no-files-found: error
+
+      # macOS only: assert the artifact loads nothing from the runner's Homebrew
+      # tree. Homebrew's LLVM is built against z3 and zstd, so a plain link bakes
+      # a hard dependency on the build machine's prefix into the binary and every
+      # user without that exact prefix (no brew, or Intel's /usr/local) gets a
+      # dyld abort before main, on `prism --version` as much as on a compile. The
+      # root build script discharges both at link time (see build.rs); this step
+      # is the gate that keeps it discharged, since the failure is invisible on a
+      # runner that has brew. Only /usr/lib and /System are permitted: those ship
+      # with macOS. Linux's soname/ldconfig handling makes this unnecessary there.
+      - name: Artifact loads no Homebrew dylibs (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          bin=target/release/prism
+          otool -L "$bin"
+          strays="$(otool -L "$bin" | tail -n +2 | awk '{print $1}' \
+            | grep -vE '^(/usr/lib/|/System/)' || true)"
+          if [ -n "$strays" ]; then
+            echo "non-system dylib dependencies in the release binary:"
+            echo "$strays"
+            exit 1
+          fi
+
+      - name: Package tarball
+        run: |
+          set -euo pipefail
+          pkg="prism-${VERSION}-${{ matrix.target }}"
+          mkdir "$pkg"
+          cp target/release/prism "$pkg/prism"
+          cp LICENSE README.md "$pkg/" 2>/dev/null || true
+          tar -czf "$pkg.tar.gz" "$pkg"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$pkg.tar.gz" | tee "$pkg.tar.gz.sha256"
+          else
+            shasum -a 256 "$pkg.tar.gz" | tee "$pkg.tar.gz.sha256"
+          fi
+          echo "PKG=$pkg" >> "$GITHUB_ENV"
+
+      # Smoke-test the packaged binary (not target/release/prism): compile and
+      # run a program end to end, so a broken artifact fails here, not later.
+      # main returns Unit so the process exits 0 (a program whose main returns an
+      # Int would exit with that value); assert the printed output instead.
+      - name: Smoke test packaged binary
+        run: |
+          printf 'fn main() : Unit ! {IO} =\n  println(42)\n' > /tmp/hello.pr
+          "./${PKG}/prism" /tmp/hello.pr -o /tmp/hello
+          out="$(/tmp/hello)"
+          echo "output: $out"
+          [ "$out" = "42" ] || { echo "unexpected output: $out"; exit 1; }
+
+      # Linux: also emit deb/rpm via the same `just pkg` used locally. No apk: the
+      # glibc binary can't run on musl; Alpine uses the container image instead.
+      - name: Install nfpm + just (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - uses: extractions/setup-just@v4
+        if: runner.os == 'Linux'
+      - name: Build deb/rpm
+        if: runner.os == 'Linux'
+        run: just pkg "$VERSION"
+
+      # Hand the tarball + checksum (and Linux packages) to the single publish job,
+      # which uploads every platform to one release.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            ${{ env.PKG }}.tar.gz
+            ${{ env.PKG }}.tar.gz.sha256
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # Collect every platform's tarball/checksum into dist/.
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      # merge-multiple keeps each artifact's internal layout, so the Linux
+      # packages (uploaded from dist/) arrive nested at dist/dist/. Flatten
+      # everything into dist/ so the release globs and the checksum manifest see it.
+      - name: Flatten artifacts into dist/
+        run: |
+          find dist -mindepth 2 -type f -exec mv -f -t dist {} +
+          find dist -mindepth 1 -type d -empty -delete
+          ls -1 dist
+
+      # Stamp the Arch PKGBUILD with this version and the real tarball sha256s,
+      # into dist/ so it ships as an asset and is covered by SHA256SUMS below.
+      - name: Generate PKGBUILD
+        run: ./scripts/gen-pkgbuild.sh "$VERSION" dist
+
+      - name: Checksums and release Merkle root
+        run: ./scripts/release-hashes.sh dist
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.tar.gz
+
+      # The release body is the matching CHANGELOG.md section, so notes are
+      # whatever was written for this version rather than auto-generated noise.
+      - name: Extract changelog section
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## +" v "([^0-9]|$)" { f=1; next }
+            f && /^## / { exit }
+            f { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "Release ${VERSION}." > RELEASE_NOTES.md
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: RELEASE_NOTES.md
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
+            dist/PKGBUILD
+            dist/stdlib-merkle-root.txt
+            dist/SHA256SUMS
+            dist/release-merkle-root.txt
+
+      # Bump Formula/prism.rb in the tap so `brew upgrade prism` sees the new
+      # version. The tap ships the macOS arm64 tarball. No-op until the tap repo
+      # and the HOMEBREW_TAP_TOKEN secret (a PAT with contents:write on
+      # sdiehl/homebrew-prism) exist. See packaging/homebrew/README.md.
+      - name: Check tap token
+        id: tap
+        env:
+          TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump Homebrew formula
+        if: steps.tap.outputs.enabled == 'true'
+        uses: mislav/bump-homebrew-formula-action@v4
+        with:
+          formula-name: prism
+          homebrew-tap: sdiehl/homebrew-prism
+          download-url: https://github.com/sdiehl/prism/releases/download/v${{ env.VERSION }}/prism-${{ env.VERSION }}-aarch64-apple-darwin.tar.gz
+          commit-message: |
+            prism {{version}}
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  # On a tag: build and push ghcr.io/sdiehl/prism:<version> + :latest using the
+  # built-in GITHUB_TOKEN (no secret needed). On dispatch: build + smoke only.
+  # Make the package Public once in the GitHub UI after the first push. This job
+  # emits amd64 only; it has no per-architecture runners or manifest assembly.
+  docker:
+    name: Docker image
+    needs: gate
+    if: ${{ always() && (!startsWith(github.ref, 'refs/tags/v') || needs.gate.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ghcr.io/sdiehl/prism
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v7
+        # Don't upload the buildx build-record (.dockerbuild) artifact: the publish
+        # job downloads *all* artifacts and choked trying to fetch that stray record.
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
+          DOCKER_BUILD_SUMMARY: "false"
+        with:
+          context: .
+          load: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Smoke
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: docker run --rm ghcr.io/sdiehl/prism:latest --version
