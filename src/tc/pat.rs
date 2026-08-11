@@ -1,8 +1,9 @@
 use marginalia::Span;
 
 use super::{Env, Tc};
-use crate::error::{ErrKind, TypeError};
+use crate::error::{suggest, ErrKind, TypeError};
 use crate::kw;
+use crate::names;
 use std::collections::BTreeSet;
 
 use crate::sym::Sym;
@@ -46,6 +47,20 @@ impl Tc<'_> {
         match &p.node {
             Pattern::Wild => Ok(env.clone()),
             Pattern::Var(x) => {
+                // The binding site's own type, for the same span table an
+                // expression's goes in. `ty` here is often still an existential
+                // opened from the constructor; `flush_spans` zonks the table once
+                // the declaration's solutions are in hand, so what lands is the
+                // solved field type rather than what was known at this moment.
+                self.pending.push((p.id, ty.clone()));
+                // Rendered through the same canonical printer an expression uses,
+                // rather than left to the raw `Type::show` fallback: otherwise a
+                // binder reports a signature's variable under the spelling the
+                // author wrote while every use of it reports the canonical letter.
+                // A binding site evaluates nothing, so its row is empty.
+                if self.track_tooltips {
+                    self.pending_tooltip_rows.push((p.id, EffRow::Empty));
+                }
                 let mut e2 = env.clone();
                 e2.insert(Sym::from(x), ty.clone());
                 Ok(e2)
@@ -98,6 +113,10 @@ impl Tc<'_> {
                         ctor_name: ctor_name.clone(),
                     }
                     .at(span)
+                    .maybe_help(suggest::suggestion(
+                        ctor_name,
+                        self.ctors.keys().map(|k| names::bare_name(k)),
+                    ))
                 })?;
                 // Without `..`, a record pattern must bind every field: the `..`
                 // spread is what licenses omitting the rest. Enforcing this
@@ -135,6 +154,10 @@ impl Tc<'_> {
                                 ctor: ctor_name.clone(),
                             }
                             .at(span)
+                            .maybe_help(suggest::suggestion(
+                                fname,
+                                info.fields.iter().map(|f| f.as_str()),
+                            ))
                         })?;
                     let mut ft = info.args[fi].clone();
                     for (pn, t) in &tsubs {
@@ -173,10 +196,14 @@ impl Tc<'_> {
                 }
             }
             Pattern::Ctor(name, subs) => {
-                let info =
-                    self.ctors.get(name).cloned().ok_or_else(|| {
-                        ErrKind::UnknownConstructor { name: name.clone() }.at(span)
-                    })?;
+                let info = self.ctors.get(name).cloned().ok_or_else(|| {
+                    ErrKind::UnknownConstructor { name: name.clone() }
+                        .at(span)
+                        .maybe_help(suggest::suggestion(
+                            name,
+                            self.ctors.keys().map(|k| names::bare_name(k)),
+                        ))
+                })?;
                 let (result, tsubs, rsubs) = self.open_ctor(&info);
                 self.equate(ty, &result).map_err(|e| e.at(span))?;
                 if subs.len() != info.args.len() {

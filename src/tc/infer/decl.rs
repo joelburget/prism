@@ -1,15 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::mem;
 
 use super::defaulting::default_open_rows;
 use super::diagnostics::{forall_ty_binders, poly_recursion_hint};
 use crate::error::{ErrKind, TypeError};
 use crate::sym::Sym;
 use crate::syntax::ast::{self, Core, Decl};
+use crate::types::deps;
 use crate::types::ty::{EffRow, Effects, Type};
 
 use super::super::env::Annot;
 use super::super::{
-    ClassInfo, Env, HoleBinding, HoleCandidate, HoleReport, InstInfo, RowScope, SelfRef, Tc,
+    ClassInfo, Env, HoleBinding, HoleCandidate, HoleReport, InstInfo, Renames, RowScope, SelfRef,
+    Tc,
 };
 
 // The existentials and scaffolding a declaration's body is inferred against: its
@@ -66,13 +69,52 @@ impl Tc<'_> {
         r
     }
 
-    // Zonk after resolve_all, while this declaration's solutions are still in ctx.
-    fn flush_spans(&mut self) {
-        for (id, t) in std::mem::take(&mut self.pending) {
+    // Set one declaration's span facts aside until its scheme exists. Taking them
+    // out of the shared buffers is what keeps a group's members separable: each is
+    // rendered under its own naming, and the buffers are refilled by the next body.
+    fn defer_spans(&mut self) {
+        let spans = std::mem::take(&mut self.pending);
+        let rows = std::mem::take(&mut self.pending_tooltip_rows);
+        self.deferred_spans.push_back((spans, rows));
+        self.touched_tooltip_rows.clear();
+        self.tooltip_row_scaffolds.clear();
+    }
+
+    // Zonk the spans of the declaration whose scheme has just been built, and render
+    // its tooltips under that scheme's own naming.
+    //
+    // Both halves belong here rather than at the end of the body. The zonk, because
+    // a group's solutions are only complete once every member's body has run. The
+    // naming, because `renames` is the very renaming the exported scheme carries, so
+    // a body reads the letters its signature does by construction — rather than by
+    // rebuilding the naming early and hoping the two agree.
+    fn flush_deferred(&mut self, renames: &Renames) {
+        let Some((spans, rows)) = self.deferred_spans.pop_front() else {
+            return;
+        };
+        for (id, t) in spans {
             let t = self.apply(&t);
             self.span_types.insert(id, t);
         }
-        let pending: BTreeMap<_, _> = std::mem::take(&mut self.pending_tooltip_rows)
+        self.decl_renames = Some(renames.clone());
+        // Collapsed by id first: a node pushed twice renders once, and in id order.
+        let rows: BTreeMap<_, _> = rows.into_iter().collect();
+        for (id, row) in rows {
+            if let Some(ty) = self.span_types.get(&id).cloned() {
+                let rendered = self.report_tooltip(&ty, &row);
+                self.tooltip_rows.insert(id, rendered);
+            }
+        }
+        self.decl_renames = None;
+    }
+
+    // Zonk after resolve_all, while this declaration's solutions are still in ctx.
+    fn flush_spans(&mut self) {
+        for (id, t) in mem::take(&mut self.pending) {
+            let t = self.apply(&t);
+            self.span_types.insert(id, t);
+        }
+        let pending: BTreeMap<_, _> = mem::take(&mut self.pending_tooltip_rows)
             .into_iter()
             .collect();
         for (id, row) in pending {
@@ -90,7 +132,7 @@ impl Tc<'_> {
     // subsumption relation in a rolled-back context, so ranking cannot constrain
     // either the hole or a later candidate.
     pub(in crate::tc) fn flush_holes(&mut self) {
-        for site in std::mem::take(&mut self.hole_sites) {
+        for site in mem::take(&mut self.hole_sites) {
             let expected = self.apply(&site.expected);
             let expected_s = self.report_type(&expected);
             let effects = self.report_row(&site.effects);
@@ -160,7 +202,12 @@ impl Tc<'_> {
     // rule that `! {}` is never omitted.
     fn report_tooltip(&self, ty: &Type, row: &EffRow) -> String {
         let pair = Type::Tuple(vec![self.apply(ty), Type::Row(self.apply_row(row))]);
-        let shown = self.generalize(&Env::new(), &pair);
+        // Under the enclosing declaration's own naming where there is one, so a
+        // variable shared with the signature keeps the signature's letter.
+        let shown = self.decl_renames.as_ref().map_or_else(
+            || self.generalize(&Env::new(), &pair),
+            |seed| self.generalize_seeded(&Env::new(), &pair, seed),
+        );
         let mut body = &shown;
         while let Type::Forall(_, next) | Type::RowForall(_, next) = body {
             body = next;
@@ -220,7 +267,7 @@ impl Tc<'_> {
             // A self-recursive call typed monomorphically cannot be used at a
             // second type without a signature; name the remedy (only on the error
             // path, and only for an actually self-recursive function).
-            if crate::types::effects::is_self_recursive(d) {
+            if deps::is_self_recursive(d) {
                 poly_recursion_hint(e, d)
             } else {
                 e
@@ -246,9 +293,9 @@ impl Tc<'_> {
     ) -> Result<Vec<Type>, TypeError> {
         let env_outer = env.clone();
         self.reset_ctx();
-        // Stage 1: seed every member. `env` accumulates the group's env-visible
-        // schemes so a sibling reference resolves to a real (monomorphic or
-        // annotated) type, not a placeholder stub.
+        // Seed every member. `env` accumulates the group's env-visible schemes so
+        // a sibling reference resolves to a real (monomorphic or annotated) type,
+        // not a placeholder stub.
         let mut seeds = Vec::with_capacity(members.len());
         for d in members {
             let seed = if d.konst {
@@ -265,7 +312,7 @@ impl Tc<'_> {
             env.insert(Sym::from(&d.name), visible);
             seeds.push(seed);
         }
-        // Stage 2: infer every body against the seeded group.
+        // Infer every body against the seeded group.
         for (d, seed) in members.iter().zip(&seeds) {
             // A monomorphic mutual call that needs the sibling at a second type
             // cannot be typed without a signature; name the remedy.
@@ -278,7 +325,7 @@ impl Tc<'_> {
                 super::super::require_pure_konst(d, &effs)?;
             }
         }
-        // Stage 3: generalize every member once, against the pre-group env, so the
+        // Generalize every member once against the pre-group environment so the
         // group's shared existentials all generalize.
         let mut out = Vec::with_capacity(members.len());
         for (d, seed) in members.iter().zip(&seeds) {
@@ -291,10 +338,10 @@ impl Tc<'_> {
         Ok(out)
     }
 
-    // Stage 1 of declaration inference: allocate the parameter, return, and
-    // effect-row existentials and build the monomorphic self-type, without
-    // touching any shared environment. Does not reset the context, so a caller
-    // can seed several members into one shared context before inferring them.
+    // Allocate the parameter, return, and effect-row existentials and build the
+    // monomorphic self-type without touching any shared environment. This does not
+    // reset the context, so a caller can seed several members into one shared
+    // context before inferring them.
     fn seed_decl(&mut self, d: &Decl<Core>) -> Result<DeclSeed, TypeError> {
         // One kind per variable across every annotation of the declaration
         // (params, return, and constraints share one signature scope).
@@ -404,11 +451,10 @@ impl Tc<'_> {
         })
     }
 
-    // Stage 1 for a constant member of a recursion group: its self-type is its
-    // value type (no arrow, no effects), from the annotation if given else a fresh
-    // existential. A constant is generalized by value restriction in `finish_decl`
-    // exactly as `infer_const` does; the dummy row tail keeps the shared seed shape
-    // and never carries a label, so it defaults to empty.
+    // Seed a constant member of a recursion group with its value type (no arrow or
+    // effects), taken from the annotation or a fresh existential. `finish_decl`
+    // applies the same value restriction as `infer_const`; the dummy row tail keeps
+    // the shared seed shape and carries no label, so it defaults to empty.
     fn seed_konst(&mut self, d: &Decl<Core>) -> Result<DeclSeed, TypeError> {
         let val = match &d.ret {
             Some(ann) => {
@@ -431,10 +477,10 @@ impl Tc<'_> {
         })
     }
 
-    // Stage 2: check the body against the seeded self-type. `env` holds the
-    // entry for this member's own name (a recursive call) and the env-visible
-    // schemes of any siblings (a mutual call). The self-entry is re-inserted last
-    // so it wins over any colliding parameter name, matching the pre-split order.
+    // Check the body against the seeded self-type. `env` holds the entry for this
+    // member's own name (a recursive call) and the visible schemes of any siblings
+    // (a mutual call). The self-entry is re-inserted last so it wins over any
+    // colliding parameter name, matching the pre-split order.
     //
     // The self-entry for a plain annotated function is its generalized annotation
     // scheme, so a recursive call instantiates it and may be used at a second type
@@ -490,7 +536,16 @@ impl Tc<'_> {
         });
         self.cur_row = saved_row;
         checked?;
-        self.flush_spans();
+        // Held, not read. This declaration's own constraints are settled here, but a
+        // mutually recursive sibling's are not: `Cli@lex_go` passes `specs` along
+        // without using it, and `lex_long`'s `find_long(specs, …)` is what pins it —
+        // a body inferred after this one. Zonking now would report `specs` as the
+        // unsolved variable it still is at this instant. `finish_decl` reads them
+        // once the whole group is inferred, under the scheme it builds there.
+        //
+        // Holes stay here: a hole is reported against the declaration that wrote it
+        // and its report is a diagnostic, not a side table.
+        self.defer_spans();
         self.flush_holes();
         // Record the principal-body-effect witness while the solutions are
         // live: the ambient row the body actually accumulated, read before
@@ -527,9 +582,9 @@ impl Tc<'_> {
         Ok(())
     }
 
-    // Stage 3: generalize the inferred self-type against `env` (the environment
-    // as it was before this member or its group was seeded, so the group's shared
-    // existentials all generalize) and record any class constraints.
+    // Generalize the inferred self-type against `env`, as it stood before this
+    // member or its group was seeded, and record any class constraints. This
+    // generalizes the group's shared existentials together.
     fn finish_decl(
         &mut self,
         env: &Env,
@@ -542,6 +597,7 @@ impl Tc<'_> {
         // context by solving that variable under row unification.
         let self_ty = default_open_rows(&self.apply(&seed.self_ty));
         let (g, renames) = self.generalize_decl_map(env, &self_ty);
+        self.flush_deferred(&renames);
         if !d.constraints.is_empty() {
             // The scheme's quantified type variables; a constraint may mention only
             // these. A rigid signature variable that no parameter or result uses is
@@ -652,10 +708,17 @@ impl Tc<'_> {
             tc.resolve_all()?;
             Ok(ty)
         })?;
+        // Generalized before the spans are flushed, not after, so the declaration's
+        // naming exists while its nodes are being rendered. `generalize_decl_map`
+        // reads the context without touching it, so pulling it earlier leaves the
+        // scheme it returns exactly the one this returned when it ran last.
+        let t = self.apply(&ty);
+        let (scheme, renames) = self.generalize_decl_map(env, &t);
+        self.decl_renames = Some(renames);
         self.flush_spans();
         self.flush_holes();
-        let t = self.apply(&ty);
-        Ok((self.generalize_decl(env, &t), effs))
+        self.decl_renames = None;
+        Ok((scheme, effs))
     }
 
     pub(in crate::tc) fn check_instance(
@@ -709,8 +772,21 @@ impl Tc<'_> {
                 })
                 .map_err(|e| e.in_fn(&qual))
             })?;
+            // Deliberately unseeded, unlike a function's spans. Seeding from the
+            // class signature instantiated at this head was measured and made things
+            // worse: a method body refers to its class's own methods at several
+            // instantiations at once — `eqPair` uses `eq` at both components — and
+            // pinning those to one naming reports two genuinely different types as
+            // though they were the same one named twice.
             self.flush_spans();
             self.flush_holes();
+            // Recorded before the check below consumes it: this row is the only
+            // account of what an instance method performs, since a method is
+            // checked from inside its instance and never becomes a `DeclInfo`.
+            self.method_effects.insert(
+                crate::names::instance_method(&inst.name, &m.name),
+                effs.clone(),
+            );
             let undeclared: Vec<String> = effs
                 .iter()
                 .filter(|eff| !declared_labels.contains(eff))

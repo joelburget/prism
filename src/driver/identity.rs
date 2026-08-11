@@ -9,27 +9,38 @@
 //! `namespace` dumps, package tags, and this module agree by construction.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::env;
 use std::fmt::Write;
 use std::fs;
 use std::sync::OnceLock;
 
+#[cfg(feature = "native")]
+use prism_native::{native_kont_table, NativeKontIdentityRow};
 use serde::{Deserialize, Serialize};
 
 use crate::core::fbip::borrow_sigs;
-use crate::core::{fip_annots, hash_program, Digest, ElaboratedCore, HASH_SCHEME};
+use crate::core::{
+    class_digests, fip_annots, hash_program, hash_root, instance_digest, konst_fns, shape_digests,
+    Digest, ElaboratedCore, Hashes, HASH_SCHEME,
+};
 use crate::error::Error;
+use crate::names::instance_method_prefix;
+use crate::parse::parse;
 use crate::resolve::Root;
 #[cfg(feature = "native")]
 use crate::resolve::SourceBundleKind;
+use crate::stdlib::STDLIB;
+use crate::sym::Sym;
 use crate::syntax::ast::{Core as CorePhase, Fip, Program};
-use crate::types::{Checked, Type};
-
 #[cfg(feature = "native")]
-use prism_native::{native_kont_table, NativeKontIdentityRow};
+use crate::syntax::reflect::parse_unit;
+use crate::tc::parse_checked_signature;
+use crate::types::{Checked, Env, Type, TypecheckSeed};
 
-use super::{elaborated, hash_meta, with_prelude, WireKind, NAMESPACE_ARTIFACT_KIND};
+use super::front::{run_front, Front, FrontRequest};
+use super::{elaborated, hash_meta, with_prelude, Config, WireKind, NAMESPACE_ARTIFACT_KIND};
 #[cfg(feature = "native")]
-use super::{ArtifactField, ArtifactIdentity, Config};
+use super::{ArtifactField, ArtifactIdentity};
 
 /// Fingerprint of the executable that is executing compiler queries.
 ///
@@ -41,7 +52,7 @@ pub(super) fn compiler_binary_fingerprint() -> Result<&'static str, Error> {
     if let Some(value) = FINGERPRINT.get() {
         return Ok(value);
     }
-    let bytes = fs::read(std::env::current_exe()?)?;
+    let bytes = fs::read(env::current_exe()?)?;
     let _ = FINGERPRINT.set(blake3::hash(&bytes).to_hex().to_string());
     Ok(FINGERPRINT.get().expect("compiler fingerprint initialized"))
 }
@@ -89,45 +100,174 @@ pub fn namespace_root(src: &str, roots: &[Root]) -> Result<String, Error> {
     Ok(namespace_identity(src, roots)?.root.into_string())
 }
 
-// The complete namespace-entry map a root commits to: every definition and
-// inlined-constant behavior hash, every data/effect shape digest, every class
-// digest, and every instance digest, keyed by a kind tag so declarations that
-// share a name across namespaces (a value and an instance are both lowercase)
-// cannot collide. This is the single fold the namespace contract, the
-// `dump namespace` export, the package tag, audit re-derivation, and the
-// standard-library root all share, so a change to a type's shape or an instance's
-// method moves the root even when no definition body's bytes change. Folding only
-// definitions (the previous behavior) let `Token(Int)` and `Token(String)` share
-// one namespace contract.
-fn namespace_entries(
+/// The four content-addressed layers a namespace root commits to, kept apart.
+///
+/// Every definition and inlined-constant behavior hash, every data/effect shape
+/// digest, every class interface digest, and every instance identity digest,
+/// plus the one Merkle [`root`](Self::root) folded over all four. The root is the
+/// single value the namespace contract, the `dump namespace` export, a package
+/// tag, and audit re-derivation all agree on, so a change to a type's shape or an
+/// instance's method moves it even when no definition body's bytes change.
+///
+/// The layers are kept separate rather than pre-merged because a tool that
+/// addresses *individual* definitions (the code index) needs to know which
+/// namespace a name was addressed in: a value and an instance are both lowercase,
+/// so `map` in the definition layer and `map` in the instance layer are different
+/// things, which is exactly what the kind tags the merge applies encode before
+/// the fold.
+#[derive(Debug, Clone)]
+pub struct NamespaceLayers {
+    /// The single fold over every entry below; the value a package tag names.
+    pub root: Digest,
+    /// The hashing scheme tag every constituent hash commits to.
+    pub scheme: &'static str,
+    /// The compiler version that produced this fingerprint.
+    pub version: &'static str,
+    /// Per-definition behavior hashes (term level).
+    pub defs: crate::core::Hashes,
+    /// Per-declaration structural shape digests (datatypes and effects).
+    pub shapes: BTreeMap<String, Digest>,
+    /// Per-class interface digests (name, superclasses, method signatures).
+    pub classes: BTreeMap<String, Digest>,
+    /// Per-instance identity digests (class, head, method behavior hashes).
+    pub instances: BTreeMap<String, Digest>,
+}
+
+// Elaborated Core with the inlined top-level constants folded back in, so every
+// *addressable* definition is a Core node.
+//
+// A `let` constant is inlined at its use sites and so never reaches compiled
+// Core, but it still has its own behavior hash and its own dependency edges. Both
+// the namespace fold and the dependency graph want it present, and they must agree
+// on the augmented set, so the augmentation has one home here.
+fn with_konsts(
     program: &Program<CorePhase>,
     checked: &Checked,
     core: &ElaboratedCore,
-) -> Result<BTreeMap<String, Digest>, Error> {
-    // Top-level constants are inlined at use sites, so they are not in the
-    // compiled Core; elaborate them as zero-param CoreFns so each contributes its
-    // own behavior hash, exactly as the standard-library root does.
+) -> Result<ElaboratedCore, Error> {
     let mut core = core.clone();
-    core.core_mut()
-        .fns
-        .extend(crate::core::konst_fns(program, checked)?);
+    core.core_mut().fns.extend(konst_fns(program, checked)?);
+    Ok(core)
+}
+
+// The layers of an already-augmented program (see [`with_konsts`]).
+fn layers_of_augmented(
+    program: &Program<CorePhase>,
+    checked: &Checked,
+    core: &ElaboratedCore,
+) -> NamespaceLayers {
     let defs = hash_program(
-        &core,
+        core,
         &hash_meta(checked, &borrow_sigs(program), &fip_annots(program)),
     );
-    let shapes = crate::core::shape_digests(&program.types, &program.effects);
-    let classes = crate::core::class_digests(&program.classes);
+    let shapes = shape_digests(&program.types, &program.effects);
+    let classes = class_digests(&program.classes);
     let instances = instance_digests(program, &defs);
-    Ok(merge_namespace_entries(
+    let root = crate::core::hash_root(&merge_namespace_entries(
         &defs, &shapes, &classes, &instances,
+    ));
+    NamespaceLayers {
+        root,
+        scheme: HASH_SCHEME,
+        version: env!("CARGO_PKG_VERSION"),
+        defs,
+        shapes,
+        classes,
+        instances,
+    }
+}
+
+// The layers of an elaborated program. The one computation behind the
+// whole-program root, the standard-library fingerprint, and the code index, so
+// the three cannot drift on what a namespace contains.
+fn layers_of(
+    program: &Program<CorePhase>,
+    checked: &Checked,
+    core: &ElaboratedCore,
+) -> Result<NamespaceLayers, Error> {
+    Ok(layers_of_augmented(
+        program,
+        checked,
+        &with_konsts(program, checked, core)?,
     ))
+}
+
+/// Everything a tool needs to address a program's definitions individually: the
+/// elaborated program, its checked view, its Core with every addressable
+/// definition present as a node, and its [`NamespaceLayers`].
+///
+/// One elaboration serves all four. A consumer that computed them separately
+/// would pay for three front-end passes and, worse, could build a dependency
+/// graph over a different definition set than the one it hashed.
+pub(crate) struct AddressableSurface {
+    pub program: Program<CorePhase>,
+    pub checked: Checked,
+    /// Core augmented by [`with_konsts`]: the node set the layers are taken over,
+    /// so a [`crate::core::DepGraph`] built from it and the digests in `layers`
+    /// describe the same definitions.
+    pub core: ElaboratedCore,
+    pub layers: NamespaceLayers,
+}
+
+/// Elaborate `src` and return its [`AddressableSurface`].
+///
+/// Computed over the identity surface (pre-optimizer elaborated Core), so it is a
+/// pure function of `src` and `roots`.
+///
+/// # Errors
+/// Fails on any front-end error.
+pub(crate) fn addressable_surface(src: &str, roots: &[Root]) -> Result<AddressableSurface, Error> {
+    addressable_surface_in(src, roots, &Config::default())
+}
+
+/// [`addressable_surface`] under an explicit configuration.
+///
+/// The identity preset consults no optimizer or retarget knob, so `cfg` changes
+/// nothing here except the one thing upstream of it: the build mode.
+/// `BuildMode::Test` retains `test fn` declarations that a production elaboration
+/// strips before it hashes anything, so a test-mode surface is the only place a
+/// test's own content address and dependency edges exist.
+///
+/// # Errors
+/// Fails on any front-end error.
+pub(crate) fn addressable_surface_in(
+    src: &str,
+    roots: &[Root],
+    cfg: &Config,
+) -> Result<AddressableSurface, Error> {
+    let (program, checked, core) =
+        run_front(src, roots, cfg, FrontRequest::IdentityTooltips).map(Front::into_elaborated)?;
+    let core = with_konsts(&program, &checked, &core)?;
+    let layers = layers_of_augmented(&program, &checked, &core);
+    Ok(AddressableSurface {
+        program,
+        checked,
+        core,
+        layers,
+    })
+}
+
+/// The namespace layers of a program: every definition, shape, class, and
+/// instance digest it commits to, plus their fold.
+///
+/// [`namespace_identity`] answers "what is this program's one address"; this
+/// answers "what addresses are *in* it", which is what a tool needs to link a
+/// source declaration to its content hash. Computed over the identity surface
+/// (pre-optimizer elaborated Core), so it is a pure function of `src` and
+/// `roots` and no compiler knob can move a digest.
+///
+/// # Errors
+/// Fails on any front-end error.
+pub fn namespace_layers(src: &str, roots: &[Root]) -> Result<NamespaceLayers, Error> {
+    let (program, checked, core) = elaborated(src, roots)?;
+    layers_of(&program, &checked, &core)
 }
 
 // Merge the four namespace layers into one kind-tagged `name -> digest` map. The
 // one place the tag strings live, shared by the whole-program root and the
 // standard-library root so the two folds cannot drift.
 pub(crate) fn merge_namespace_entries(
-    defs: &crate::core::Hashes,
+    defs: &Hashes,
     shapes: &BTreeMap<String, Digest>,
     classes: &BTreeMap<String, Digest>,
     instances: &BTreeMap<String, Digest>,
@@ -156,7 +296,7 @@ pub(crate) fn merge_namespace_entries(
 // value doubles as the coherence seed.
 pub(crate) fn instance_digests(
     program: &Program<CorePhase>,
-    defs: &crate::core::Hashes,
+    defs: &Hashes,
 ) -> BTreeMap<String, Digest> {
     let defs_str: BTreeMap<String, Digest> = defs
         .iter()
@@ -164,37 +304,35 @@ pub(crate) fn instance_digests(
         .collect();
     let mut instances: BTreeMap<String, Digest> = BTreeMap::new();
     for inst in &program.instances {
-        let prefix = crate::names::instance_method_prefix(&inst.name);
+        let prefix = instance_method_prefix(&inst.name);
         let methods: BTreeMap<String, Digest> = defs_str
             .iter()
             .filter_map(|(k, v)| k.strip_prefix(&prefix).map(|m| (m.to_string(), v.clone())))
             .collect();
         instances.insert(
             inst.name.clone(),
-            crate::core::instance_digest(&inst.class, &inst.head, &methods),
+            instance_digest(&inst.class, &inst.head, &methods),
         );
     }
     instances
 }
 
-// The whole-program namespace root: the full fold over `namespace_entries`. This
-// is the published/audited contract a package tag maps to.
+// The whole-program namespace root: the fold over every namespace layer. This is
+// the published/audited contract a package tag maps to.
 pub(crate) fn namespace_root_of(
     program: &Program<CorePhase>,
     checked: &Checked,
     core: &ElaboratedCore,
 ) -> Result<Digest, Error> {
-    Ok(crate::core::hash_root(&namespace_entries(
-        program, checked, core,
-    )?))
+    Ok(layers_of(program, checked, core)?.root)
 }
 
 // The definition-layer Merkle fold: a root over definition content hashes only.
 // The reified-continuation bundle uses this (its call sites carry the def-hash
 // map, not the full program), a distinct envelope from the namespace contract.
 #[cfg(feature = "native")]
-pub(crate) fn def_layer_root(hashes: &crate::core::Hashes) -> Digest {
-    crate::core::hash_root(
+pub(crate) fn def_layer_root(hashes: &Hashes) -> Digest {
+    hash_root(
         &hashes
             .iter()
             .map(|(sym, h)| {
@@ -209,7 +347,7 @@ pub(crate) fn def_layer_root(hashes: &crate::core::Hashes) -> Digest {
 
 #[cfg(feature = "native")]
 pub(super) fn native_kont_table_of(
-    hashes: &crate::core::Hashes,
+    hashes: &Hashes,
     roots: &[Root],
     cfg: &Config,
     identity_rows: NativeKontIdentityRows,
@@ -469,12 +607,10 @@ impl BuildIdentity {
 // resolves and elaborates the module, and is harmless beside the prelude's
 // own glob imports.
 pub(crate) fn stdlib_driver_src() -> String {
-    let imports = crate::stdlib::STDLIB
-        .iter()
-        .fold(String::new(), |mut imports, (name, _)| {
-            writeln!(imports, "import {name}").unwrap();
-            imports
-        });
+    let imports = STDLIB.iter().fold(String::new(), |mut imports, (name, _)| {
+        writeln!(imports, "import {name}").unwrap();
+        imports
+    });
     with_prelude(&imports)
 }
 
@@ -548,13 +684,13 @@ impl ModuleInterface {
     ///
     /// # Errors
     /// Fails if an exported signature is not valid under this interface format.
-    pub fn exported_value_env(&self) -> Result<crate::types::Env, String> {
+    pub fn exported_value_env(&self) -> Result<Env, String> {
         self.validate()?;
-        let mut env = crate::types::Env::new();
+        let mut env = Env::new();
         for entry in self.entries.iter().filter(|entry| entry.kind == "value") {
-            let ty = crate::tc::parse_checked_signature(&entry.name, &entry.signature)
+            let ty = parse_checked_signature(&entry.name, &entry.signature)
                 .map_err(|e| e.to_string())?;
-            env.insert(crate::sym::Sym::from(entry.name.as_str()), ty);
+            env.insert(Sym::from(entry.name.as_str()), ty);
         }
         Ok(env)
     }
@@ -635,18 +771,16 @@ pub fn public_surface(
     full_src: &str,
     roots: &[Root],
 ) -> Result<Vec<PublicDef>, Error> {
-    let exports = crate::parse::parse(entry_src)?.program.exports;
+    let exports = parse(entry_src)?.program.exports;
     let (program, checked, mut core) = elaborated(full_src, roots)?;
     // Top-level constants inline at use sites, so lift them to zero-param CoreFns
     // for their own behavior hash, exactly as the stdlib fingerprint does.
-    core.core_mut()
-        .fns
-        .extend(crate::core::konst_fns(&program, &checked)?);
+    core.core_mut().fns.extend(konst_fns(&program, &checked)?);
     let defs = hash_program(
         &core,
         &hash_meta(&checked, &borrow_sigs(&program), &fip_annots(&program)),
     );
-    let shapes = crate::core::shape_digests(&program.types, &program.effects);
+    let shapes = shape_digests(&program.types, &program.effects);
     let mut surface: BTreeMap<String, Digest> = BTreeMap::new();
     for (sym, hash) in &defs {
         if exports.contains(sym.as_str()) {
@@ -683,7 +817,7 @@ pub fn module_interface(
     full_src: &str,
     roots: &[Root],
 ) -> Result<ModuleInterface, Error> {
-    let entry = crate::parse::parse(entry_src)?.program;
+    let entry = parse(entry_src)?.program;
     let (program, checked, _) = elaborated(full_src, roots)?;
     module_interface_from_checked(&entry, None, &program, &checked)
 }
@@ -695,8 +829,8 @@ pub(crate) fn module_interface_from_checked(
     checked: &Checked,
 ) -> Result<ModuleInterface, Error> {
     let exports = super::interface::exported_names(entry, module_path);
-    let shapes = crate::core::shape_digests(&program.types, &program.effects);
-    let classes = crate::core::class_digests(&program.classes);
+    let shapes = shape_digests(&program.types, &program.effects);
+    let classes = class_digests(&program.classes);
     let mut entries = Vec::new();
 
     for decl in &checked.decls {
@@ -721,7 +855,7 @@ pub(crate) fn module_interface_from_checked(
         if !exports.contains(&decl.name) {
             continue;
         }
-        let sym = crate::sym::Sym::new(&decl.name);
+        let sym = Sym::new(&decl.name);
         let mask: String = borrows.get(&sym).map_or_else(String::new, |bs| {
             bs.iter().map(|b| if *b { 'b' } else { '.' }).collect()
         });
@@ -817,40 +951,86 @@ pub(super) fn interface_entry(
 ///
 /// Module queries use this as their immutable foundation instead of rechecking
 /// the shipped standard-library module graph for every project command.
-pub(crate) fn stdlib_typecheck_seed() -> Result<crate::types::TypecheckSeed, Error> {
-    static CACHE: OnceLock<crate::types::TypecheckSeed> = OnceLock::new();
+pub(crate) fn stdlib_typecheck_seed() -> Result<TypecheckSeed, Error> {
+    static CACHE: OnceLock<TypecheckSeed> = OnceLock::new();
     if let Some(seed) = CACHE.get() {
         return Ok(seed.clone());
     }
     let src = stdlib_driver_src();
-    let (_, checked, _) = elaborated(&src, &[Root::Embedded(crate::stdlib::STDLIB)])?;
-    let seed = crate::types::TypecheckSeed::from_checked(&checked);
+    let (_, checked, _) = elaborated(&src, &[Root::Embedded(STDLIB)])?;
+    let seed = TypecheckSeed::from_checked(&checked);
     let _ = CACHE.set(seed.clone());
     Ok(CACHE.get().cloned().unwrap_or(seed))
 }
 
-/// A content-addressed fingerprint of the whole standard library.
+/// Exported standard-library values paired with their owning module and scheme.
+///
+/// Search consumes this interface view rather than the foundation environment,
+/// which also contains private helpers needed only while checking Std itself.
+/// Native-only: the CLI type-query commands are its only consumers.
+#[cfg(feature = "native")]
+pub(crate) fn stdlib_value_schemes() -> Result<Vec<(String, String, Type)>, Error> {
+    static CACHE: OnceLock<Vec<(String, String, Type)>> = OnceLock::new();
+    if let Some(rows) = CACHE.get() {
+        return Ok(rows.clone());
+    }
+    let seed = stdlib_typecheck_seed()?;
+    let mut rows = BTreeMap::<String, (String, Type)>::new();
+
+    // The unqualified foundation is the always-on Base interface.
+    for (name, ty) in seed.env.iter() {
+        if !name.as_str().contains('.') && !name.as_str().contains('@') {
+            rows.insert(name.to_string(), ("Base".to_string(), ty.clone()));
+        }
+    }
+
+    for (module, source) in STDLIB {
+        let entry = parse_unit(source)?;
+        let exports = super::interface::exported_names(&entry, Some(module));
+        for export in &exports {
+            if let Some(ty) = seed.env.get(&Sym::from(export.as_str())) {
+                rows.insert(export.clone(), ((*module).to_string(), ty.clone()));
+            }
+            if let Some(data) = seed.data.get(export) {
+                for constructor in &data.ctors {
+                    if let Some(ty) = seed.env.get(&Sym::from(constructor.as_str())) {
+                        rows.insert(constructor.clone(), ((*module).to_string(), ty.clone()));
+                    }
+                }
+            }
+            if let Some(class) = seed.classes.get(&Sym::from(export.as_str())) {
+                for (method, _ty) in &class.methods {
+                    if let Some(ty) = seed.env.get(method) {
+                        rows.insert(method.to_string(), ((*module).to_string(), ty.clone()));
+                    }
+                }
+            }
+        }
+        for (operation, info) in &seed.eff_ops {
+            if exports.contains(info.effect_name.as_str()) {
+                if let Some(ty) = seed.env.get(&Sym::from(operation.as_str())) {
+                    rows.insert(operation.clone(), ((*module).to_string(), ty.clone()));
+                }
+            }
+        }
+    }
+    let rows = rows
+        .into_iter()
+        .map(|(name, (module, ty))| (module, name, ty))
+        .collect::<Vec<_>>();
+    let _ = CACHE.set(rows.clone());
+    Ok(CACHE.get().cloned().unwrap_or(rows))
+}
+
+/// A content-addressed fingerprint of the whole standard library: the
+/// [`NamespaceLayers`] of the embedded stdlib.
 ///
 /// One namespace root (a branch-hash-style fold) over every documented
 /// definition's behavior hash and every datatype/effect's shape digest, tagged
-/// with the hashing scheme and the compiler version that produced it.
-#[derive(Debug, Clone)]
-pub struct StdlibHash {
-    /// The single fold over every entry below; the value anchored in the docs.
-    pub root: Digest,
-    /// The hashing scheme tag every constituent hash commits to.
-    pub scheme: &'static str,
-    /// The compiler version that produced this fingerprint.
-    pub version: &'static str,
-    /// Per-definition behavior hashes (term level).
-    pub defs: crate::core::Hashes,
-    /// Per-declaration structural shape digests (datatypes and effects).
-    pub shapes: BTreeMap<String, Digest>,
-    /// Per-class interface digests (name, superclasses, method signatures).
-    pub classes: BTreeMap<String, Digest>,
-    /// Per-instance identity digests (class, head, method behavior hashes).
-    pub instances: BTreeMap<String, Digest>,
-}
+/// with the hashing scheme and the compiler version that produced it. An alias
+/// rather than its own type: the standard library is addressed exactly like any
+/// other program, so the two must never grow separate layer sets.
+pub type StdlibHash = NamespaceLayers;
 
 /// Compute the standard-library fingerprint. See [`StdlibHash`].
 ///
@@ -877,31 +1057,7 @@ pub fn stdlib_hash() -> Result<StdlibHash, Error> {
 }
 
 fn stdlib_hash_uncached() -> Result<StdlibHash, Error> {
-    let src = stdlib_driver_src();
-    let (program, checked, mut core) = elaborated(&src, &[Root::Embedded(crate::stdlib::STDLIB)])?;
-    // Top-level constants (`let`) are inlined at use sites, so they are not in the
-    // compiled Core. Elaborate them as zero-param CoreFns so each gets its own
-    // behavior hash (addressable and displayable), then hash the whole set.
-    core.core_mut()
-        .fns
-        .extend(crate::core::konst_fns(&program, &checked)?);
-    let defs = hash_program(
-        &core,
-        &hash_meta(&checked, &borrow_sigs(&program), &fip_annots(&program)),
-    );
-    let shapes = crate::core::shape_digests(&program.types, &program.effects);
-    let classes = crate::core::class_digests(&program.classes);
-    let instances = instance_digests(&program, &defs);
-    // The whole-program root uses the shared fold, so the standard-library root
+    // The standard library goes through the shared layer computation, so its root
     // and a package/namespace contract cannot drift apart.
-    let entries = merge_namespace_entries(&defs, &shapes, &classes, &instances);
-    Ok(StdlibHash {
-        root: crate::core::hash_root(&entries),
-        scheme: HASH_SCHEME,
-        version: env!("CARGO_PKG_VERSION"),
-        defs,
-        shapes,
-        classes,
-        instances,
-    })
+    namespace_layers(&stdlib_driver_src(), &[Root::Embedded(STDLIB)])
 }

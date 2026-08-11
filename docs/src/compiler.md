@@ -1,6 +1,6 @@
 # The Prism Compiler {#the-prism-compiler}
 
-This document describes the `prism` compiler, from source text to native binary across its three backends. The chapter on [verification](#verification) describes the model and how the Lean 4 kernel anchors the compiler's verification chain.
+This document describes the `prism` compiler, from source text to native binary across its three backends.
 
 ## 0. Design Principles {#design-principles}
 
@@ -74,6 +74,7 @@ The dump phases walk the pipeline in order:
 | `syntax-diagnostics`    | every lex or parse refusal as a versioned artifact            |
 | `types`                 | inferred types and effect rows                                |
 | `typespans`             | versioned typed source ranges for editor and docs tooling     |
+| `occurrences`           | every resolved reference: goto-definition and find-references |
 | `hir`                   | the checked-HIR fixture: per-node checker facts as JSON       |
 | `interface`             | the entry module's checked interface, the importer-cutoff key |
 | `module-graph`          | the versioned module dependency graph                         |
@@ -98,6 +99,7 @@ The dump phases walk the pipeline in order:
 | `lowered`               | core after effect lowering                                    |
 | `tier`                  | the effect-lowering strategy the handlers compile to          |
 | `effect-plan`           | the reachability and purity facts behind that strategy        |
+| `tier-explain`          | one sentence per region: its rung and the fact that forced it |
 | `captures`              | closure-capture portability facts                             |
 | `usage-summary`         | a per-definition allocation, `fip`, borrow, and effect table  |
 | `usage-summary-md`      | the same usage facts as a Markdown table                      |
@@ -133,7 +135,7 @@ Each step leaves the program in a different representation, and it is the repres
 
 CBPV's split between values and computations is what makes those middle passes tractable at all, since every effect operation and every allocation sits in a syntactically distinguished position, and core is where the language's meaning is fixed and its [content-addressed identity](#content-addressed-core) is taken. Each step removes exactly one class of ambiguity, syntax, then names, then sugar, then semantics, then surface structure, so a pass never reopens a prior one's decision, and each representation carries its own verifier: the HIR its [lint](#the-hir-lint), typed core its independent checker, executable core its lint and the [differential oracle](#the-model-as-a-differential-oracle), the store its content hashes. The **typed core** carries witnesses through a verified middle-end prefix so a pass that silently changes a type is caught structurally, the way [`lint_hir`](#the-hir-lint) catches a bad front-end fact, rather than by differential testing alone.
 
-Little in this design is new; the combination is. Whole-program optimization over merged Core, so specialization and monomorphization range over the entire program, follows MLton and Stalin, Prism's two direct compiler precursors. Type classes by dictionary passing, structural `deriving`, and the higher-kinded class tower come from Haskell as realized in GHC; the garbage-free reference counting with in-place reuse underneath them is the Perceus line, and effect handlers compiled by evidence passing over row-typed effects are Koka's. Compiling pattern matches to decision trees and tail recursion modulo cons are the ML tradition's, most directly OCaml's. Content-addressed definition identity, the thing that turns a whole-program compiler incremental, is Unison's. What is Prism's own is holding all of these together, which the rest of this chapter takes apart pass by pass.
+Little in this design is new; the combination is. Whole-program optimization over merged Core, so specialization and whole-program analyses range over the entire program, follows MLton and Stalin, Prism's two direct compiler precursors. Type classes by dictionary passing, structural `deriving`, and the higher-kinded class tower come from Haskell as realized in GHC; the garbage-free reference counting with in-place reuse underneath them is the Perceus line, and effect handlers compiled by evidence passing over row-typed effects are Koka's. Compiling pattern matches to decision trees and tail recursion modulo cons are the ML tradition's, most directly OCaml's. Content-addressed definition identity, the thing that turns a whole-program compiler incremental, is Unison's. What is Prism's own is holding all of these together, which the rest of this chapter takes apart pass by pass.
 
 Every phase returns its result into one `thiserror` enum whose variants carry stable phase-specific error codes and include lex, parse, resolve, type, codegen, runtime, IO, and `InternalInvariant`; diagnostics are rendered with source carets through `ariadne`, mapping spans back through the prepended prelude to the user's own text. An internal invariant is returned as `InternalInvariant` rather than exposed as a source-triggered panic, so malformed source yields a diagnostic.[^ice-sites] The crate denies `unsafe` by default (`unsafe_code = "deny"`) and carries two audited exception sites: LLVM's dynamic byte-offset `getelementptr` builder and the interpreter's FFI calls into the vendored libm. Of the handful of `panic!`s in the tree all but one are test assertions, the exception being a `PRISM_CORE_LINT`-gated sanity check on the compiler's own IR (see [lint, telemetry, and parity](#lint-telemetry-and-parity)).
 
@@ -580,9 +582,9 @@ This is the type-system half of effect-polymorphic concurrency: it is what makes
 
 ## 7. The Core Calculus {#the-core-calculus}
 
-Elaboration lowers the surface language to a call-by-push-value core ([Levy, 2004](bibliography.md#levy-2004)) in A-normal form. CBPV separates **values**, which are inert, from **computations**, which can be run; `Thunk` freezes a computation into a value and `Force` runs it. A-normal form names every intermediate result with a `Bind`, making evaluation order explicit and each operation and allocation syntactically distinguished, enabling the later effect and reference-counting passes. The grammar below is the elaborated core; the reference-count pass (see [reference counting and FBIP reuse](#reference-counting-and-fbip-reuse)) later adds `dup`, `drop`, and reuse nodes to it.
+Elaboration lowers the surface language to a call-by-push-value core ([Levy, 2004](bibliography.md#levy-2004)) in A-normal form. CBPV separates **values**, which are inert, from **computations**, which can be run; `Thunk` freezes a computation into a value and `Force` runs it. A-normal form names every intermediate result with a `Bind`, making evaluation order explicit and each operation and allocation syntactically distinguished, enabling the later effect and reference-counting passes. The grammar below is the union of representable raw Core forms across compiler stages, not a claim that every node exists at once or is constructed today: elaboration produces the base and effect forms, effect lowering introduces local-mutation and arena-initialization forms while removing abstract effects, and reference counting and reuse introduce the ownership forms. The tables below preserve those stage distinctions.
 
-This follows GHC's discipline for Haskell: desugar and elaborate the entire surface language into one small, explicitly typed core, and make that core the single place every later pass operates. The surface may grow new sugar freely, but effect lowering, reference counting, optimization, and the Lean model all see only the handful of forms in the grammar below, so their complexity does not scale with surface syntax. Prism's core is smaller still than GHC's [System FC](bibliography.md#sulzmann-2007): call-by-push-value already makes evaluation order syntactic and A-normal form already names every intermediate result, leaving a pass little to re-derive.
+This follows GHC's discipline for Haskell: desugar and elaborate the entire surface language into one small, explicitly typed core, and make that core the single place every later compiler pass operates. The surface may grow new sugar freely, but effect lowering, reference counting, and optimization each see only their stage's subset of the handful of raw forms below, so their complexity does not scale with surface syntax. The Lean model covers the semantic projection described under [verification](#verification), rather than every representation- and runtime-specific node. Prism's core is smaller still than GHC's [System FC](bibliography.md#sulzmann-2007): call-by-push-value already makes evaluation order syntactic and A-normal form already names every intermediate result, leaving a pass little to re-derive.
 
 ```text
 {{#include ../examples/cbpv-grammar.txt}}
@@ -691,44 +693,48 @@ Lam [y]
 
 ### Core Nodes {#core-nodes}
 
-The core has two syntactic categories. A **value** (`Value`) is inert: it can be named, copied, and stored, but not run. A **computation** (`Comp`) can be run to produce a value or perform an effect. `Thunk` freezes a computation into a value and `Force`/`Return` cross back, so the two categories are bridged by exactly those nodes. The tables below name every node the backend passes see.
+The core has two syntactic categories. A **value** (`Value`) is inert: it can be named, copied, and stored, but not run. A **computation** (`Comp`) can be run to produce a value or perform an effect. `Thunk` freezes a computation into a value and `Force`/`Return` cross back, so the two categories are bridged by exactly those nodes. The tables below name the representable raw nodes and group the stage-specific forms by the pass that introduces them; no one backend stage sees the whole union.
 
 #### Values
 
-| Node    | Description                                                                                |
-| ------- | ------------------------------------------------------------------------------------------ |
-| `Var`   | Reference to a bound variable, by its resolved symbol.                                     |
-| `Int`   | A machine-word integer literal (the default `Int`).                                        |
-| `I64`   | A fixed-width 64-bit signed integer literal.                                               |
-| `U64`   | A fixed-width 64-bit unsigned integer literal.                                             |
-| `Float` | A double-precision floating-point literal.                                                 |
-| `Bool`  | A boolean literal.                                                                         |
-| `Unit`  | The unit value `()`.                                                                       |
-| `Str`   | A string literal.                                                                          |
-| `Thunk` | A computation frozen as a value; `Force` runs it later. The value-from-computation bridge. |
-| `Ctor`  | A fully applied data constructor: its symbol, its integer tag, and its field values.       |
-| `Tuple` | An anonymous product of values.                                                            |
+| Node            | Description                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `Var`           | Reference to a bound variable, by its resolved symbol.                                     |
+| `Int`           | An immediate integer literal in the default, arbitrary-precision `Int` lane.               |
+| `I64`           | A fixed-width 64-bit signed integer literal.                                               |
+| `U64`           | A fixed-width 64-bit unsigned integer literal.                                             |
+| `Float`         | A double-precision floating-point literal.                                                 |
+| `Bool`          | A boolean literal.                                                                         |
+| `Unit`          | The unit value `()`.                                                                       |
+| `Str`           | A string literal.                                                                          |
+| `Thunk`         | A computation frozen as a value; `Force` runs it later. The value-from-computation bridge. |
+| `Ctor`          | A fully applied data constructor: its symbol, its integer tag, and its field values.       |
+| `Tuple`         | An anonymous product of values.                                                            |
+| `UnboxedTuple`  | An anonymous product carried directly as ABI fields rather than in a heap cell.            |
+| `UnboxedRecord` | The reserved named-field form of an unboxed product.                                       |
 
 #### Computations
 
-| Node           | Description                                                                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Return`       | Lift a value into a (trivial) computation. The computation-from-value bridge.                                                                      |
-| `Bind`         | Run a computation, name its result, and continue. A-normal-form sequencing, the only sequencer.                                                    |
-| `Force`        | Run a thunk value.                                                                                                                                 |
-| `Lam`          | A function abstraction over parameters with a computation body.                                                                                    |
-| `App`          | Apply a computation (typically a forced closure) to value arguments.                                                                               |
-| `Call`         | A direct call to a top-level function by name, kept distinct from `App` for direct-call codegen.                                                   |
-| `If`           | Branch on a boolean value.                                                                                                                         |
-| `Prim`         | A primitive arithmetic or comparison operator on two values (see Operators).                                                                       |
-| `Case`         | Scrutinize a value against constructor and tuple patterns (see Patterns). The compiled form of `match`.                                            |
-| `FloatBuiltin` | A unary floating-point or numeric-conversion builtin on one value (see Float builtins).                                                            |
-| `StrBuiltin`   | A string, array, or map builtin applied to value operands.                                                                                         |
-| `Io`           | A builtin IO operation and its operands: the output family, the input family, and RNG seeding (see IO operations).                                 |
-| `Error`        | Raise a runtime error carrying a value. The panic and unrecoverable-failure surface.                                                               |
-| `Do`           | Perform an effect operation: the operation symbol and its argument values. Algebraic-effect `perform`.                                             |
-| `Handle`       | Install an effect handler: a body, per-operation clauses (each binding its parameters and a `resume` continuation), and an optional return clause. |
-| `Mask`         | Bypass the innermost matching handlers for the named operations while running the body (effect tunnelling).                                        |
+| Node             | Description                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Return`         | Lift a value into a (trivial) computation. The computation-from-value bridge.                                                                      |
+| `Bind`           | Run a computation, name its result, and continue. A-normal-form sequencing, the only sequencer.                                                    |
+| `Force`          | Run a thunk value.                                                                                                                                 |
+| `Lam`            | A function abstraction over parameters with a computation body.                                                                                    |
+| `App`            | Apply a computation (typically a forced closure) to value arguments.                                                                               |
+| `Call`           | A direct call to a top-level function by name, kept distinct from `App` for direct-call codegen.                                                   |
+| `If`             | Branch on a boolean value.                                                                                                                         |
+| `Prim`           | A primitive arithmetic or comparison operator on two values (see Operators).                                                                       |
+| `Case`           | Scrutinize a value against constructor and tuple patterns (see Patterns). The compiled form of `match`.                                            |
+| `FloatBuiltin`   | A unary floating-point or numeric-conversion builtin on one value (see Float builtins).                                                            |
+| `Neg`            | Negate a value in the `Int`, `I64`, or `Float` lane; the float lane preserves signed zero.                                                         |
+| `UnboxedProject` | The reserved projection of a named field from an unboxed record value.                                                                             |
+| `StrBuiltin`     | A runtime-call builtin applied to value operands, including strings, containers, buffers, and related primitives.                                  |
+| `Io`             | A builtin IO operation and its operands: the output family, the input family, and RNG seeding (see IO operations).                                 |
+| `Error`          | Raise a runtime error carrying a value. The panic and unrecoverable-failure surface.                                                               |
+| `Do`             | Perform an effect operation: the operation symbol and its argument values. Algebraic-effect `perform`.                                             |
+| `Handle`         | Install an effect handler: a body, per-operation clauses (each binding its parameters and a `resume` continuation), and an optional return clause. |
+| `Mask`           | Bypass the innermost matching handlers for the named operations while running the body (effect tunnelling).                                        |
 
 #### Reference-counting and reuse nodes
 
@@ -781,11 +787,12 @@ Short-circuiting `&&` and `||` lower to `If`, and `^` lowers to a class-method c
 
 | Pattern | Description                                                                    |
 | ------- | ------------------------------------------------------------------------------ |
-| `Var`   | Bind the whole scrutinee to a name (or ignore it).                             |
+| `Wild`  | Ignore the whole scrutinee.                                                    |
+| `Var`   | Bind the whole scrutinee to a name.                                            |
 | `Ctor`  | Test the scrutinee's constructor tag, binding or ignoring each field position. |
 | `Tuple` | Destructure a product, binding or ignoring each component.                     |
 
-Literal, boolean, and record patterns are compiled away upstream into `If` and `Prim` tests, so only these three shapes survive into a `Case`.
+Literal, boolean, and record patterns are compiled away upstream into `If` and `Prim` tests, so only these four shapes survive into a `Case`.
 
 #### IO operations (`Io`)
 
@@ -812,20 +819,37 @@ Folding the family under one node keeps each structural pass to a single arm; th
 | `CeilToInt`  | Round a float up to the nearest integer.                |
 | `AbsFloat`   | Absolute value.                                         |
 | `Sqrt`       | Square root.                                            |
+| `Floor`      | Round down, retaining a float result.                   |
+| `Ceil`       | Round up, retaining a float result.                     |
+| `Round`      | Round to the nearest integer-valued float.              |
+| `Trunc`      | Discard the fraction, retaining a float result.         |
 | `Sin`        | Sine.                                                   |
 | `Cos`        | Cosine.                                                 |
+| `Tan`        | Tangent.                                                |
+| `Asin`       | Inverse sine.                                           |
+| `Acos`       | Inverse cosine.                                         |
+| `Atan`       | Inverse tangent.                                        |
+| `Sinh`       | Hyperbolic sine.                                        |
+| `Cosh`       | Hyperbolic cosine.                                      |
+| `Tanh`       | Hyperbolic tangent.                                     |
 | `Exp`        | The exponential function `e^x`.                         |
+| `Exp2`       | The base-2 exponential function.                        |
+| `Expm1`      | `e^x - 1`, accurately near zero.                        |
 | `Ln`         | Natural logarithm.                                      |
+| `Log2`       | Base-2 logarithm.                                       |
+| `Log10`      | Base-10 logarithm.                                      |
+| `Log1p`      | `ln(1 + x)`, accurately near zero.                      |
+| `Cbrt`       | Cube root.                                              |
 
 #### Program structure
 
 | Node       | Description                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------------- |
 | `Core`     | A whole program: the list of its top-level functions.                                                   |
-| `CoreFn`   | One top-level function: its name, parameters, and computation body.                                     |
+| `CoreFn`   | One top-level function: its name, parameters, leading dictionary arity, and computation body.           |
 | `HandleOp` | One clause of a `Handle`: the operation name, its parameters, the `resume` binder, and the clause body. |
 
-This calculus is modeled in Lean 4 ([de Moura & Ullrich, 2021](bibliography.md#demoura-ullrich-2021)): the formal syntax mirrors the core one variant at a time with a substitution small-step relation, on top of which the model adds an executable abstract machine that mirrors the interpreter and is proved to agree with it. The chapter on [verification](#verification) describes the model and how it anchors the compiler's verification chain.
+The semantic projection of this calculus is modeled in Lean 4 ([de Moura & Ullrich, 2021](bibliography.md#demoura-ullrich-2021)): the formal syntax retains the execution-relevant forms it interprets while collapsing or omitting representation-only and later-stage runtime nodes. It carries a substitution small-step relation, on top of which the model adds an executable abstract machine that mirrors the corresponding interpreter behavior and is proved to agree with it. The chapter on [verification](#verification) describes that coverage boundary and how the model anchors the compiler's verification chain.
 
 ### 7.1 The Identity Surface {#the-identity-surface}
 
@@ -1356,7 +1380,7 @@ A string is a cell tagged `0x53545200` whose field words hold its UTF-8 bytes in
 
 ### 14.8 Instrumentation {#instrumentation}
 
-Three environment-gated counters report to stderr at exit, leaving stdout (the parity-checked channel) untouched. `PRISM_CHECK_LEAKS` reports the live-cell balance, which a clean run drives to zero. `PRISM_REUSE_STATS` reports how many cells the reuse pass rewrote in place. `PRISM_EFFOP_STATS` reports how many free-monad `EOp` cells were allocated, which the performance gate asserts is zero on the fusion corpus.
+Five environment-gated counters report to stderr at exit, leaving program stdout untouched. `PRISM_CHECK_LEAKS` reports the live-cell balance, which a clean run drives to zero. `PRISM_ALLOC_STATS` reports total cell allocations. `PRISM_REUSE_STATS` reports how many cells the reuse pass rewrote in place. `PRISM_EFFOP_STATS` reports how many free-monad `EOp` cells were allocated, which the performance gate asserts is zero on the fusion corpus. `PRISM_DRIVE_STATS` reports native effect-driver activity.
 
 ### 14.9 Growable Arrays {#growable-arrays}
 
@@ -1368,7 +1392,9 @@ The growable `Array(a)` (see [the standard prelude](./spec.md#the-standard-prelu
 
 ### 14.11 Input, Output, and Randomness {#input-output-and-randomness}
 
-The runtime provides the impure primitives. The nondeterministic _inputs_ are no longer untracked builtins: they are the raw `prim_*` calls (`prim_read_int`, `prim_read_line`, `prim_read_file`, `prim_file_exists`, `prim_rand`, `prim_getenv`, `prim_args_count`, `prim_arg`) that the prelude reaches only from the handler arms of the [capability effects and IO](./spec.md#capability-effects-and-io). The surface names `read_int`/`read_line` read stdin, `read_file`/`file_exists` read files, `getenv` reads the environment, `rand` draws a random word, and `args_count`/`arg` (wrapped by the prelude's `args`) read the command line; each is a prelude wrapper that performs the matching `Console`/`FileSystem`/`Random`/`Env` operation, which the default `run_io` world handler discharges by calling the corresponding `prim_*`. The output primitives stay direct builtins carrying `! {IO}`: `write_file`, `append_file`, and `remove_file` operate on files, `system` runs a shell command and returns its exit code, and `eprint`/`eprintln` write to stderr, leaving the parity-checked stdout untouched. Randomness is a SplitMix64 generator: `prim_rand` advances it and `srand` seeds it, so a seeded run is deterministic and reproducible. Because these touch the world, the parity harness (see [verification](#verification)) runs only the programs that avoid them.
+The runtime provides the impure primitives. World reads live behind raw `prim_*` calls: console input (`prim_read_int`, `prim_read_line`), text and byte file reads plus existence checks (`prim_read_file`, `prim_read_bytes`, `prim_file_exists`), seeded randomness and fresh entropy (`prim_rand`, `prim_entropy`), process data (`prim_getenv`, `prim_args_count`, `prim_arg`), and the real wall and monotonic clocks (`prim_wall_now`, `prim_mono_now`). Surface wrappers perform the matching `Console`, `FileSystem`, `Random`, `Entropy`, `Env`, or `Clock` operation. The default `run_io` handler discharges the first five families into real-world calls; `Time.run_clock_real` does the same for the two physical clock reads while keeping logical `now` and `sleep` virtual.
+
+Console output has an interceptable `Output` seam: `print` and `println` route through it when replay or a replaying incremental driver must suppress an already-observed prefix, and the ordinary `run_io` path fuses those operations back to direct primitives. File writes (`write_file`, `write_bytes`, `append_file`, `remove_file`), `system`, and stderr output remain direct `IO` builtins. Randomness is a SplitMix64 generator: `prim_rand` advances it and `srand` seeds it, so a seeded run is deterministic and reproducible; `prim_entropy` is deliberately fresh and excluded from `replayable`. The parity corpus runs every clean, on-platform program it can compare at a process boundary; interactive and off-platform filesystem/environment cases are excluded by the exact, test-pinned `CORPUS_SKIPS` inventory rather than by a blanket ban on world-facing code.
 
 ### 14.12 Elementary Functions {#elementary-functions-runtime}
 
@@ -1382,7 +1408,7 @@ The whole library is compiled `-ffp-contract=off` (in both the embedded archive 
 
 ## 15. Verification {#verification}
 
-Compiler CI combines differential testing, sanitizer passes, structural checks, and a mechanized Core model. The parity harness uses the interpreter as its reference: it runs every example on the interpreter and each native backend and asserts byte-identical output, and with `PRISM_CHECK_LEAKS` set, zero leaked cells.
+Compiler CI combines differential testing, sanitizer passes, structural checks, and a mechanized Core model. The parity harness uses the interpreter as its reference: it runs every clean, on-platform program in the examples and run corpus on the interpreter and each native backend, asserts identical process-visible behavior, and, with `PRISM_CHECK_LEAKS` set, zero leaked cells. The exact interactive and off-platform exclusions are named by `CORPUS_SKIPS`, and a guard fails if that list or the runnable corpus drifts silently.
 
 What the parity harness and the tier-parity check actually diff is not raw stdout but a single typed artifact, the canonical observation trace (`ObservationTrace`). A trace is an ordered sequence of `Observation` values, one entry per externally visible event a run produces: `Stdout`/`Stderr` chunks, `Capability` events (each a `CapEvent` recording a canonical operation label, its arguments, and its result, covering environment, console, filesystem, clock, and random reads), `FileCommit` records naming a written path by content digest, the terminal `Exit` code or `Return` value, and, when execution goes wrong, a `Fault`. The whole sequence folds to one `sha256` digest (`ObservationTrace::new`, `observation_digest`) that names the run's complete behavior, so two runs "agreeing" means their traces are equal, not that someone diffed stdout by hand. The interpreter and replay build this trace directly from the observations the evaluator records as it runs; a native binary, which exposes only a process boundary, is captured through `ObservationTrace::from_process`, which folds its stdout, stderr, and exit code into the same event vocabulary, and `process_projection` derives that same projection from a full trace so an interpreter run can be compared against a native one on equal terms. This is the one artifact both the parity harness (interpreter versus each native backend) and the tier-parity gate (native binaries built under different forced effect-lowering tiers) diff to decide pass or fail, and it is the same trace a run-lineage sidecar hashes to prove a replay reproduced its recording exactly: one comparison, one type, reused across the oracle, the backends, every tier, and replay, rather than an ad-hoc convention re-implemented at each site.
 
@@ -1738,6 +1764,7 @@ Commands begin with `:`; any unambiguous prefix resolves to its command, GHCi-st
 | `:load f`        | load declarations from a file, making it the active file      |
 | `:reload`        | re-read the active file from disk                             |
 | `:edit [f]`      | open a file (or a scratch buffer) in `$EDITOR`, then load it  |
+| `:explain Ennnn` | print the page for a diagnostic code, as `prism explain` does |
 | `:set [+-]flags` | toggle options; bare `:set` lists them                        |
 | `:quit`          | leave the shell                                               |
 
@@ -1890,7 +1917,9 @@ A verified record is local to the build that wrote it; a **parity certificate** 
 
 The compiler cache is a demand-driven query graph over semantic identities. Its principal front-end cutoff is the split between a module's **interface** and its checked **body**. A `ModuleInterface` contains name-sorted exported value schemes and structural contracts for types, effects, classes, and instances. An importer rehydrates those facts and depends on the interface digest rather than the dependency body; an implementation-only edit may therefore rebuild the edited module while leaving its importers reusable. This is early-cutoff incrementality: recomputation whose result identity stays fixed stops propagating to dependents.
 
-The durable compiler cache is distinct from the opt-in definition store described above. It is enabled by default (`PRISM_COMPILER_CACHE=0` disables it) and uses the same root selected by `PRISM_STORE_PATH`. Its artifacts reflect the granularity each phase has proved sound. SCC-local optimizer passes (`EraseNewtypes`, `Simplify`, and `Cse`) cache fixed-point certificates over current Core binders; non-local optimizer passes remain whole-program. Effect lowering is always recomputed as the verified whole-program authority; its former durable query is retired and intentionally inert, and durable caching resumes at the post-lowering optimizer boundary. Backend SCC bitcode commits reachability, direct-callee ABI, used constructor layouts, and closure summaries; separately sharded closure adapters and arity dispatch, program/runtime objects, and the final link are durable queries too. A hit is accepted only after the artifact's format, content address, and phase-specific invariants validate; corruption is a hard error, while a policy-skipped oversized write leaves compilation successful.
+The durable compiler cache is distinct from the opt-in definition store described above. It is enabled by default (`PRISM_COMPILER_CACHE=0` disables it) and uses the same root selected by `PRISM_STORE_PATH`. Its artifacts reflect the granularity each phase has proved sound. SCC-local optimizer passes (`EraseNewtypes`, `Simplify`, and `Cse`) cache fixed-point certificates over current Core binders; non-local optimizer passes remain whole-program. Effect lowering is always recomputed as the verified whole-program authority; its former durable query is retired and intentionally inert, and durable caching resumes at the post-lowering optimizer boundary. Backend SCC bitcode commits reachability, direct-callee ABI, used constructor layouts, and closure summaries; separately sharded closure adapters and arity dispatch, program objects, and the final link are durable queries too. A hit is accepted only after the artifact's format, content address, and phase-specific invariants validate; corruption is a hard error, while a policy-skipped oversized write leaves compilation successful.
+
+One cost-only layer remains under `--no-compiler-cache`: the embedded C runtime's translation units are prebuilt once per exact runtime profile, target, Clang identity, and flag vector. They contain no program Core or compiler-pass result, so reusing their byte-identical objects removes subprocess work without skipping compiler semantics; generated program objects and the final link still run from scratch. These hits and misses are deliberately excluded from compiler lineage and are exposed on the `cc.link` timing row instead.
 
 This combines three prior disciplines rather than overloading one digest. Early cutoff follows rustc's red-green algorithm and Salsa: a dependent reruns only when a dependency's result changes, not merely its revision. Immutable content-addressed artifacts follow Nix, and normalized definition identity follows Unison. Prism's query families have separate versioned key schemas composed from the semantic inputs each phase actually observes: compiler and configuration identity, source and dependency identities, pass or lowering plans, reachability, ABI facts, and exact binder identity where rehydration requires it.[^bsalc]
 
@@ -2046,6 +2075,10 @@ The compiler is currently written in Rust. The bootstrap path is conventional: R
 
 Prism is already bootstrapping itself in pieces. The standard library contains the lexer, layout pass, parser families, syntax codecs, and compiler-facing data structures. The current work brings those pieces together until the compiler can consume its own source and the remaining compiler phases can move into the library. At the endpoint, the compiler is an open compiler architecture: ordinary Prism modules expose the compiler as a standard-library surface, and the compiler can inspect, transform, and rebuild itself.
 
+`prism bootstrap check FILE` runs the T1 checker from the `tc` package. Rust first accepts the program and exports `tc-input`, resolved syntax, surface syntax, and checker facts. Prism decodes those artifacts and checks the pure first-order subset. `Data.Diff` locates the first fact that differs.
+
+The report separates parity from coverage. Unsupported syntax reduces the covered node count. It does not create a disagreement. `--json` emits `prism-bootstrap-check-v1`; the text view shows the same status, coverage, and first divergence. Rust remains authoritative in both modes.
+
 This is also a whole-program compiler experiment in the spirit of Stalin and MLton. Rust sets a deliberately high performance bar. Prism sets a second bar by measuring how much shorter the compiler becomes when its own language and libraries express the implementation. The interesting result is the code delta between the Rust implementation and the Prism implementation, not a claim that the bootstrap is finished today.
 
 The project is a one-person hobby project built to explore language and compiler architecture. That makes the loop unusually direct: design a feature, use it in the compiler, then measure whether the compiler became clearer, smaller, or faster.
@@ -2056,30 +2089,35 @@ The `prism` binary is one executable with a handful of subcommands. With no subc
 
 ### 27.1 Commands {#commands}
 
-The surface is thirteen top-level commands plus five noun groups (`exec`, `lineage`, `patch`, `pkg`, `store`), each group collecting the verbs that share a subject.
+The surface is eighteen top-level commands plus five noun groups (`exec`, `lineage`, `patch`, `pkg`, `store`), each group collecting the verbs that share a subject.
 
 #### Top-level
 
-The everyday commands: build, run, check, format, inspect, document, compare.
+The everyday commands: build, run, check, format, inspect, index, document, compare, explain.
 
-| Command                              | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prism`                              | Start the interactive shell (REPL).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `prism PROGRAM`                      | Compile a single file to a native binary named after the source (`-o` overrides).                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `prism <dir>` / `prism <prism.toml>` | Compile the project rooted at that manifest to `target/<package>`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `prism build [path]`                 | Compile the enclosing project (the nearest `prism.toml`); fails outside a project. `--watch` keeps one compiler session alive, polls project and path-dependency source contents, and rebuilds after edits while remaining alive across compile errors. With `--verbose`, every rebuild reports directly changed compilation units, their reverse-dependency closure, semantic query reuse/recompilation, the definition-level Merkle impact cone, cache status, and timing.                                                          |
-| `prism run [PROGRAM]`                | With a file, type-check and run in the interpreter, with real stdin/stdout (`exit(n)` becomes a real process exit); `--defer-holes` turns reached [typed holes](./spec.md#typed-holes) into deterministic faults; `--record PATH` writes a `.replay` trace, `--lineage PATH` a run sidecar, and `--durable PATH` resumes a crash-safe log. With no file inside a project, build the project's binary and execute it, forwarding `-- args` and the exit status (the interpreter-only flags above instead interpret the project entry). |
-| `prism check [PROGRAM]`              | Type-check only; with no file, check the enclosing project; with a file, check that one source. Success is quiet and reported by exit status.                                                                                                                                                                                                                                                                                                                                                                                         |
-| `prism verify PROGRAM`               | Discharge function contracts through an external SMT solver; `--solvers` and `--require-agreement` can require several solvers to agree.                                                                                                                                                                                                                                                                                                                                                                                              |
-| `prism test [path]`                  | Discover and run [`test fn`](./spec.md#test-declarations) declarations in a project or source file, with deterministic selection, isolated interpreter worlds, captured output, and text or JSON results.                                                                                                                                                                                                                                                                                                                             |
-| `prism fmt [paths..]`                | Format `.pr` files in place. No path formats the current tree recursively; `-` filters stdin to stdout. A `.prismfmtignore` file exempts digest-pinned paths from the walk, though naming one still formats it.                                                                                                                                                                                                                                                                                                                       |
-| `prism dump <phase> PROGRAM`         | Print one pipeline artifact (see [dump phases](#dump-phases)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `prism docs [path]`                  | Generate API documentation and a `docs.plineage` manifest; `--test` runs doctests, `--accept`/`--bless` rewrites stale output blocks, `--verify-manifest` rechecks the manifest.                                                                                                                                                                                                                                                                                                                                                      |
-| `prism diff [<old> <new>]`           | With no paths, diff the enclosing project's Git `HEAD` against its working tree over `.pr` sources, showing semantic changes, their dependents cone, and compact definition-level surface deltas; with paths, diff two source revisions by content hash or two `.plineage` sidecars by logical key.                                                                                                                                                                                                                                   |
-| `prism report PROGRAM`               | Print every pipeline phase for a program.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `prism why-output ARTIFACT [OUTPUT]` | Explain a built artifact or output from its lineage sidecar without reading source; `--json` emits the explanation as data.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `prism clean [path]`                 | Remove the project's `target/` build-artifact directory; an absent one is a no-op success.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `prism repl`                         | Start the interactive shell (same as bare `prism`); accepts `--no-banner`.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Command                              | What it does                                                        |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `prism`                              | Start the interactive shell.                                        |
+| `prism PROGRAM`                      | Compile a source file to a native binary.                           |
+| `prism <dir>` / `prism <prism.toml>` | Compile a project.                                                  |
+| `prism build [path]`                 | Compile the enclosing project.                                      |
+| `prism run [PROGRAM]`                | Run a source file or the enclosing project.                         |
+| `prism check [PROGRAM]`              | Type-check a source file or the enclosing project.                  |
+| `prism search TYPE`                  | Search available interfaces for values matching a type.             |
+| `prism synth [PROGRAM] --at-hole N`  | Generate expressions for a named typed hole.                        |
+| `prism bootstrap check PROGRAM`      | Check a program with the bootstrap checker.                         |
+| `prism verify PROGRAM`               | Verify function contracts with an SMT solver.                       |
+| `prism test [path] [FILTER]`         | Discover and run tests in a source file or project.                 |
+| `prism fmt [paths..]`                | Format Prism source files.                                          |
+| `prism dump <phase> PROGRAM`         | Print a compiler pipeline artifact.                                 |
+| `prism docs [path]`                  | Generate API documentation.                                         |
+| `prism index [path]`                 | Write or compare code-index artifacts for the definition viewer.    |
+| `prism diff [<old> <new>]`           | Show semantic differences between source revisions or lineage data. |
+| `prism report PROGRAM`               | Print every compiler pipeline phase for a program.                  |
+| `prism explain CODE`                 | Explain a diagnostic code.                                          |
+| `prism why-output ARTIFACT [OUTPUT]` | Explain how a built artifact or output was produced.                |
+| `prism clean [path]`                 | Remove a project's build artifacts.                                 |
+| `prism repl`                         | Start the interactive shell.                                        |
 
 Test compilation has an explicit production-neutral boundary. Production mode removes `test fn` declarations before module interfaces, Core identities, and backend artifacts are taken; test mode retains them, validates the restricted signature and effect world, and builds a deterministic manifest whose logical ids, Core digests, and dependency-closure digests are independent of discovery order. The runner synthesizes one private entry point per selected test and evaluates each in a fresh interpreter world, classifying normal return, `fail`, fault, unhandled effect, explicit exit, and harness failure without allowing state or captured output to leak between cases.
 
@@ -2110,8 +2148,8 @@ The language-level contract and rationale behind this boundary are specified und
 
 ```console
 $ prism patch fetch PROGRAM increment > fetched.json
-$ prism patch impact PROGRAM prism-core-v1:8cf0... > impact.json
-$ prism patch create PROGRAM prism-core-v1:8cf0... REPLACEMENT > patch.json
+$ prism patch impact PROGRAM prism-core-hash-v2:8cf0... > impact.json
+$ prism patch create PROGRAM prism-core-hash-v2:8cf0... REPLACEMENT > patch.json
 $ prism patch submit PROGRAM patch.json > judgment.json
 $ prism patch behavior PROGRAM patch.json corpus.json > behavior.json
 $ prism patch commit PROGRAM
@@ -2127,82 +2165,82 @@ The judge reports the definition's before/after Core hashes, whole namespace roo
 
 Verbs over a run as a value: replay a trace, cut a running program into a snapshot, resume one, step through a recording.
 
-| Command                                 | What it does                                                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prism exec replay PROGRAM <trace>`     | Re-run a recorded `.replay` trace, producing output byte-identical to the original.                                                               |
-| `prism exec steps PROGRAM [--json]`     | Run the program and print each observation with the machine step at which it fired, the ruler a suspend budget is picked from.                    |
-| `prism exec suspend PROGRAM --at N`     | Run the program, pause after `N` machine steps, and write the live continuation to a [`kont` envelope](#the-kont-envelope) (`-o` names the file). |
-| `prism exec resume PROGRAM <snap.kont>` | Decode a `kont` envelope, check its bundle digest against the program's code identity, and run the continuation to completion.                    |
-| `prism exec debug PROGRAM <trace>`      | Terminal reverse-step debugger over a recorded trace (step forward and back by replay-to-N).                                                      |
+| Command                                 | What it does                                      |
+| --------------------------------------- | ------------------------------------------------- |
+| `prism exec replay PROGRAM <trace>`     | Replay a recorded program execution.              |
+| `prism exec steps PROGRAM [--json]`     | Show each observation and its execution step.     |
+| `prism exec suspend PROGRAM`            | Pause execution and save its continuation.        |
+| `prism exec resume PROGRAM <snap.kont>` | Resume a saved continuation.                      |
+| `prism exec debug PROGRAM <trace>`      | Debug a recording with forward and reverse steps. |
 
 #### `prism lineage`: explaining artifacts
 
 Verbs over a `.plineage` sidecar ([lineage](#build-lineage)): render it, interrogate it, verify it, certify a verification.
 
-| Command                                     | What it does                                                                                                                                             |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prism lineage why-recompiled [PROGRAM]`    | Run the ordinary compiler queries and explain reuse or recompilation across the durable query graph.                                                     |
-| `prism lineage show <file> [--json]`        | Render a build or run `.plineage` sidecar and explain why an artifact exists.                                                                            |
-| `prism lineage why <sidecar> <output>`      | Walk a sidecar backward to explain why an output exists (`--json` for data).                                                                             |
-| `prism lineage verify <sidecar> [--replay]` | Rehash a sidecar's recorded artifacts; `--replay` re-runs and re-checks a run sidecar; `--certify PATH` persists a passed verification as a certificate. |
-| `prism lineage check-cert <cert> <sidecar>` | Check a lineage certificate against the sidecar it names; a subject mismatch or unrecognized claim is rejected.                                          |
+| Command                                     | What it does                                      |
+| ------------------------------------------- | ------------------------------------------------- |
+| `prism lineage why-recompiled [PROGRAM]`    | Explain why compiler work was reused or repeated. |
+| `prism lineage show <file> [--json]`        | Show and explain a lineage sidecar.               |
+| `prism lineage why <sidecar> <output>`      | Explain why an output exists.                     |
+| `prism lineage verify <sidecar> [--replay]` | Verify a lineage sidecar.                         |
+| `prism lineage check-cert <cert> <sidecar>` | Verify a certificate against its sidecar.         |
 
 #### `prism pkg`: the package manager
 
 Verbs over projects and the package universe ([the package manager](#package-manager)).
 
-| Command                                            | What it does                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prism pkg init`                                   | Prompt for a package name and directory, then create a minimal project skeleton.                                                                                                                                                                                                                        |
-| `prism pkg add <dep>`                              | Add a dependency to `prism.toml` (path, `git` URL plus tag, or hash pin) and update `prism.lock`.                                                                                                                                                                                                       |
-| `prism pkg why <name>`                             | Explain why a definition is in the resolved dependency closure.                                                                                                                                                                                                                                         |
-| `prism pkg export [path]`                          | Write the project's content-addressed closure back out as source text.                                                                                                                                                                                                                                  |
-| `prism pkg publish`                                | Sign and record a package-identity-to-root binding in the signed index; `--tag`, `--name`, and `--origin` set the row.                                                                                                                                                                                  |
-| `prism pkg audit`                                  | Verify the signed index and the transparency log; `--allow-unsigned` tolerates the unsigned seam.                                                                                                                                                                                                       |
-| `prism pkg check-world [path] [--json] [--strict]` | Check package projects in a package universe and report digest-addressed source, Std, dependency, compiler, and compatibility identities plus per-package gates; `--baseline REPORT` names public definitions that changed behavior; `--strict-usage` promotes usage-summary drift to a strict failure. |
-| `prism pkg accept-usage [path]`                    | Regenerate a package's usage summary and write it to `usage-summary.md` at the package root, creating or reseating the usage gate's golden.                                                                                                                                                             |
+| Command                                            | What it does                                   |
+| -------------------------------------------------- | ---------------------------------------------- |
+| `prism pkg init`                                   | Create a project.                              |
+| `prism pkg add <dep>`                              | Add a dependency.                              |
+| `prism pkg why <name>`                             | Explain why a definition is included.          |
+| `prism pkg export <path>`                          | Export a package as source.                    |
+| `prism pkg publish <path> --tag <tag>`             | Publish a signed package version.              |
+| `prism pkg audit`                                  | Verify the package index and transparency log. |
+| `prism pkg check-world [path] [--json] [--strict]` | Check compatibility across a package universe. |
+| `prism pkg accept-usage [path]`                    | Update a package's usage summary.              |
 
 #### `prism store`: the content-addressed store
 
 Verbs over content-addressed code identity ([the store](#content-addressed-core)).
 
-| Command                                   | What it does                                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `prism store wire PROGRAM [--accept]`     | Check the `stable` rung goldens of a file; `--accept` recomputes and reseats them in place.               |
-| `prism store attest PROGRAM`              | Compile through two independent backends, attest byte-identical output, and cross-check the signed index. |
-| `prism store query <kind> <name> PROGRAM` | Query callers, dependents, dependencies, or type uses in the definition graph.                            |
-| `prism store lock PROGRAM [--accept]`     | Check stable-migration behavior against its lock, or reseat the lock with `--accept`.                     |
+| Command                                   | What it does                              |
+| ----------------------------------------- | ----------------------------------------- |
+| `prism store wire PROGRAM [--accept]`     | Manage stable migration goldens.          |
+| `prism store attest PROGRAM`              | Verify reproducible compilation.          |
+| `prism store query <kind> <name> PROGRAM` | Query the definition graph.               |
+| `prism store lock PROGRAM [--accept]`     | Manage a program's stable migration lock. |
 
 ### 27.2 Flags {#flags}
 
 Optimizer, effect-lowering, query, and compiler-diagnostic controls are global because they affect multiple commands; output and operation-specific flags belong to the command shown. `-h`/`--help` works on the binary and every subcommand, and `-V`/`--version` on the binary.
 
-| Flag                          | Applies to           | Default                        | Meaning                                                                                                                                                                                     |
-| ----------------------------- | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-o`, `--out <PATH>`          | bare build, `build`  | source stem, or `target/<pkg>` | Output path for the compiled binary.                                                                                                                                                        |
-| `--mlir`                      | bare build, `build`  | off (LLVM)                     | Lower through the MLIR backend instead of the textual LLVM emitter (requires the `mlir` build feature).                                                                                     |
-| `--watch`                     | `build`              | off                            | Keep the compiler session resident and rebuild on project source changes; combine with `--verbose` for unit/Merkle impact and rebuild timing.                                               |
-| `-O`, `--opt [LEVEL]`         | global               | `1` (bare `-O` is `2`)         | Core optimizer level (`0`/`1`/`2`); see [optimization levels](#optimization-levels).                                                                                                        |
-| `--passes <SPEC>`             | global               | unset                          | Run an explicit ordered pass list, overriding `-O` (mutually exclusive); see [controlling the pipeline](#explicit-pass-lists).                                                              |
-| `--no-<pass>`                 | global               | off                            | Remove one pass from the pipeline: `--no-fuse`, `--no-erase-newtypes`, `--no-specialize`, `--no-simplify`, `--no-inline`, `--no-cse`; see [controlling the pipeline](#explicit-pass-lists). |
-| `--fuse`                      | global               | on only at `-O2`               | Force whole-program pull-sequence fusion below `-O2`; `--no-fuse` takes precedence.                                                                                                         |
-| `--backend-opt <LEVEL>`       | global               | `2`                            | LLVM-backend opt level handed to the C compiler as `-O<LEVEL>`: `0`, `1`, `2`, `3`, or `s`/`z` for size. Distinct from `-O`, which tunes Prism's Core optimizer.                            |
-| `--scheduler <POLICY>`        | global               | `cooperative`                  | Select the default scheduler policy: `cooperative` (FIFO) or `lifo`.                                                                                                                        |
-| `--no-native-effects`         | global               | off                            | Force the free-monad effect driver instead of native delimited continuations.                                                                                                               |
-| `--no-trampoline`             | global               | off                            | Disable the constant-stack trampoline for the free-monad fallback.                                                                                                                          |
-| `--core-lint`                 | global               | off                            | Run Core Lint between optimizer passes.                                                                                                                                                     |
-| `--opt-stats`                 | global               | off                            | Print per-pass rewrite counts to stderr.                                                                                                                                                    |
-| `--compiler-stats`            | global               | off                            | Print compiler-query hit, miss, and write counts.                                                                                                                                           |
-| `--explain-cache`             | global               | off                            | Print immediate native artifact-cache decisions after a build.                                                                                                                              |
-| `--query-threads <N>`         | global               | `1`                            | Set the positive worker count for independent compiler queries; result collection remains deterministic.                                                                                    |
-| `--verbose`                   | global               | off, or `PRISM_VERBOSE=1`      | Print effect-lowering fusion-fallback warnings; under `build --watch`, also show unit/Merkle impact, cache decisions, and timing.                                                           |
-| `--no-compiler-cache`         | global               | off                            | Disable the persistent compiler artifact cache for a from-scratch build.                                                                                                                    |
-| `--dump-core <SINK>`          | global               | unset                          | Dump Core after each pass to `stdout`, `stderr`, or a directory.                                                                                                                            |
-| `--time-compile`              | compiling commands   | off, or `PRISM_TIME_COMPILE=1` | Emit one tab-separated timing row per compiler phase on stderr: phase, wall time, abbreviated input artifact key, cache status, output key and counts where they exist.                     |
-| `--warn-dupes[=LEVEL]`        | global               | off                            | Report (`warn`) or reject (`strict`) user definitions with equal behavior hashes; bare `--warn-dupes` means `warn`.                                                                         |
-| `--warn-stdlib-dupes[=LEVEL]` | global               | `warn`                         | Report or reject standard-library reimplementations; `off` silences the diagnostic.                                                                                                         |
-| `-h`, `--help`                | binary, all commands |                                | Print help.                                                                                                                                                                                 |
-| `-V`, `--version`             | binary               |                                | Print the version.                                                                                                                                                                          |
+| Flag                          | Applies to           | Default                        | Meaning                                                                                                                                                                                                                                                                                                        |
+| ----------------------------- | -------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-o`, `--out <PATH>`          | bare build, `build`  | source stem, or `target/<pkg>` | Output path for the compiled binary.                                                                                                                                                                                                                                                                           |
+| `--mlir`                      | bare build, `build`  | off (LLVM)                     | Lower through the MLIR backend instead of the textual LLVM emitter (requires the `mlir` build feature).                                                                                                                                                                                                        |
+| `--watch`                     | `build`              | off                            | Keep the compiler session resident and rebuild on project source changes; combine with `--verbose` for unit/Merkle impact and rebuild timing.                                                                                                                                                                  |
+| `-O`, `--opt [LEVEL]`         | global               | `1` (bare `-O` is `2`)         | Core optimizer level (`0`/`1`/`2`); see [optimization levels](#optimization-levels).                                                                                                                                                                                                                           |
+| `--passes <SPEC>`             | global               | unset                          | Run an explicit ordered pass list, overriding `-O` (mutually exclusive); see [controlling the pipeline](#explicit-pass-lists).                                                                                                                                                                                 |
+| `--no-<pass>`                 | global               | off                            | Remove one pass from the pipeline: `--no-fuse`, `--no-erase-newtypes`, `--no-specialize`, `--no-simplify`, `--no-inline`, `--no-cse`; see [controlling the pipeline](#explicit-pass-lists).                                                                                                                    |
+| `--fuse`                      | global               | on only at `-O2`               | Force whole-program pull-sequence fusion below `-O2`; `--no-fuse` takes precedence.                                                                                                                                                                                                                            |
+| `--backend-opt <LEVEL>`       | global               | `2`                            | LLVM-backend opt level handed to the C compiler as `-O<LEVEL>`: `0`, `1`, `2`, `3`, or `s`/`z` for size. Distinct from `-O`, which tunes Prism's Core optimizer.                                                                                                                                               |
+| `--scheduler <POLICY>`        | global               | `cooperative`                  | Select the default scheduler policy: `cooperative` (FIFO) or `lifo`.                                                                                                                                                                                                                                           |
+| `--no-native-effects`         | global               | off                            | Disable the native closed-handler driver and use the mutually recursive free-monad driver.                                                                                                                                                                                                                     |
+| `--no-trampoline`             | global               | off                            | Disable the constant-stack trampoline for the free-monad fallback.                                                                                                                                                                                                                                             |
+| `--core-lint`                 | global               | off                            | Run Core Lint between optimizer passes.                                                                                                                                                                                                                                                                        |
+| `--opt-stats`                 | global               | off                            | Print per-pass rewrite counts to stderr.                                                                                                                                                                                                                                                                       |
+| `--compiler-stats`            | global               | off                            | Print compiler-query hit, miss, and write counts.                                                                                                                                                                                                                                                              |
+| `--explain-cache`             | global               | off                            | Print immediate native artifact-cache decisions after a build.                                                                                                                                                                                                                                                 |
+| `--query-threads <N>`         | global               | `1`                            | Set the positive worker count for independent compiler queries; result collection remains deterministic.                                                                                                                                                                                                       |
+| `--verbose`                   | global               | off, or `PRISM_VERBOSE=1`      | Print effect-lowering fusion-fallback warnings; under `build --watch`, also show unit/Merkle impact, cache decisions, and timing.                                                                                                                                                                              |
+| `--no-compiler-cache`         | global               | off                            | Disable persistent semantic compiler artifacts for a from-scratch build; invariant, toolchain-keyed C runtime objects remain a cost-only prebuild layer.                                                                                                                                                       |
+| `--dump-core <SINK>`          | global               | unset                          | Dump Core after each pass to `stdout`, `stderr`, or a directory.                                                                                                                                                                                                                                               |
+| `--time-compile`              | compiling commands   | off, or `PRISM_TIME_COMPILE=1` | Emit one tab-separated timing row per compiler phase on stderr: phase, wall time, abbreviated input artifact key, cache status, output key and counts where they exist. Native `cc.link` rows include direct compiler probe/compile/link counts and summed milliseconds plus runtime-object cache hits/misses. |
+| `--warn-dupes[=LEVEL]`        | global               | off                            | Report (`warn`) or reject (`strict`) user definitions with equal behavior hashes; bare `--warn-dupes` means `warn`.                                                                                                                                                                                            |
+| `--warn-stdlib-dupes[=LEVEL]` | global               | `warn`                         | Report or reject standard-library reimplementations; `off` silences the diagnostic.                                                                                                                                                                                                                            |
+| `-h`, `--help`                | binary, all commands |                                | Print help.                                                                                                                                                                                                                                                                                                    |
+| `-V`, `--version`             | binary               |                                | Print the version.                                                                                                                                                                                                                                                                                             |
 
 The same compiler controls can be set in a project's `[flags]` table with kebab-case names. Built-in defaults are overlaid by `prism.toml`, then `PRISM_*` environment variables, then explicit CLI flags; unknown manifest keys and invalid values are rejected.
 
@@ -2219,6 +2257,7 @@ The same compiler controls can be set in a project's `[flags]` table with kebab-
 | `syntax-diagnostics`    | Every lex or parse refusal as versioned JSON, or the empty list on acceptance; refusal is the payload, so it never fails. |
 | `types`                 | Each definition's inferred type and effect row.                                                                           |
 | `typespans`             | Versioned JSON ranges with each pointable subterm's canonical type and explicit effect row.                               |
+| `occurrences`           | Versioned JSON ranges pairing each written name with the definition it resolves to (see [the code index](#code-index)).   |
 | `hir`                   | The [checked HIR](#the-checked-hir) fixture: per-declaration schemes and per-node checker facts as versioned JSON.        |
 | `interface`             | The entry module's checked interface (exported schemes, digests) as JSON, the importer-cutoff artifact.                   |
 | `module-graph`          | The module dependency graph as JSON, the shape the incremental query walks.                                               |
@@ -2239,6 +2278,8 @@ The same compiler controls can be set in a project's `[flags]` table with kebab-
 | `fbip`                  | Core after reference-count insertion and in-place reuse.                                                                  |
 | `lowered`               | Core after [effect lowering](#effect-lowering) (handlers and operations removed).                                         |
 | `tier`                  | The [effect-lowering](#effect-lowering) strategy the program's handlers compile to.                                       |
+| `effect-plan`           | The reachability, escape, and purity facts used to choose the effect-lowering strategy.                                   |
+| `tier-explain`          | That same decision as prose: one sentence per definition naming the rung and the fact that put it there.                  |
 | `captures`              | Closure-capture facts, each classified portable, nonportable, or unknown for a move across a suspend boundary.            |
 | `usage-summary`         | A per-definition table of allocation, `fip`/`fbip`, borrow, and effect-row facts, committable as a golden.                |
 | `usage-summary-md`      | The same usage facts as a markdown pipe table, the projection `prism pkg check-world`'s usage gate compares.              |
@@ -2248,6 +2289,8 @@ The same compiler controls can be set in a project's `[flags]` table with kebab-
 | `namespace`             | The versioned definition-layer export, wrapped in the wire envelope header.                                               |
 | `llvm`                  | The emitted LLVM IR.                                                                                                      |
 | `mlir`                  | The emitted textual MLIR (requires the `mlir` build feature).                                                             |
+
+`dump tier-explain` answers "why is this program on that rung" from the same facts the decision was made from. It prints one sentence for the program and one for each definition, name-sorted: a definition the rung lowers reads `` `name`: lowered to <strategy> because it <fact>. ``, and one the cascade left outside a carved region reads `` `name`: stays off the <strategy> path because it <fact>. `` The facts are the ones the effect plan already holds, reported widest first, so the sentence names the one that decided the rung: letting an effectful computation escape where no signature can follow it, capturing one the signatures cannot follow, capturing one they can, still performing named operations, handling every operation it can run, or performing none. The program's own sentence is the refusal the confined attempt recorded when there is one, since that names the single site that cost the program the narrower lowering; failing that, the widest fact any definition carries, attributed to that definition; failing that, `no recorded fact forced a costlier rung`. The dump decides nothing and is a pure function of the plan, so two runs of one program print the same bytes.
 
 `dump captures` is a read-only analysis over the program's own elaborated core. For every lambda and thunk it lists what the closure closes over (a source value or a call to a top-level definition) and what scoped operations it performs (a `var` cell's get/set, a named handler instance's private op), and classifies each fact as **portable**, **nonportable**, or **unknown** for a hypothetical move across a suspend boundary. A value type defers to the suspend codec's own encodability judgment; a top-level definition is portable because it travels as a content-addressed code reference; a `var` cell and a named handler instance are nonportable because their backing scope ends before a moved computation could resume. The classification is conservative in one direction: nothing is called portable unless it provably is, so a false "unknown" only costs a diagnostic while a false "portable" is impossible. The dump is diagnostic and changes no compilation output.
 
@@ -2259,52 +2302,54 @@ The same facts project three ways: `usage-summary` is the tab-separated form abo
 
 These are read by the compiler at build time. They select toolchain inputs, cache policy, deterministic query scheduling, or diagnostic and opt-out behavior.
 
-| Variable                     | Effect                                                                                                                                              |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PRISM_CC`                   | C compiler used to assemble and link the runtime (default `clang`).                                                                                 |
-| `PRISM_CC_FLAGS`             | Extra flags passed to the C compiler (e.g. `-march=native`, `-g`, `-DPRISM_RT_DEBUG`).                                                              |
-| `PRISM_BACKEND_OPT`          | LLVM-backend opt level (same values as `--backend-opt`); the flag wins when both are set.                                                           |
-| `PRISM_OPT_LEVEL`            | Core optimizer level used when `-O` is not passed (same values as `-O`).                                                                            |
-| `PRISM_SCHEDULER`            | Default cooperative scheduler policy, `cooperative`/`fifo` or `lifo`; overridden by `--scheduler`.                                                  |
-| `PRISM_EFFECT_TIER`          | Debug floor on effect lowering, one position per rung: `auto`, `state-fusion`, `local-partial`, `selective-free-monad`, `whole-program-free-monad`. |
-| `PRISM_ERASURES`             | `0` skips the var and loop-control erasures that precede the cascade; on otherwise. Independent of the floor above.                                 |
-| `PRISM_NATIVE_EFFECTS`       | `0` opts out of the native delimited-continuation effect runtime, back to the mutually recursive free-monad driver; on otherwise.                   |
-| `PRISM_TRAMPOLINE`           | `0` disables the constant-stack trampoline for the free-monad fallback; on otherwise.                                                               |
-| `PRISM_NATIVE_KONT_FRAMES`   | If set, add frame-preservation flags to native builds so experimental native-kont frame capture is less optimizer-dependent; off by default.        |
-| `PRISM_NO_SPECIALIZE`        | If set, skip the dictionary-specialization pass.                                                                                                    |
-| `PRISM_FUSE`                 | Boolean override that forces whole-program pull-sequence fusion below `-O2`; `--no-fuse` still disables it.                                         |
-| `PRISM_CORE_LINT`            | If set, run Core Lint (IR well-formedness) between every optimizer pass.                                                                            |
-| `PRISM_RT_CHECKS`            | If set, compile the C runtime with `-DPRISM_RT_DEBUG` (cell-validity backstop); off by default so release builds stay zero-overhead.                |
-| `PRISM_OPT_STATS`            | If set, print per-pass optimizer telemetry to stderr.                                                                                               |
-| `PRISM_DUMP_CORE`            | If set to a directory, dump the core before and after each pass for debugging the optimizer.                                                        |
-| `PRISM_COMPILER_CACHE`       | Byte-identical durable compiler-query reuse; on by default, set to `0` for a from-scratch build.                                                    |
-| `PRISM_COMPILER_STATS`       | If set, print command-scoped compiler-query hit, miss, and write counts.                                                                            |
-| `PRISM_EXPLAIN_CACHE`        | If set, print the final and backend-IR query decisions after a native build.                                                                        |
-| `PRISM_QUERY_THREADS`        | Positive worker count for independent compiler queries (default `1`); collection and artifacts remain deterministic.                                |
-| `PRISM_SCC_BACKEND`          | `0` forces the whole-program backend oracle instead of SCC recomposition; on by default and semantically unobservable.                              |
-| `PRISM_TIME_COMPILE`         | Boolean environment equivalent of `--time-compile`; off by default.                                                                                 |
-| `PRISM_QUIET`                | Silence the non-fatal fallback / matcher-drift warnings on stderr.                                                                                  |
-| `PRISM_VERBOSE`              | Print effect-lowering fusion-fallback warnings; off by default.                                                                                     |
-| `PRISM_MDBOOK_STRICT`        | Make the mdBook preprocessor fail when a checked Prism block does not type-check.                                                                   |
-| `PRISM_STORE`                | Enable the opt-in definition [content-addressed store](#the-on-disk-store); distinct from the compiler query cache.                                 |
-| `PRISM_STORE_PATH`           | Where the store's object and metadata layers live (resolved through `store::resolve_store_path`).                                                   |
-| `PRISM_SOLVER_TIMEOUT_MS`    | Positive per-obligation wall-clock timeout for the external contract solver, in milliseconds.                                                       |
-| `PRISM_SIGN_MODE`            | Package-index signing seam: `ssh` (default), `minisign`, or explicit `unsigned` development mode.                                                   |
-| `PRISM_SIGN_KEY`             | Signing key path used by package publishing; absent selects the unsigned path.                                                                      |
-| `PRISM_SIGN_IDENTITY`        | Signer principal recorded in and checked against the package-index signature.                                                                       |
-| `PRISM_SIGN_ALLOWED_SIGNERS` | OpenSSH allowed-signers file or minisign public key used to audit a signed package index.                                                           |
-| `PRISM_WARN_DUPES`           | Own-definition duplicate severity: `off` (default), `warn`, or `strict`.                                                                            |
-| `PRISM_WARN_STDLIB_DUPES`    | Standard-library reimplementation severity: `warn` (default), `strict`, or `off`.                                                                   |
-| `LLVM_SYS_221_PREFIX`        | Where the LLVM 22 dev libraries live, for linking the compiler itself (a build-of-`prism` setting).                                                 |
+| Variable                     | Effect                                                                                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PRISM_CC`                   | C compiler used to assemble and link the runtime (default `clang`).                                                                                                                    |
+| `PRISM_CC_FLAGS`             | Extra flags passed to the C compiler (e.g. `-march=native`, `-g`, `-DPRISM_RT_DEBUG`).                                                                                                 |
+| `PRISM_BACKEND_OPT`          | LLVM-backend opt level (same values as `--backend-opt`); the flag wins when both are set.                                                                                              |
+| `PRISM_OPT_LEVEL`            | Core optimizer level used when `-O` is not passed (same values as `-O`).                                                                                                               |
+| `PRISM_SCHEDULER`            | Default cooperative scheduler policy, `cooperative`/`fifo` or `lifo`; overridden by `--scheduler`.                                                                                     |
+| `PRISM_EFFECT_TIER`          | Debug floor on effect lowering, one position per rung: `auto`, `state-fusion`, `local-partial`, `selective-free-monad`, `whole-program-free-monad`.                                    |
+| `PRISM_ERASURES`             | `0` skips the var and loop-control erasures that precede the cascade; on otherwise. Independent of the floor above.                                                                    |
+| `PRISM_NATIVE_EFFECTS`       | `0` opts out of the native closed-handler driver, back to the mutually recursive free-monad driver; on otherwise.                                                                      |
+| `PRISM_TRAMPOLINE`           | `0` disables the constant-stack trampoline for the free-monad fallback; on otherwise.                                                                                                  |
+| `PRISM_NATIVE_KONT_FRAMES`   | If set, add frame-preservation flags to native builds so experimental native-kont frame capture is less optimizer-dependent; off by default.                                           |
+| `PRISM_NO_SPECIALIZE`        | If set, skip the dictionary-specialization pass.                                                                                                                                       |
+| `PRISM_FUSE`                 | Boolean override that forces whole-program pull-sequence fusion below `-O2`; `--no-fuse` still disables it.                                                                            |
+| `PRISM_CORE_LINT`            | If set, run Core Lint (IR well-formedness) between every optimizer pass.                                                                                                               |
+| `PRISM_RT_CHECKS`            | If set, compile the C runtime with `-DPRISM_RT_DEBUG` (cell-validity backstop); off by default so release builds stay zero-overhead.                                                   |
+| `PRISM_OPT_STATS`            | If set, print per-pass optimizer telemetry to stderr.                                                                                                                                  |
+| `PRISM_DUMP_CORE`            | Dump Core before and after each pass to `stdout`, `stderr`, or the named directory.                                                                                                    |
+| `PRISM_COMPILER_CACHE`       | Byte-identical semantic compiler-query reuse; on by default, set to `0` for a from-scratch compiler build. Invariant C runtime objects retain their separate cost-only prebuild cache. |
+| `PRISM_COMPILER_STATS`       | If set, print command-scoped compiler-query hit, miss, and write counts.                                                                                                               |
+| `PRISM_EXPLAIN_CACHE`        | If set, print the final and backend-IR query decisions after a native build.                                                                                                           |
+| `PRISM_QUERY_THREADS`        | Positive worker count for independent compiler queries (default `1`); collection and artifacts remain deterministic.                                                                   |
+| `PRISM_SCC_BACKEND`          | `0` forces the whole-program backend oracle instead of SCC recomposition; on by default and semantically unobservable.                                                                 |
+| `PRISM_TIME_COMPILE`         | Boolean environment equivalent of `--time-compile`; off by default.                                                                                                                    |
+| `PRISM_QUIET`                | Silence the non-fatal fallback / matcher-drift warnings on stderr.                                                                                                                     |
+| `PRISM_VERBOSE`              | Print effect-lowering fusion-fallback warnings; off by default.                                                                                                                        |
+| `PRISM_MDBOOK_STRICT`        | Make the mdBook preprocessor fail when a checked Prism block does not type-check.                                                                                                      |
+| `PRISM_STORE`                | Enable the opt-in definition [content-addressed store](#the-on-disk-store); distinct from the compiler query cache.                                                                    |
+| `PRISM_STORE_PATH`           | Where the store's object and metadata layers live (resolved through `store::resolve_store_path`).                                                                                      |
+| `PRISM_SOLVER_TIMEOUT_MS`    | Positive per-obligation wall-clock timeout for the external contract solver, in milliseconds.                                                                                          |
+| `PRISM_SIGN_MODE`            | Package-index signing seam: `ssh` (default), `minisign`, or explicit `unsigned` development mode.                                                                                      |
+| `PRISM_SIGN_KEY`             | Signing key path used by package publishing; required in `ssh` and `minisign` modes.                                                                                                   |
+| `PRISM_SIGN_IDENTITY`        | Signer principal recorded in and checked against the package-index signature.                                                                                                          |
+| `PRISM_SIGN_ALLOWED_SIGNERS` | OpenSSH allowed-signers file or minisign public key used to audit a signed package index.                                                                                              |
+| `PRISM_WARN_DUPES`           | Own-definition duplicate severity: `off` (default), `warn`, or `strict`.                                                                                                               |
+| `PRISM_WARN_STDLIB_DUPES`    | Standard-library reimplementation severity: `warn` (default), `strict`, or `off`.                                                                                                      |
+| `LLVM_SYS_221_PREFIX`        | Where the LLVM 22 dev libraries live, for linking the compiler itself (a build-of-`prism` setting).                                                                                    |
 
 A second set is read at runtime by the generated program, for the instrumentation the test gates assert. They print to stderr and never change output.
 
 | Variable            | Effect                                                                                                         |
 | ------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `PRISM_CHECK_LEAKS` | At exit, report any heap cell allocated but not freed (the deterministic leak gate the parity oracle asserts). |
+| `PRISM_ALLOC_STATS` | Report the total number of runtime cell allocations.                                                           |
 | `PRISM_REUSE_STATS` | Print how many constructor allocations were satisfied by in-place FBIP reuse.                                  |
 | `PRISM_EFFOP_STATS` | Print how many free-monad effect-operation cells were allocated (zero on the fully fused path).                |
 | `PRISM_DRIVE_STATS` | Print native effect-driver statistics.                                                                         |
+| `PRISM_PROBES`      | Enable named `probe` blocks from a comma-separated allow-list, or `*` for every probe.                         |
 
 The runtime also has two compile-time switches. `-DPRISM_RT_DEBUG` inserts a structural validity check at every cell dereference (non-null, aligned, positive refcount, in-bounds field), aborting with a diagnostic instead of corrupting memory; the canonical way to turn it on is `PRISM_RT_CHECKS` (which adds the define to the `cc` invocation), and `PRISM_CC_FLAGS=-DPRISM_RT_DEBUG` also works. It is off by default so release builds and the parity oracle stay byte-identical and zero-overhead; it is the always-available structural backstop for builds where ASan/UBSan are unavailable. The `mimalloc` cargo feature routes the runtime's allocations through mimalloc.
 
@@ -2312,11 +2357,82 @@ The runtime also has two compile-time switches. `-DPRISM_RT_DEBUG` inserts a str
 
 Inside the shell, input beginning with `:` is a command; anything else is an expression or declaration to evaluate. The full command set, the `:set` toggles, and the multi-line block syntax are documented under [the interactive shell](#the-interactive-shell).
 
+### 27.6 Typed-Hole Workflow {#typed-hole-workflow}
+
+A [typed hole](./spec.md#typed-holes) is a named expression placeholder written `?name`. The checker infers what must fit there from the surrounding program. Normal checking and every code-generation path reject unresolved holes; the commands here are explicit development tools.
+
+#### Querying a Hole {#at-hole}
+
+`prism check FILE --at-hole` retains holes while checking and reports each expected type, permitted effect row, and ranked in-scope candidate set. Other type errors remain errors.
+
+```console
+$ prism check widget.pr --at-hole
+?answer at widget.pr:5:29
+  expected   Widget
+  effects    {}
+  candidates 1
+    base : Widget (exact)
+  in scope   340 bindings
+```
+
+Exact candidates have the expected type without instantiation. Compatible candidates are more general values that fit by ordinary subsumption. Text output prints at most twelve, exact matches first; `--json` lists all candidates, and the reported count always names the full set.
+
+Positions refer to the user's file rather than the prepended prelude. A hole inside the prelude is identified as such and has no user-file position.
+
+#### Filling a Hole {#fill}
+
+`--fill` rewrites a hole only when exactly one in-scope binding has the expected type. It never synthesizes an expression, applies a constructor, selects a merely compatible value, or chooses among several exact matches.
+
+```console
+$ prism check widget.pr --at-hole --fill
+?answer at widget.pr:5:29
+  expected   Widget
+  effects    {}
+  candidates 1
+    base : Widget (exact)
+  in scope   340 bindings
+filled ?answer -> base
+```
+
+Unfilled holes report whether no exact candidate exists, several are ambiguous, or the hole belongs to the prelude. Edits are applied from right to left and the result is checked again. A failed verification restores the original bytes. Because filling edits one file, project inputs are refused.
+
+#### Synthesizing a Hole {#synth-hole}
+
+`prism synth FILE --at-hole answer` searches for expressions, not only names. It uses in-scope values, literals, bounded applications, constructors, and lambdas. The checker rechecks every result in the original program.
+
+```console
+$ prism synth widget.pr --at-hole answer --depth 2 --limit 5
+?answer at widget.pr:5:29 : Widget
+  make_widget(size)
+  Widget(size)
+```
+
+`--depth` defaults to two and is capped at six. `--limit` defaults to ten and is capped at one hundred. Search order is deterministic. The command does not edit source or add imports.
+
+`prism search TYPE` uses the same subsumption relation over checked interfaces. It searches the active project, its packages, and the standard library, including unimported modules in a project.
+
+```console
+$ prism search '(String) -> Bool' --limit 3
+fs_file_exists : (String) -> Bool  [stdlib:Base]
+probe_enabled : (String) -> Bool  [stdlib:Base]
+Syntax.Lex.lex_incomplete : (String) -> Bool  [stdlib:Syntax.Lex]
+```
+
+Use `--in PATH` outside an enclosing project. Search and synthesis both support stable JSON output.
+
+#### JSON and Deferred Execution {#hole-json}
+
+`--json` emits one array whose entries include the hole name and span, expected type and effects, in-scope bindings, ranked candidates, and the same fill verdict `--fill` would apply. Tooling can therefore preview every proposed edit without changing the file.
+
+`prism run --defer-holes FILE` and REPL `:set +h` permit holes through the interpreter. Reaching one produces a deterministic fault containing its name and span, also recorded as the terminal observation-trace event. An execution path that never reaches the hole behaves normally. Deferral never selects a candidate or relaxes another type error.
+
 ## 28. Diagnostics {#diagnostics}
 
 A diagnostic is a value, not a string. Every error the compiler can produce is a variant of a structured catalogue, each variant owning one stable `E`-code; the rendered message is payload, never the discriminator a caller or renderer matches on. A code is permanent once assigned, so a diagnostic can be looked up years later, scripted against, and searched, and a message can be reworded freely without breaking anything that keyed on the code.
 
 The philosophy is that an error message is the interface the language presents at the moment of failure, and it owes the user three things. First, **the site**: every diagnostic carries a span and renders a source ribbon pointing at the offending characters, and a type error raised while checking a definition names its enclosing frame (`in \`main\`: unbound variable 'MkCelsius'`), so an error deep in an application still says whose body it fired in. Second, **the cause in the program's own vocabulary**: the unknown constructor by name, the two rows that failed to unify, the arity that did not match, not the internal state of the checker. Third, **the remedy where one is mechanical**: an unknown name close to a name in scope gets a "did you mean" hint (Damerau-Levenshtein distance with a threshold that scales with the name's length, so a long name tolerates a proportionally larger typo without matching wild guesses), and a removed or re-spelled construct gets a migration error that states the new spelling outright rather than a generic parse failure, so an upgrade is a series of pointed instructions instead of an archaeology project.
+
+The suggestion machinery is one implementation the whole compiler routes through, so an unknown class, type, field, variable, effect operation, module, or pass name is matched the same way. The distance is Damerau-Levenshtein, counting an adjacent transposition as a single edit, so `flie` is one slip from `file` rather than two. The budget is one edit for a name of three characters or fewer, where two edits would reach most of the namespace, and two edits for anything longer. Up to three candidates are named, closest first with ties broken alphabetically, because a tie is exactly where picking one is most likely to pick wrong: `countr` yields ``did you mean `count` or `counter`?``. An exact match is never offered, since a candidate identical to the unknown name is a scoping bug rather than a typo, and a hint the checker cannot make honestly is omitted rather than widened.
 
 Codes are banded by the phase and domain that owns them, walking the pipeline in order:
 
@@ -2337,6 +2453,31 @@ Codes are banded by the phase and domain that owns them, walking the pipeline in
 | `E9xxx` | internal compiler errors                               |
 
 The `E1xxx` through `E6xxx` bands are the type checker's structured catalogue, keyed by what the user wrote; the `E7xxx` bands are the phase errors that cross the compiler's API boundary, keyed by which subsystem failed. `E9999` is the internal-invariant band: a condition the compiler believed impossible, rendered with an apology and a request to report it, because an internal error is a compiler bug by definition. Warnings ride the same channel with the same discipline (a deprecation names the definition, the suggestion, and the use site) but never stop a build: by the determinism contract a warning is a diagnostic, not a semantic.
+
+### 28.1 Explaining a Code {#explaining-a-code}
+
+A code in a message is a handle, and `prism explain CODE` is what it opens. The page is the same four parts for every code: the code and a one-line title, prose saying what the compiler saw and why it is an error, a minimal program that reproduces it, and the fix. The example is indented four spaces so it can be pasted straight into a file, and the last line always begins `Fix:`, so the remedy is findable without reading the page.
+
+```console
+$ prism explain E1002
+E1002: too many type arguments
+
+A type constructor was applied to more arguments than it declares
+parameters. `Option` takes one parameter, so `Option(Int, Bool)` supplies
+one too many. The arity comes from the `type` declaration, so this is a
+disagreement between the annotation and that declaration.
+
+Example:
+
+    fn f(x : Option(Int, Bool)) : Int =
+      0
+
+Fix: Drop the extra arguments, or nest them in a type that does take them, such as a tuple.
+```
+
+A code is usually copied off a terminal, where it may have lost its prefix or its case, so `E1002`, `e1002`, and `1002` all name the same page. Anything that is not four digits is not a code and is refused as unknown rather than silently missing, and the refusal restates the spelling: codes are `Ennnn`, as printed at the head of a diagnostic. The REPL exposes the same pages as `:explain Ennnn`, so a code read off an interactive error is looked up without leaving the session.
+
+Coverage is not aspirational. A test pins that every code assigned in the two diagnostic catalogues has an entry here, and that no entry names a code the compiler no longer emits, so adding a diagnostic without its page fails the build, and deleting one leaves no orphan prose behind.
 
 ## 29. Prism as a Library {#prism-as-a-library}
 
@@ -2383,7 +2524,96 @@ A different backend should start from Core, not from the surface language. The e
 
 In other words: the library API is quite usable and the compiler internals are fairly modular, so it should be easy to hack on if you feel so inclined to do something weird.
 
-## 30. Warranty {#warranty}
+## 30. The Code Index {#code-index}
+
+`prism index` writes one artifact describing a whole codebase the way a reader navigates it: every definition, and every relationship between definitions. It exists for tools that read code rather than compile it — a reviewing interface, a browser, an agent assembling context — and it is a projection of facts the compiler already computes, not a new analysis. The addresses are the namespace layers ([content-addressed Core](#content-addressed-core)), the `calls` edges are the same Core dependency adjacency the content hasher walks for its Merkle substitution and `prism store query callers` answers one name at a time, the `performs` edges are the [checked effect rows](#type-and-effect-inference), and the doc comments come from the same trivia table [`prism docs`](#documentation-generation) reads. Nothing in the artifact can drift away from the code, because nothing in it was derived independently of the code.
+
+Two properties are what make it a substrate for a viewer rather than a second documentation generator.
+
+The first is that a definition is **addressed, not located**. Its identity in the artifact is its canonical name plus its content hash, so a bookmark, a note, or a "reviewed this" mark taken against it survives a reformat, a file move, and a rename of a local variable, and two revisions of a codebase can be aligned by identity rather than by diffing text. Source ranges travel too, but as rendering data. Each kind is addressed in the namespace layer that owns it: a behavior hash for a term, a shape digest for a datatype or effect, an interface digest for a class, an identity digest for an instance. A few surface kinds have no independent address and honestly carry none — a type synonym and an effect-row alias erase into the types that mention them, a `pattern` lowers to hidden view/make functions, a `stable` block desugars into rungs and converters that are each indexed in their own right.
+
+Addressing every definition means compiling more than a build does. "Everything the entry point reaches" is the wrong set for a reader: a library package's modules are not reachable from its `[bin]` entry, and they are most of the code someone wants to review. So the indexed program is the build's own input plus one qualified import per listed module, which brings every module into the elaborated Core the addresses are taken from while leaving the entry itself at the root, addressed exactly as a build addresses it. A qualified import adds no name to unqualified scope and duplicating one the entry already makes is a no-op, so the only visible consequence is that a module that does not compile fails the index instead of quietly appearing in it unaddressed.
+
+The second is that relationships are carried as a **whole edge set**, in both directions. `prism store query` answers one question at a time from the command line, which is the right shape for a shell and the wrong shape for an interface where "who calls this" and "what does this call" have to be a click apart. The edges are `calls`, `uses-type`, `performs`, `handles`, `instance-of`, and `tests`. `handles` is the other half of `performs` and cannot be read off a row, because handling an effect is exactly what _removes_ it from one: the definition that gives an effect its meaning is the one whose inferred row no longer mentions it. The standard library's `Output` is performed by nothing there — programs perform it, the library interprets it — and handled four times, so without this an effect declaration could relate to nothing at all in either direction. A `calls` target may name a definition the index does not contain — a prelude function a project calls — and is emitted anyway, named canonically, because a link that leaves the index is more useful rendered and labeled than silently dropped. Elaboration lowers each instance method to its own top-level function (`i@showInt@show`), so a dictionary-dispatched call would otherwise land on a name with no declaration; those targets are retargeted to the instance the method's source is written inside. The same lowering has to be undone in the other direction: an instance has no Core node of its own, so its dependencies belong to those lifted method names, and reading the graph at the instance's own name found nothing at all — every one of the standard library's 100 instances came out with no outgoing edge. Its effect row arrives the same way, from the row the typechecker inferred for each method: a method is checked from inside its instance and never becomes a `DeclInfo`, so that row was computed, held to the class signature's declared labels, and dropped. Five class methods in the standard library declare a concrete effect — `decode` and `from_json` may `Fail`, `arbitrary` uses `Random` — and every instance implementing one was silent about it. Behavioral equivalence is deliberately _not_ an edge kind, because it needs none: two definitions are interchangeable exactly when their recorded hashes are equal, so a consumer groups by hash and the artifact carries no redundant, potentially quadratic edge set.
+
+The header names the test layer whenever it is absent, because a `tested by` row is empty for two entirely different reasons and an empty row looks the same either way: the unit declares no tests, or it declares tests whose elaboration failed. The second is the dangerous one — every definition then reads as untested — and [`TestLayer`](#code-index) records which it is, with the diagnostic.
+
+`tests` needs a second front-end pass. Test compilation is [production-neutral](#commands): a production elaboration removes `test fn` declarations before anything is hashed, so a test has no address and no dependency closure in the artifact the rest of the index is built from. When some module declares a test, the index therefore elaborates the same source a second time in test mode, which is the only place a test's own behavior hash and its dependency edges exist. The edges are transitive rather than direct, because "the tests that exercise this function" has to include a test that reaches it through a helper — the common case — and their targets are restricted to indexed definitions, which is what keeps a closure from dragging the whole prelude in behind every test. Whether that pass ran is recorded in the envelope (`included`, `empty`, or `unavailable` with the diagnostic), so a missing edge set can never be misread as "this code has no tests", and a project whose tests do not compile still gets a usable index of its code.
+
+The artifact is taken over the identity surface, so it is a pure function of the indexed source: identical source produces byte-identical JSON. That is what makes `prism index --check` a usable continuous-integration gate on a committed copy, the same contract `prism fmt --check` and `prism docs --check` enforce. Module source text is embedded by default so a consumer needs no filesystem access at all; `--no-source` drops it for one that holds the working tree already.
+
+```console
+$ prism index --stdlib --out target/stdlib-index.json
+wrote target/stdlib-index.json (44 modules, 1372 definitions, 3886 edges)
+```
+
+### 30.1 The Viewer {#code-viewer}
+
+The [code viewer](https://sdiehl.github.io/prism/viewer/) is the first consumer, and the reason the artifact has the shape it does. It reads code by definition rather than by file: a rail of the modules, collapsed, over a search that reaches into all of them — and past them, since a declaration's members are results in their own right. `Cons`, `Nil` and `pure` are not definitions and so were unfindable by name; each is now listed as itself, badged with what it is, opening the declaration it lives in and pointing at it there. Results are ranked by how well the name matched rather than by artifact order, because an exact hit is nearly always the one wanted. A third tier searches the declarations' own text, which reaches what the first two structurally cannot: a field name, an unused constructor, a fragment of an effect row. It can be put away — a definition and its relations need no list, and the deck is wider without it — with the control staying in the header so it is still there to press. Beside it is a working set of cards that accumulate as you follow a link rather than replacing one another, because a reviewer holds several definitions in mind at once (the Code Bubbles result, Bragdon et al., CHI 2010). A card carries its signature, its documentation, its body, its content address, its effect row, its claims, and every relation the index knows, in both directions — expanded, because opening a card is already the reader asking for the definition, with folding kept for one held open for reference. Every name in the body is a link to what it means, from the [occurrence rows](#occurrences): the relations say what a definition depends on, and these say where, so following a call is a click on the call rather than a hunt through a list. A written type name is a link too, located by lexing the definition's own text — the renamer cannot supply those positions while `Ty` carries no spans, and lexing rather than searching is what keeps a type name inside a comment from being linked. Hovering any of them shows what it is, type first, without the delay a `title` attribute imposes.
+
+The rendered signature and effect row are painted and linked the same way, which takes one further step: a signature is not source, no file holds it, and the typechecker produced the string. The compiler's own lexer is run across that rendered string and the names in it resolved against the index, so `List` and `Concurrent.Async` in a signature are the same colour and the same link they are in a body. 917 of the 1135 typed definitions in the standard library gain links this way. The alternative was a second tokenizer in the browser, which is the thing the baking exists to avoid.
+
+Each name in a body also carries the type the checker gave it, so hovering a parameter or a local answers "what is this here" without reading the signature back. The join is the checker's own: it stamps every expression node with an identity and records a presentable type against it, which is what `prism dump typespans` and the [book's typed tooltips](#documentation-generation) read; the index does it for every module rather than only an entry file, and rebases the spans onto each definition's source. The index's elaboration asks for those strings (`FrontRequest::IdentityTooltips`), which only fills side tables — the pre-optimizer Core every address is taken over is byte-identical either way, and the standard library's namespace root is unchanged with the flag on. Variables only: every subterm has a type, and carrying all of them would multiply the payload and nest spans inside one another, while a reader hovering a body is asking what the names in it are. The names a pattern binds are included, which takes one step more than it sounds: the tables are keyed by a node's identity and a pattern is not an expression, so arm patterns are stamped alongside the expressions around them and the checker records each binder's type where it already computes it — 1,786 further names across the standard library for 14 kB, since a binder's type is nearly always one the shared table already holds. Every span of a declaration is rendered under one naming: its own. The checker canonicalizes a type by generalizing it, and generalizing each node independently named the same variable by where it happened to fall in _that_ node, so `map`'s `xs` read `List(b)` in the signature and `List(a)` in the body — one type under two names. A declaration's spans are therefore read where its scheme is built rather than where its body ends, and rendered under that scheme's own renaming — which also settles pattern binders, whose types would otherwise print the spelling the author wrote while every use of them printed a canonical letter. Across the standard library this takes definitions that name something inconsistently from 194 to 29. Two refinements that look obviously right are measured and wrong, and are left undone deliberately: preserving the author's own `k` and `v` rather than the scheme's letters puts the body in one convention and the published signature in the other, and seeding an instance method from its class signature reports two genuine instantiations — `eqPair` uses `eq` at both components — as one type named twice. Effect rows are named the same way, from the same scheme: they live in their own namespace (`e0`, `e1`, …) counted separately from the type variables, so the renaming records them separately and a declaration's latent row — the row most of its nodes carry — is named once for the whole declaration rather than once per span. Reading them at the scheme is what makes this work, and _when_ matters twice over. A recursion group is solved as a whole, so a member's own body finishing is not the moment its types are known: `Cli@lex_go` passes `specs` along without using it, and the sibling `lex_long`'s `find_long(specs, …)` is what pins it — a body inferred later. Zonking at the end of each body reported `specs` as the unsolved variable it still was, so the signature read `List(Cli.OptSpec)` and all four uses read `a`. Each member's spans are held until the group is inferred, then zonked where its scheme is built. Naming has the same shape: the latent row is unsolved while a body is being checked and joins the scheme only at generalization, so a row parameter named `e0` earlier becomes `e1` once the latent row takes the lower id — which is how `fn do_get(s : St(e), …)` came to say `St({e1})` in its signature and `St({e0})` at every span in its body. Both follow from using the renaming the exported scheme actually carries rather than rebuilding one early, and rows now disagree nowhere.
+
+What is left is 29 definitions, and all but one are the measurement rather than the artifact: a handler binds one `k` per arm and a lambda one `acc` per lambda, so a name can stand for several binders, and a polymorphic name used at several instantiations — `Wire@enc_triple` encodes three components of three types — is _supposed_ to read differently at each. Telling those from a real disagreement wants the binder each occurrence resolves to, which the artifact does not record. An argument was also long assumed to get no hover, on the reasoning that it is checked against its parameter rather than synthesized; it is not missing, because a call reconciles head and arguments by unification, and pushing the checked type produced no additional spans at all when measured. Interned against a shared table, the whole layer costs about 250 kB.
+
+Bodies are syntax-highlighted from spans the compiler's own lexer produced, carried in the artifact rather than computed on the page. Two reasons to bake them. A second, hand-written tokenizer in the browser would drift, and highlighting that contradicts the compiler is worse than none; and highlighting is wanted at first paint, while the wasm compiler sits behind a worker boundary and would arrive after it. The spans are stored as `gap length class` triples against a shared class table, because a pretty-printed array of 167,000 integers would spend more bytes on indentation than on the data, and unstyled identifiers are omitted entirely — about 0.36 MB in total, or 13%. A reference keeps its token colour and is marked navigable by an underline instead: repainting every reference one accent colour would overwrite the highlighting it sits inside. A name that resolves outside the artifact keeps its text and its tooltip but is not a link.
+
+The call rows lead with what the source _names_, read from the occurrences and in the order it names them, and then with what the dependency graph adds. The two are not the same set, and neither subsumes the other: elaboration inlines a top-level `let`, so a body that writes `gen_float` depends on whatever the constant expanded to and not on the constant — across the standard library's 73 consts exactly one is ever a dependency. Both are worth having, one being what a reader can point at on the page and the other what actually runs, so a chip is marked when it is only the second. A name appearing in a row and nowhere in the body it belongs to otherwise reads as a bug. There is no back stack: the deck _is_ the trail, since everything you followed is still open in the order you opened it, and clicking a card you already have is how you return. The page URL is the focused definition's canonical name, which stays valid across a reformat or a file move in a way a file-and-line anchor does not.
+
+It is the one page on this site that loads no wasm. Every other one runs the compiler in the browser; the viewer runs nothing, because every fact it renders is baked into the artifact — the same discipline the [typed tooltips](#documentation-generation) follow, where hovering a subterm consults a payload rather than a compiler. That is what makes it a viewer for _an_ index rather than for this one: `?src=<url>` points it at any artifact, including one generated from a private tree and handed over. Script and stylesheet together are under 40 kB, or about 13 kB over the wire.
+
+Docstrings are rendered rather than shown raw, in the small dialect the docstrings actually use: paragraphs, inline code, and the worked examples paired with the `output` block asserting what they print. Across the standard library's 723 documented definitions there is not one list, heading, emphasis or link, so a markdown dependency would be paying for constructs nobody wrote. Lines hidden from the rendered docs are dropped here too, by the same rule the book applies to the same text — they exist to make an example compile, and what the reader is being shown is the example.
+
+A reference to a _member_ — a class method, an effect operation, a data constructor — resolves to the declaration that owns it, which is where the member is introduced and typed. That is the right destination and it throws away which member was meant, and 28% of every reference in the standard library is one of these. The occurrence rows keep enough to recover it: a reference carries the span it covers, so the text there is the member's name as written, and reading the reference set from the far end turns it back into "who uses `pure`" at member granularity. Each such member gets a row on its declaration's card, and the declaration site of the member links down to it. The members themselves are recorded by the compiler rather than recovered from occurrences, because recovery finds only the ones something uses: `Output`'s operations are performed by _programs_, so a library index would list none of them, and a reader searching for `out_print` would be told the name does not exist. A member nothing uses is therefore still named, still findable, and says on hover what it is and that nothing here performs it — naming the handlers that give it meaning instead of offering a link to nowhere.
+
+Nothing else can answer that question. A class method is dispatched through a dictionary, so the dependency graph records no call at all: `Data.Monad.map2` calls `ap` and `fmap` and has _zero_ outgoing edges. Without reading the occurrences backwards, a class card can list its instances and nothing more, and the definitions that actually use the class are invisible from both ends.
+
+Relation rows are capped, with the true count on the label and the remainder one click away — `List` is used by 374 definitions and its `Cons` is written by 183, and a card that opens with six hundred chips is a card nobody reads.
+
+A reference that is not a link is one of two different things, and the viewer says which. A **compiler primitive** (`byte_at`, `str_len`, the `IO` row) has no Prism definition anywhere, so there is nothing to navigate to and nothing missing; the index carries the primitive names precisely so a consumer can report that rather than reporting the name as absent, which reads as an incomplete artifact when it is nothing of the kind. A target that genuinely lies outside _this_ artifact — a prelude function a project index does not cover — is marked as such instead. Both keep their text; neither is a dead link.
+
+Constructors, effect operations, and class methods are links, even though none is a definition in its own right. Each is written inside another declaration, so a reference to one resolves to a name the index has no entry for — and `Cons`, `Some`, and `Err` are among the most written names in any program. Each is retargeted to the declaration its source lives in, the same treatment a lowered instance method gets, and only when the mapping is unambiguous: the renamer leaves operation and method names bare, so two effects can each declare a `get`, and a name owned by more than one declaration identifies nothing. Together with the primitive names this leaves nothing unexplained: over the standard library every one of 5738 references is either a definition to open or a primitive named as one.
+
+### 30.2 Revisions {#index-revisions}
+
+`prism index --diff OLD NEW` compares two committed artifacts. No compiler runs: the comparison is between content addresses a compiler already computed, which is also why it answers questions a text diff cannot.
+
+The classification is the point. A content address folds in what a definition depends on, so on any change of size _most_ of what moved did so only because something underneath it did. A review tool that cannot separate those from the definitions whose text the author actually edited is unusable — the signal drowns. Comparing the hash and the source together separates them exactly: same hash and same text is untouched; same hash but different text is **cosmetic**, a reformat or a comment; different hash and different text is **changed**, an authored edit; different hash but _identical_ text is **cone**, a definition that re-addressed only because a dependency moved. One carve-out: equal hashes prove equal _executable behavior_, and a definition also carries review-facing facts the hash never sees — its claims (`total` to `assume total` swaps a proof for a trust root), its visibility, its doc comment, a deprecation. An edit to any of those is classified as authored, never as cosmetic.
+
+That last case is what the whole thing is for. It is the difference between reporting "47 definitions changed" and "you edited 3, and 44 re-hashed underneath them".
+
+```console
+$ prism index --diff before.json after.json
+1 changed, 0 added, 0 removed, 0 moved, 3 in the cone, 0 cosmetic, 1 unchanged
+  Changed   Lib.base
+```
+
+A rename is free for the same reason: a definition whose bytes did not move keeps its address, so it is reported as **moved** with its former name rather than as an unrelated deletion and addition — a fact, not a similarity heuristic. Only an unambiguous pairing counts, since two definitions may legitimately share a hash, and guessing which went where would invent a rename that never happened. Reformatting likewise causes _no_ cone at all, because a reformat moves no address; nothing above it re-hashes.
+
+The artifact carries the definition records it names, so a consumer renders a side-by-side from it alone. The viewer takes it as `?diff=<url>` alongside the index. The definitions the author touched lead the rail; the cone and the cosmetic changes follow it as their own collapsed groups, since leading with them would bury the edits a reviewer came for and leaving them out made a count in the header that nothing could reach. A changed definition is shown side by side, before on the left and after on the right, because comparing means reading across rather than scrolling — and the left pane is painted and linked from the old revision's own occurrence rows, so a name in the version you are leaving is as followable as one in the version you are arriving at. A cone entry gets a sentence rather than a second copy of identical text. Reading a single revision is then just the degenerate pair, where both sides are the same — one code path, not a diff mode bolted beside a browse mode.
+
+### 30.3 Review State and Questions {#review-state}
+
+Reviewing is a stateful activity, and the state a reviewer accumulates — what they have read, what they were suspicious of, what they still owe an opinion on — normally lives in their head and evaporates. The viewer keeps it, anchored to content addresses rather than to lines, which is what makes it survive the thing that usually destroys it: the code changing underneath.
+
+Marking a definition read records the address it was read at. On a later visit that address is compared, and the four-way [revision classification](#index-revisions) applies again, now against one stored side rather than a whole other index: still current, reformatted since (behavior intact), unchanged here but a dependency moved, or genuinely edited and worth reading again. A line-anchored mark can say none of this — it cannot tell a reformat from an edit, so it must either invalidate on every touch or trust a diff heuristic. Only a real edit, a dependency shift, or a disappearance asks for attention; a reformat is dismissed silently, which is the noise this exists to suppress. Notes attach the same way. A conversation with an assistant would attach the same way too: a thread is a note that happens to have turns.
+
+State is local to the browser, in `localStorage`, keyed by the indexed unit rather than by the revision's contract digest, which moves on every change and would drop the marks exactly when they become interesting.
+
+A set of definitions assembles a **context packet**: the canonical name, inferred type, effect row, claims, exact source, callers, tests, behavioral duplicates, and the transitive call closure of everything in it, budgeted and explicit about what it dropped. More than one adds how they relate — as routes rather than direct edges, since definitions picked together are often several hops apart and that route is usually the actual question. Every line of it is a fact the compiler computed rather than something inferred from proximity, which is the difference between this and pasting a file: a file supplies whatever else happens to live in it and none of what the definition actually depends on.
+
+The packet has no interface at present. It had one — a control that gathered definitions and copied the assembled text — and that was removed, because copying a prompt is not asking a question: what is wanted is to ask in the page and get an answer, which needs a key and a network call rather than another artifact. The assembly is the half that needed the compiler's facts, and it stays.
+
+### 30.4 Occurrences {#occurrences}
+
+Definition-level links answer "what does this call"; `prism dump occurrences` answers it for an individual name _where it is written_, which is what makes a rendered body navigable rather than merely readable. Each row pairs a byte range in a module's source with the canonical definition it resolves to: read forward it is goto-definition, grouped by target it is find-references.
+
+The rows come from the renamer, not from a second walk over the AST. That is the whole design. The renamer is where the decision is made — it already carries the scope stack separating a local binding from a top-level name, and already knows whose coordinates a span is in — so a parallel walker would have to reimplement that scoping and could then disagree with the resolver about what a name means. Collecting in place cannot disagree, because it is the same walk. A parameter that shadows a top-level name is therefore not an occurrence at all, and an unshadowed one resolves to its fully canonical name (`map` written in a module the prelude opens becomes `Data.List.map`), so a consumer never has to guess which module a name came from.
+
+A reference is reported only where the AST records a span for the name itself: today an expression variable, and an effect-row label, whose span the parser sets to the label's name rather than to `Emit(Int)` entire. Every other resolution site — a constructor pattern, an instance's class, a record literal's type — carries the span of the construct _around_ the name. That is the right thing to underline in a diagnostic and the wrong thing to make clickable: recording it would turn a whole declaration into a single link. Giving `Ty` a span per name is the one change that would widen the export; the collection needs none.
+
+## 31. Warranty {#warranty}
 
 Prism is released under the vanilla [MIT License](https://github.com/sdiehl/prism/blob/main/LICENSE). Which in lawyer speak is essentially, do whatever the fuck you like. Fork it, sell it, embed it in a toaster, put it in a spaceship. Whatever.
 

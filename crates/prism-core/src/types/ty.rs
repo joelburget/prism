@@ -26,6 +26,11 @@ pub const NONE: &str = "None";
 // in a datatype field cannot be (the brand is not a parameter of the enclosing
 // type), so the field pins the omitted brand to this concrete default.
 pub const CANONICAL: &str = "Canonical";
+// The raw-storage cell types: an opaque byte buffer (the storage under the
+// stdlib `Bytes` type) and its unboxed f64/i64-element siblings, each a
+// 0-parameter built-in with no surface constructors, manipulated only through
+// its `buf_*`/`tbuf_*`/`ibuf_*` builtin family.
+pub const BUF: &str = "Buf";
 pub const FLOAT_BUF: &str = "FloatBuf";
 pub const INT_BUF: &str = "IntBuf";
 // The 128-bit SIMD vector types: two 64-bit lanes or four 32-bit lanes over
@@ -520,6 +525,55 @@ impl Type {
     // `free_exist_row`; a variable bound by an enclosing `RowForall` is excluded.
     pub fn free_row_vars(&self, acc: &mut BTreeSet<Sym>) {
         self.walk_row_vars(&mut Vec::new(), acc);
+    }
+
+    /// Visit each directly-nested type, effect-row and coeffect-row arguments
+    /// included.
+    ///
+    /// The single exhaustive statement of `Type`'s structural children, the
+    /// counterpart of [`prism_syntax::ast::Ty::each_child`] on the surface side: a
+    /// walker that recurses through this cannot silently drop a variant, and adding
+    /// one forces an update here rather than a quiet miss at every hand-written
+    /// `match`. Written without a catch-all arm for exactly that reason.
+    pub fn each_child(&self, f: &mut impl FnMut(&Self)) {
+        match self {
+            Self::Con(_, args) | Self::Tuple(args) | Self::UnboxedTuple(args) => {
+                for a in args {
+                    f(a);
+                }
+            }
+            Self::Fun(params, row, ret) => {
+                for p in params {
+                    f(p);
+                }
+                row.for_each_arg(f);
+                f(ret);
+            }
+            Self::UnboxedRecord(fields) => {
+                for (_, t) in fields {
+                    f(t);
+                }
+            }
+            Self::App(head, arg) => {
+                f(head);
+                f(arg);
+            }
+            Self::Forall(_, t) | Self::RowForall(_, t) | Self::OrNull(t) | Self::Coeffect(t, _) => {
+                f(t);
+            }
+            Self::Row(row) => row.for_each_arg(f),
+            Self::Unit
+            | Self::Int
+            | Self::I64
+            | Self::U64
+            | Self::Bool
+            | Self::Float
+            | Self::Char
+            | Self::Str
+            | Self::Var(_)
+            | Self::Exist(_)
+            | Self::Nat(_) => {}
+        }
     }
 
     fn walk_ty_vars(&self, bound: &mut Vec<Sym>, acc: &mut BTreeSet<Sym>) {

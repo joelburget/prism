@@ -5,20 +5,25 @@ use im::OrdMap;
 use marginalia::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::error::{ErrKind, TypeError};
+use crate::error::{suggest, ErrKind, TypeError};
 pub use crate::error::{HoleBinding, HoleCandidate, HoleReport};
 use crate::hir::{HandlerResidual, NodeFacts};
-use crate::names::{parse_var_get, parse_var_set};
+use crate::names::{self, parse_var_get, parse_var_set};
 use crate::sym::Sym;
 use crate::syntax::ast::{Core, Decl, Expr, Grade, NodeId, Program, S};
-use crate::types::effects;
+use crate::types::deps;
 use crate::types::ty::{EffRow, Effects, Kind, Label, Type};
 
 mod classes;
 mod context;
+use context::Renames;
+
+// A declaration's span facts, held until its scheme is built: the node types to
+// zonk and the effect rows to render tooltips from.
+type DeferredSpans = (Vec<(NodeId, Type)>, Vec<(NodeId, EffRow)>);
 mod coverage;
 mod env;
-pub(crate) use env::is_builtin_effect;
+pub(crate) use env::{builtin_sigs, is_builtin_effect};
 mod infer;
 mod pat;
 mod subsume;
@@ -808,6 +813,15 @@ pub struct Checked {
     pub inst_keys: InstKeys,
     pub canonical: Canon,
     pub methods: BTreeMap<Sym, (Sym, usize)>,
+    /// The inferred effect row of each instance method, keyed by the name
+    /// elaboration will lift it to (`i@showInt@show`).
+    ///
+    /// An instance method is not in `decls`: it is checked from inside its
+    /// instance rather than as a top-level function, so its row was computed,
+    /// held to the class signature's declared labels, and dropped. A consumer that
+    /// reports what a definition performs has no other source for it — an instance
+    /// has no `DeclInfo` and Core carries no rows.
+    pub method_effects: BTreeMap<String, Effects>,
     pub constrained: BTreeMap<Sym, (Type, Vec<(Sym, Type)>)>,
     pub seeds: u32,
     pub warnings: Vec<Warning>,
@@ -827,6 +841,30 @@ impl Checked {
             .iter()
             .map(|(name, info)| (Sym::from(name), info.grade))
             .collect()
+    }
+
+    /// One declaration's full rendered signature: the generalized scheme, then
+    /// the `given` constraints the checker discharges at each call site.
+    /// `finish_decl` renames the constraint types through the same substitution
+    /// that names the scheme's quantifiers, so `given Foldable(a)` names the
+    /// same `a` the `forall` binds. `Type` itself has no constraint component
+    /// (constraints erase to dictionary evidence), so the plain `ty.show()`
+    /// silently drops them; every reader-facing surface (`dump types`, the doc
+    /// generator) must render through here instead. The content hash
+    /// (`hash_meta`) deliberately does not: its rendering is pinned.
+    #[must_use]
+    pub fn show_sig(&self, d: &DeclInfo) -> String {
+        let base = d.ty.show();
+        match self.constrained.get(&Sym::from(&d.name)) {
+            Some((_, cs)) if !cs.is_empty() => {
+                let given: Vec<String> = cs
+                    .iter()
+                    .map(|(class, t)| format!("{class}({})", t.show()))
+                    .collect();
+                format!("{base} given {}", given.join(", "))
+            }
+            _ => base,
+        }
     }
 }
 
@@ -939,12 +977,23 @@ struct Tc<'a> {
     track_tooltips: bool,
     pending_tooltip_rows: Vec<(NodeId, EffRow)>,
     tooltip_rows: BTreeMap<NodeId, String>,
+    method_effects: BTreeMap<String, Effects>,
     touched_tooltip_rows: BTreeSet<u32>,
     tooltip_row_scaffolds: BTreeSet<u32>,
     // Per-declaration principal-body-effect witnesses ([`BodyWitness`]),
     // recorded by `infer_body` and consumed by `finalize_fn`'s borrow rule.
     body_witness: BTreeMap<String, BodyWitness>,
     pending: Vec<(NodeId, Type)>,
+    // The naming the declaration being flushed gave its own variables, so every
+    // span inside it renders under one scheme instead of canonicalizing afresh
+    // per node and calling the same variable `a` in one place and `c` in another.
+    decl_renames: Option<Renames>,
+    // One member's spans, held from the moment its body is inferred until its
+    // scheme exists. A recursion group is solved as a whole — a sibling's body is
+    // what pins an earlier member's parameter — so reading a member's types when
+    // its own body finishes reads them too early. One entry per member, pushed and
+    // taken in the order the group infers and generalizes them.
+    deferred_spans: std::collections::VecDeque<DeferredSpans>,
     hole_sites: Vec<HoleSite>,
     holes: Vec<HoleReport>,
     // Each `This(e)` site, with the span of the whole expression and the element
@@ -1438,7 +1487,11 @@ fn check_seeded_mode(
                 return Err(ErrKind::UnknownClass {
                     class: c.class.clone(),
                 }
-                .at(c.span));
+                .at(c.span)
+                .maybe_help(suggest::suggestion(
+                    &c.class,
+                    classes.keys().map(|k| names::bare_name(k.as_str())),
+                )));
             }
             cs.push((Sym::from(&c.class), env::convert_data(&c.ty)));
         }
@@ -1450,6 +1503,7 @@ fn check_seeded_mode(
     let fixed;
     let span_types;
     let tooltip_rows;
+    let method_effects;
     let handler_nodes;
     let handler_residuals;
     let dicts;
@@ -1471,10 +1525,13 @@ fn check_seeded_mode(
             track_tooltips,
             pending_tooltip_rows: Vec::new(),
             tooltip_rows: BTreeMap::new(),
+            method_effects: BTreeMap::new(),
             touched_tooltip_rows: BTreeSet::new(),
             tooltip_row_scaffolds: BTreeSet::new(),
             body_witness: BTreeMap::new(),
             pending: Vec::new(),
+            decl_renames: None,
+            deferred_spans: std::collections::VecDeque::new(),
             hole_sites: Vec::new(),
             holes: Vec::new(),
             or_null_sites: Vec::new(),
@@ -1504,7 +1561,7 @@ fn check_seeded_mode(
         // own; a mutually recursive group is inferred together against shared
         // monomorphic variables. `infos` is rebuilt in declaration order afterward
         // so downstream output is unaffected by the visiting order.
-        for component in effects::dep_sccs(prog) {
+        for component in deps::dep_sccs(prog) {
             if component.len() == 1 {
                 let d = &prog.fns[component[0]];
                 if d.konst {
@@ -1576,6 +1633,7 @@ fn check_seeded_mode(
         fixed = tc.fixed;
         span_types = tc.span_types;
         tooltip_rows = tc.tooltip_rows;
+        method_effects = std::mem::take(&mut tc.method_effects);
         handler_nodes = tc.handler_nodes;
         handler_residuals = tc.handler_residuals;
         dicts = tc.dicts;
@@ -1616,6 +1674,7 @@ fn check_seeded_mode(
         inst_keys,
         canonical,
         methods,
+        method_effects,
         constrained: constrained_final,
         seeds,
         warnings,
@@ -1735,10 +1794,13 @@ fn infer_expr_full(
         track_tooltips: false,
         pending_tooltip_rows: Vec::new(),
         tooltip_rows: BTreeMap::new(),
+        method_effects: BTreeMap::new(),
         touched_tooltip_rows: BTreeSet::new(),
         tooltip_row_scaffolds: BTreeSet::new(),
         body_witness: BTreeMap::new(),
         pending: Vec::new(),
+        decl_renames: None,
+        deferred_spans: std::collections::VecDeque::new(),
         hole_sites: Vec::new(),
         holes: Vec::new(),
         or_null_sites: Vec::new(),
@@ -1771,4 +1833,109 @@ fn infer_expr_full(
     let g = tc.generalize(&env, &t);
     tc.holes.sort_by_key(|h| (h.start, h.end, h.name.clone()));
     Ok((g, effs, tc.dicts, tc.holes))
+}
+
+// A checker context for read-only type queries. Search and synthesis use the
+// same higher-rank and row-aware relation as ordinary checking, but infer no
+// declarations and therefore need only an empty seed plus solver state.
+// Native-only with its two callers below: the CLI drives every type query.
+#[cfg(feature = "native")]
+fn query_tc(seed: &TypecheckSeed) -> Tc<'_> {
+    Tc {
+        ctx: Vec::new(),
+        next: 0,
+        seeds: 0,
+        ctors: &seed.ctors,
+        data: &seed.data,
+        eff_ops: &seed.eff_ops,
+        field_res: BTreeMap::new(),
+        unboxed_field: BTreeMap::new(),
+        path_res: PathRes::new(),
+        fixed: BTreeMap::new(),
+        span_types: BTreeMap::new(),
+        track_tooltips: false,
+        pending_tooltip_rows: Vec::new(),
+        tooltip_rows: BTreeMap::new(),
+        method_effects: BTreeMap::new(),
+        touched_tooltip_rows: BTreeSet::new(),
+        tooltip_row_scaffolds: BTreeSet::new(),
+        body_witness: BTreeMap::new(),
+        pending: Vec::new(),
+        decl_renames: None,
+        deferred_spans: std::collections::VecDeque::new(),
+        hole_sites: Vec::new(),
+        holes: Vec::new(),
+        or_null_sites: Vec::new(),
+        classes: &seed.classes,
+        instances: &seed.instances,
+        inst_keys: &seed.inst_keys,
+        canonical: &seed.canonical,
+        constrained: seed.constrained.clone(),
+        cur_self: None,
+        wanted: Vec::new(),
+        num_default: Vec::new(),
+        neg_default: Vec::new(),
+        index_ops: Vec::new(),
+        dicts: BTreeMap::new(),
+        row_ctx: Vec::new(),
+        cur_row: None,
+        handler_stack: Vec::new(),
+        operation_uses: OperationUses::default(),
+        precise_calls: BTreeMap::new(),
+        handler_nodes: BTreeSet::new(),
+        handler_residuals: BTreeMap::new(),
+    }
+}
+
+/// Whether `actual` can be used where `expected` is required.
+///
+/// This is the typechecker's real subsumption relation, including forall
+/// instantiation, skolemization, function variance, and effect-row matching.
+#[cfg(feature = "native")]
+#[must_use]
+pub(crate) fn type_subsumes(actual: &Type, expected: &Type) -> bool {
+    if actual == expected {
+        return true;
+    }
+    let seed = TypecheckSeed::default();
+    query_tc(&seed).subtype(actual, expected).is_ok()
+}
+
+/// Parameter types for applying `function` to produce `expected`.
+///
+/// Leading type and row quantifiers are instantiated before the result is
+/// matched. Returned domains carry the substitutions learned by that match.
+#[cfg(feature = "native")]
+#[must_use]
+pub(crate) fn application_params(function: &Type, expected: &Type) -> Option<Vec<Type>> {
+    let seed = TypecheckSeed::default();
+    let mut tc = query_tc(&seed);
+    let mut current = function.clone();
+    let opened = loop {
+        current = match current {
+            Type::Forall(name, body) => {
+                let fresh = tc.push_ex();
+                body.subst_var(name, &Type::Exist(fresh))
+            }
+            Type::RowForall(name, body) => {
+                let fresh = tc.push_ex_row();
+                body.subst_row_var(name, &EffRow::Exist(fresh))
+            }
+            other => break other,
+        };
+    };
+    let Type::Fun(params, _effects, result) = opened else {
+        return None;
+    };
+    tc.subtype(&result, expected).ok()?;
+    let applied = Type::Tuple(params.iter().map(|param| tc.apply(param)).collect());
+    let generalized = tc.generalize(&Env::new(), &applied);
+    let mut body = &generalized;
+    while let Type::Forall(_, next) | Type::RowForall(_, next) = body {
+        body = next;
+    }
+    match body {
+        Type::Tuple(params) => Some(params.clone()),
+        _ => None,
+    }
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.18.0
+
+- Code index: added `prism index`, a whole-program artifact of definitions and their edges, and the `/viewer/` page that browses by definition.
+- Toolchain: added prismup, a version manager shipped as a static binary with each release; the installer delegates to it.
+- Builds: native links now reuse cached runtime objects and report per-clang timing; CI routes clang through sccache.
+- Diagnostics: added `prism explain CODE` and REPL `:explain`, one page per emitted code, plus did-you-mean corrections.
+- Typed holes: added `check --at-hole` reporting, `--fill` for a sole exact-type candidate, and `run --defer-holes` turning reached holes into deterministic faults.
+- Type search: added `prism search TYPE` over project and library interfaces by subsumption, and bounded `prism synth` whose candidates the checker re-verifies.
+- Bootstrap: added `prism bootstrap check FILE`, a Prism shadow of the Rust checker reporting parity or the first diverging fact.
+- Effect lowering: added the `tier-explain` dump, one sentence per region naming its rung and the recorded fact that forced it.
+- Typechecker: lambda annotations now feed inference, and a call's result meets its expected type before its arguments, so lens construction typechecks.
+- Patterns: added `let pat = value else fallback`, lowering identically to the equivalent two-arm match.
+- Optics: added `#path a.b.c` and anchored `#path Type.a.b` lens literals, and compound path-update terminals like `{ s | hp -= dmg, cells.each *= 2 }`.
+- Imperative: assignment left sides extend to `var`-rooted field and index paths, `var x : T := e` types the cell, and threaded state takes the same statements.
+- Deriving: `Lens` emits type-qualified lenses when `Data.Optic` is in scope, derived contexts omit phantom parameters, and shared-field collisions report E6072.
+- Parser: rewrote `Syntax.Parse` onto `let else`, a thousand lines shorter with byte-identical output, and adversarial nesting cost fell to linear.
+- Standard library: added `Data.Optic` lenses and traversals with a `Control.State` bridge, replay-stable `Data.Intern`, and first-divergence `Data.Diff`.
+- Example: refactored System F onto one anchored solver route, ambient-state statements, and factored operator rules.
+- Documentation: folded optics, typed holes, and diagnostics into the spec, and package reference pages ship module sources so browser Run works.
+
 ## 0.17.0
 
 - Effects: rewrote the `State`, `Writer`, and `Fresh` runners in a cell style the fast tiers accept, moving idiomatic State to the evidence tier.

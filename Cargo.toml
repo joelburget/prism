@@ -1,6 +1,6 @@
 [package]
 name = "prism"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Stephen Diehl <stephen.m.diehl@gmail.com>"]
 categories = ["compilers"]
 default-run = "prism"
@@ -150,6 +150,19 @@ multiple_crate_versions = "allow"
 debug = "line-tables-only"
 split-debuginfo = "unpacked"
 
+# The web playground bundle must stay within the size ratchet in CI, so the
+# wasm build trades compile time and speed for size: whole-program LTO, one
+# codegen unit, size-first codegen, and no unwinding machinery (nothing in the
+# wasm entry points catches panics). Native builds keep the default release
+# profile; this one is selected only by the wasm recipes.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
 # `cargo release <version>` bumps the manifest, stamps the changelog, tags
 # v<version>, and pushes; the Release workflow builds and publishes from the tag.
 # Not published to crates.io (the crate links system LLVM), so `cargo install`
@@ -171,10 +184,13 @@ members = [
   "crates/prism-store",
   "crates/prism-syntax",
 ]
+# The toolchain installer is a standalone binary with its own lockfile and an
+# HTTP/TLS dependency tree the compiler build must never pay for.
+exclude = ["tools/prismup"]
 resolver = "2"
 
 [workspace.package]
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Stephen Diehl <stephen.m.diehl@gmail.com>"]
 edition = "2021"
 license = "MIT"

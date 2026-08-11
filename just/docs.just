@@ -1,8 +1,8 @@
 # Build and sync the wasm playground bundle.
 [group('web')]
 wasm:
-    cargo rustc --lib --crate-type cdylib --target wasm32-unknown-unknown --release --no-default-features --features wasm
-    wasm-bindgen target/wasm32-unknown-unknown/release/prism.wasm --target web --out-dir web/pkg --out-name prism
+    cargo rustc --lib --crate-type cdylib --target wasm32-unknown-unknown --profile wasm-release --no-default-features --features wasm
+    wasm-bindgen target/wasm32-unknown-unknown/wasm-release/prism.wasm --target web --out-dir web/pkg --out-name prism
     cp web/pkg/prism.js web/pkg/prism_bg.wasm docs/src/pkg/
 
 # Regenerate embedded playground examples.
@@ -14,18 +14,50 @@ examples:
 # Build wasm and serve the playground.
 [group('web')]
 [working-directory('web')]
-web: wasm
+web: wasm index-web
     pnpm install
     pnpm dev
 
 # Lint, type-check, and build the playground.
 [group('web')]
 [working-directory('web')]
-web-build:
+web-build: index-web
     pnpm install
     pnpm lint
     pnpm typecheck
+    pnpm check:viewer
     pnpm build
+
+# Write the code index for the standard library and for this project's own packages, into target/.
+[group('web')]
+index:
+    cargo build --release
+    ./target/release/prism index --stdlib --out target/stdlib-index.json
+    ./target/release/prism index packages/spectra --out target/spectra-index.json
+
+# Regenerate the standard-library index the viewer page loads. Generated, not
+# committed, exactly like the wasm bundle; the viewer needs no wasm, only this.
+[group('web')]
+index-web:
+    cargo build --release
+    ./target/release/prism index --stdlib --out web/public/stdlib-index.json
+
+# A revision pair for the viewer: index PATH as it is in the working tree and as it
+# was at REV, then compare them. The comparison separates what an author changed
+# from what merely re-hashed underneath it, so it is worth generating even for a
+# small edit. Artifacts land beside the stdlib index, generated and uncommitted.
+[group('web')]
+index-diff REV="HEAD" PATH="packages/spectra":
+    cargo build --release
+    rm -rf target/index-diff-base
+    git worktree add -q --detach target/index-diff-base {{ REV }}
+    ./target/release/prism index target/index-diff-base/{{ PATH }} --out web/public/old-index.json
+    ./target/release/prism index {{ PATH }} --out web/public/new-index.json
+    ./target/release/prism index --diff web/public/old-index.json web/public/new-index.json --out web/public/diff-index.json
+    git worktree remove --force target/index-diff-base
+    @echo ""
+    @echo "Run \`just web\` and open:"
+    @echo "  http://localhost:5173/viewer.html?src=/new-index.json&diff=/diff-index.json"
 
 # Regenerate and test the Standard Library Reference.
 [group('docs')]
@@ -39,12 +71,16 @@ docs-gen:
 docs-packages:
     cargo build --release --features native
     ./target/release/prism docs packages/tzdb --out docs/src/packages/tzdb
+    ./target/release/prism docs packages/tzdb --out packages/tzdb/docs
     ./target/release/prism docs packages/tzdb --test
     ./target/release/prism docs packages/typst --out docs/src/packages/typst
+    ./target/release/prism docs packages/typst --out packages/typst/docs
     ./target/release/prism docs packages/typst --test
     ./target/release/prism docs packages/spectra --out docs/src/packages/spectra
+    ./target/release/prism docs packages/spectra --out packages/spectra/docs
     ./target/release/prism docs packages/spectra --test
     ./target/release/prism docs packages/tc --out docs/src/packages/tc
+    ./target/release/prism docs packages/tc --out packages/tc/docs
     ./target/release/prism docs packages/tc --test
 
 # Regenerate the compaction scoreboard; pass `--check` to verify it.

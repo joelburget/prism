@@ -1,11 +1,12 @@
 #![allow(clippy::multiple_crate_versions)]
 
+use std::path::{Path, PathBuf};
 use std::process::{self, ExitCode};
 
 use clap::{Parser, Subcommand};
+use prism::cli::type_query::{default_search_limit, default_synth_depth, default_synth_limit};
 use prism::cli::{self, CmdResult, ExampleStdin};
 use prism::error::Error;
-use std::path::{Path, PathBuf};
 
 const DEFAULT_EXAMPLES_DIR: &str = "examples";
 
@@ -181,6 +182,55 @@ enum Cmd {
     Check {
         /// A `.pr` file or project to type-check; omitted checks the enclosing project
         file: Option<PathBuf>,
+        /// Report each typed hole: expected type, effect row, in-scope candidates
+        #[arg(long)]
+        at_hole: bool,
+        /// Fill each hole with exactly one exact-type in-scope candidate, in place
+        #[arg(long)]
+        fill: bool,
+        /// Emit hole reports as JSON (with --at-hole or --fill)
+        #[arg(long)]
+        json: bool,
+    },
+    /// Search checked project, package, and standard-library interfaces by type
+    Search {
+        /// Type required at the use site
+        #[arg(value_name = "TYPE")]
+        ty: String,
+        /// File or project whose dependency universe to search
+        #[arg(long = "in", value_name = "PATH")]
+        input: Option<PathBuf>,
+        /// Maximum number of results
+        #[arg(long, default_value_t = default_search_limit())]
+        limit: usize,
+        /// Emit results as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Synthesize bounded, rechecked expressions for one typed hole
+    Synth {
+        /// A `.pr` file or project; omitted uses the enclosing project
+        file: Option<PathBuf>,
+        /// Named hole to synthesize, with or without the leading `?`
+        #[arg(long, value_name = "NAME")]
+        at_hole: String,
+        /// Maximum expression depth
+        #[arg(long, default_value_t = default_synth_depth())]
+        depth: usize,
+        /// Maximum number of verified candidates
+        #[arg(long, default_value_t = default_synth_limit())]
+        limit: usize,
+        /// Emit synthesis reports as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run the Prism-written bootstrap checker as shadow evidence
+    #[command(subcommand)]
+    Bootstrap(BootstrapCmd),
+    /// Explain a diagnostic code: what it means, a minimal example, and the fix
+    Explain {
+        /// A diagnostic code such as E1001 (a bare 1001 is accepted)
+        code: String,
     },
     /// Discharge a file's function contracts through an external SMT solver
     Verify {
@@ -199,10 +249,12 @@ enum Cmd {
     },
     /// Print one pipeline phase artifact
     ///
-    /// PHASE is one of: tokens, syntax-tokens, surface-syntax, ast, types, typespans, hir,
+    /// PHASE is one of: tokens, syntax-tokens, surface-syntax, ast, types, typespans,
+    /// occurrences, hir,
     /// interface, module-graph, core, core-json, core-identity, core-hash, tc-input, tc-facts,
     /// elab-input, native-kont-table, native-kont-state-map, shape, dupes,
-    /// namespace, stdlib-hash, fbip, lowered, tier, effect-plan, captures, usage-summary,
+    /// namespace, stdlib-hash, fbip, lowered, tier, effect-plan, tier-explain, captures,
+    /// usage-summary,
     /// usage-summary-md, usage-summary-json, llvm, mlir, verify, smt, totality.
     Dump { phase: String, file: PathBuf },
     /// Behavior or lineage diff by content hash
@@ -266,6 +318,40 @@ enum Cmd {
         #[arg(long)]
         open: bool,
     },
+    /// Write the code index a program viewer reads
+    Index {
+        /// Project directory, `prism.toml`, or `.pr` file to index
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Compare two committed index artifacts instead of writing one: which
+        /// definitions the author changed, which only re-hashed underneath them
+        #[arg(long, value_names = ["OLD", "NEW"], num_args = 2, conflicts_with_all = ["stdlib", "check"])]
+        diff: Option<Vec<PathBuf>>,
+        /// Join existing index artifacts into one cross-unit index instead of
+        /// compiling `path`
+        #[arg(long, num_args = 1.., conflicts_with_all = ["diff", "stdlib", "check", "no_source", "as_library"])]
+        merge: Option<Vec<PathBuf>>,
+        /// Display title for an index produced by `--merge`
+        #[arg(long, requires = "merge")]
+        title: Option<String>,
+        /// Output file (default: `<project>/target/index.json`)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// Index the embedded standard library instead of `path`
+        #[arg(long)]
+        stdlib: bool,
+        /// Compile every project module as an imported library module, including
+        /// the configured binary entry, so its identities remain qualified
+        #[arg(long, conflicts_with = "stdlib")]
+        as_library: bool,
+        /// Omit each module's source text, for a consumer that reads the working
+        /// tree itself
+        #[arg(long)]
+        no_source: bool,
+        /// Check only: exit 1 if the committed artifact is out of date, write nothing
+        #[arg(long)]
+        check: bool,
+    },
     /// Execution control over recorded runs and snapshots
     #[command(subcommand)]
     Exec(ExecCmd),
@@ -324,6 +410,18 @@ enum Cmd {
         /// arrives on stdin.
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         rest: Vec<String>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum BootstrapCmd {
+    /// Compare the T1 Prism checker with authoritative Rust facts
+    Check {
+        /// A `.pr` file or project to shadow-check
+        file: PathBuf,
+        /// Emit the parity and coverage report as JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -914,7 +1012,35 @@ fn dispatch(cmd: Cmd, cfg: &prism::Config) -> CmdResult {
             }
         }
         Cmd::Clean { path } => cli::clean_cmd(&path),
-        Cmd::Check { file } => cli::check_cmd(file.as_deref(), cfg),
+        Cmd::Check {
+            file,
+            at_hole,
+            fill,
+            json,
+        } => {
+            if at_hole || fill {
+                cli::holes::at_hole_cmd(file.as_deref(), fill, json, cfg)
+            } else {
+                cli::check_cmd(file.as_deref(), cfg)
+            }
+        }
+        Cmd::Search {
+            ty,
+            input,
+            limit,
+            json,
+        } => cli::type_query::search_cmd(&ty, input.as_deref(), limit, json, cfg),
+        Cmd::Synth {
+            file,
+            at_hole,
+            depth,
+            limit,
+            json,
+        } => cli::type_query::synth_cmd(file.as_deref(), &at_hole, depth, limit, json, cfg),
+        Cmd::Bootstrap(BootstrapCmd::Check { file, json }) => {
+            cli::bootstrap::check_cmd(&file, json, cfg)
+        }
+        Cmd::Explain { code } => cli::explain::explain_cmd(&code),
         Cmd::Test {
             file,
             filter,
@@ -973,6 +1099,39 @@ fn dispatch(cmd: Cmd, cfg: &prism::Config) -> CmdResult {
             open,
             cfg,
         ),
+        Cmd::Index {
+            path,
+            diff,
+            merge,
+            title,
+            out,
+            stdlib,
+            as_library,
+            no_source,
+            check,
+        } => match diff.as_deref() {
+            Some([old, new]) => cli::index::diff_cmd(old, new, out),
+            _ if merge.is_some() => cli::index::merge_cmd(
+                merge.as_deref().unwrap_or_default(),
+                title.unwrap_or_else(|| "Prism Reference".into()),
+                out,
+            ),
+            _ => cli::index::index_cmd(
+                &path,
+                out,
+                cli::index::IndexOpts {
+                    stdlib,
+                    as_library,
+                    no_source,
+                    mode: if check {
+                        cli::index::IndexMode::Check
+                    } else {
+                        cli::index::IndexMode::Write
+                    },
+                },
+                cfg,
+            ),
+        },
         Cmd::Mdbook { rest } => cli::docs::mdbook_cmd(&rest, cfg.flags.mdbook_strict),
     }
 }

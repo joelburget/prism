@@ -15,11 +15,10 @@
 //! Optimization and disabled-pass labels remain part of artifact identity. The
 //! verification evaluator makes no allocator, RC-count, or reuse-cost claim.
 //!
-//! This is a standalone gate rather than part of the default test sweep:
-//!
-//! ```text
-//! just opt-equiv
-//! ```
+//! All tests run in the default sweep: the representative sample is the fast
+//! semantic path, the early-exit discovery keeps every configuration engaged,
+//! and CI partitions the whole-corpus relation by source across its dedicated
+//! exact-cover matrix. `just opt-equiv` runs the whole-corpus test by itself.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -27,14 +26,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use prism::core::CorePass;
 use prism::{default_roots, Config, ObservationTrace, OptLevel};
 
-use crate::support::{corpus, parallel_check, source};
+use crate::support::{
+    corpus_candidates, corpus_is_sharded, heavy_corpus_delegated, parallel_check,
+    runnable_corpus_source, sharded_corpus, source,
+};
 
-const DISABLEABLE_PASSES: [CorePass; 5] = [
-    CorePass::Fuse,
-    CorePass::Specialize,
-    CorePass::Simplify,
-    CorePass::Inline,
-    CorePass::Cse,
+const DISABLEABLE_PASSES: &[(CorePass, &str)] = &[
+    (CorePass::Fuse, "o2-no-fuse"),
+    (CorePass::Specialize, "o2-no-specialize"),
+    (CorePass::Simplify, "o2-no-simplify"),
+    (CorePass::Inline, "o2-no-inline"),
+    (CorePass::Cse, "o2-no-cse"),
 ];
 
 #[derive(Debug)]
@@ -59,16 +61,17 @@ impl Variant {
 }
 
 fn variants() -> Vec<Variant> {
-    vec![
+    let mut variants = vec![
         Variant::level("o0", OptLevel::O0),
         Variant::level("o1", OptLevel::O1),
         Variant::level("o2", OptLevel::O2),
-        Variant::without("o2-no-fuse", DISABLEABLE_PASSES[0]),
-        Variant::without("o2-no-specialize", DISABLEABLE_PASSES[1]),
-        Variant::without("o2-no-simplify", DISABLEABLE_PASSES[2]),
-        Variant::without("o2-no-inline", DISABLEABLE_PASSES[3]),
-        Variant::without("o2-no-cse", DISABLEABLE_PASSES[4]),
-    ]
+    ];
+    variants.extend(
+        DISABLEABLE_PASSES
+            .iter()
+            .map(|(pass, label)| Variant::without(label, *pass)),
+    );
+    variants
 }
 
 fn record_lowered_activity(lowered: &[&str], activity: &[AtomicUsize]) {
@@ -143,7 +146,9 @@ const ACTIVITY_LABELS: [&str; 7] = [
 fn run_cases(cases: &[PathBuf], require_engagement: bool) {
     let roots = default_roots(Path::new("."));
     let variants = variants();
-    let activity: Vec<AtomicUsize> = (0..7).map(|_| AtomicUsize::new(0)).collect();
+    let activity: Vec<AtomicUsize> = (0..ACTIVITY_LABELS.len())
+        .map(|_| AtomicUsize::new(0))
+        .collect();
     let fails = parallel_check(cases, |case| check_case(case, &roots, &variants, &activity));
     assert!(
         fails.is_empty(),
@@ -172,7 +177,6 @@ fn run_cases(cases: &[PathBuf], require_engagement: bool) {
 }
 
 #[test]
-#[ignore = "focused optimizer-equivalence cost and correctness sample"]
 fn optimizer_equivalence_representative_sample() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let cases = [
@@ -193,11 +197,75 @@ fn optimizer_equivalence_representative_sample() {
     run_cases(&cases, false);
 }
 
+// Keep engagement independent of the exact-cover CI split: isolated shard
+// processes cannot add their counters together. This scan stops as soon as all
+// configurations have changed Core somewhere and performs no evaluation, so it
+// retains the anti-vacuity contract without recreating the heavyweight sweep.
+// Each configuration counts as engaged when either the optimized Core or the
+// effect-lowered Core differs: a disabled pass whose pre-lowering
+// normalizations the remaining O2 passes re-derive (simplify) is only visible
+// after lowering, while one whose work lowering itself erases on small
+// programs (specialize) is only visible before it.
 #[test]
-#[ignore = "standalone whole-corpus lowered-Core optimizer-equivalence gate"]
-fn optimizer_configurations_have_identical_observation_traces() {
+fn optimizer_configurations_are_engaged() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut cases = corpus();
+    let roots = default_roots(Path::new("."));
+    let variants = variants();
+    let activity: Vec<AtomicUsize> = (0..ACTIVITY_LABELS.len())
+        .map(|_| AtomicUsize::new(0))
+        .collect();
+    let mut cases = [
+        "tests/fixtures/opt_equiv/o2_fuse.pr",
+        "tests/fixtures/opt_equiv/cse.pr",
+        "examples/accum.pr",
+        "examples/deriving.pr",
+        "examples/eff_state.pr",
+        "examples/handlers_funval.pr",
+        "examples/fip_tree.pr",
+        "examples/newtype_order.pr",
+    ]
+    .into_iter()
+    .map(|case| root.join(case))
+    .collect::<Vec<_>>();
+    cases.extend(corpus_candidates());
+
+    for case in cases {
+        let full = source(&case);
+        if !runnable_corpus_source(&full) {
+            continue;
+        }
+        for phase in ["core", "lowered"] {
+            let dumped = variants
+                .iter()
+                .map(|variant| prism::dump_on(phase, &full, &roots, &variant.config))
+                .collect::<Result<Vec<_>, _>>();
+            let Ok(dumped) = dumped else { continue };
+            let dumped = dumped.iter().map(String::as_str).collect::<Vec<_>>();
+            record_lowered_activity(&dumped, &activity);
+        }
+        if activity
+            .iter()
+            .all(|changed| changed.load(Ordering::Relaxed) > 0)
+        {
+            break;
+        }
+    }
+
+    for (slot, label) in ACTIVITY_LABELS.into_iter().enumerate() {
+        assert!(
+            activity[slot].load(Ordering::Relaxed) > 0,
+            "{label} changed no lowered Core in the runnable corpus; the sweep is vacuous"
+        );
+    }
+}
+
+#[test]
+fn optimizer_configurations_have_identical_observation_traces() {
+    if heavy_corpus_delegated() {
+        return;
+    }
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut cases = sharded_corpus();
     cases.extend(
         [
             "tests/fixtures/opt_equiv/cse.pr",
@@ -206,5 +274,8 @@ fn optimizer_configurations_have_identical_observation_traces() {
         .into_iter()
         .map(|case| root.join(case)),
     );
-    run_cases(&cases, true);
+    // A shard cannot see aggregate engagement counts from its siblings. The
+    // focused discovery test above retains that backstop; this sweep retains
+    // exact-cover semantic equivalence over the whole corpus.
+    run_cases(&cases, !corpus_is_sharded());
 }
