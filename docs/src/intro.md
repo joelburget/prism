@@ -13,3 +13,5 @@ This book has five parts:
 - **[Packages](./packages/index.md)** documents the packages in the repository, generated from their source by `prism docs`.
 
 Use the **[Playground](https://sdiehl.github.io/prism/play/)** to edit, run, and inspect Prism code via an interpreter run in the browser.
+
+Use the **[Viewer](https://sdiehl.github.io/prism/viewer/)** to explore the standard library and packages.
