@@ -219,8 +219,14 @@ jobs:
           cargo build --release --locked \
             --manifest-path tools/prismup/Cargo.toml --target "$musl_target"
           bin="tools/prismup/target/$musl_target/release/prismup"
-          ldd "$bin" 2>&1 | grep -qE 'not a dynamic|statically linked' \
-            || { echo "prismup is not statically linked:"; ldd "$bin"; exit 1; }
+          # ldd exits nonzero on a fully static (non-PIE) binary while printing
+          # "not a dynamic executable", so capture the text and match on it
+          # rather than piping, which pipefail would fail on the good case.
+          linkage="$(ldd "$bin" 2>&1 || true)"
+          case "$linkage" in
+            *"not a dynamic executable"* | *"statically linked"*) ;;
+            *) echo "prismup is not statically linked: $linkage"; exit 1 ;;
+          esac
           echo "PRISMUP_BIN=$bin" >> "$GITHUB_ENV"
           echo "PRISMUP_TARGET=$musl_target" >> "$GITHUB_ENV"
 

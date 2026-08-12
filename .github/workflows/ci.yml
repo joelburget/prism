@@ -69,8 +69,14 @@ jobs:
           cargo clippy --locked --target x86_64-unknown-linux-musl -- -D warnings
           cargo build --release --locked --target x86_64-unknown-linux-musl
           bin=target/x86_64-unknown-linux-musl/release/prismup
-          ldd "$bin" 2>&1 | grep -qE 'not a dynamic|statically linked' \
-            || { echo "prismup is not statically linked:"; ldd "$bin"; exit 1; }
+          # ldd exits nonzero on a fully static (non-PIE) binary while printing
+          # "not a dynamic executable", so capture the text and match on it
+          # rather than piping, which pipefail would fail on the good case.
+          linkage="$(ldd "$bin" 2>&1 || true)"
+          case "$linkage" in
+            *"not a dynamic executable"* | *"statically linked"*) ;;
+            *) echo "prismup is not statically linked: $linkage"; exit 1 ;;
+          esac
           "$bin" --version
 
   # docs/src cross-references anchors and {{#include}}s by hand; mdbook never
