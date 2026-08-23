@@ -1034,7 +1034,7 @@ class Viewer {
 
   private effectRow(d: Def, old: Def | undefined, mode: Mode): string {
     if (old && (old.effects ?? "") !== (d.effects ?? "")) {
-      return `<div class="card-eff card-eff--diff">effects ${this.fieldDiff(
+      return `<div class="card-eff card-eff--diff"><div class="diff-cap">effects</div>${this.fieldDiff(
         `${d.id} effects`,
         mode,
         old.effects ?? "",
