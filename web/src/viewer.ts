@@ -1024,7 +1024,7 @@ class Viewer {
         old.ty ?? "",
         d.ty ?? "",
         (def, emph) =>
-          this.painted(def.ty ?? "", def.ty_refs ?? [], def.ty_tokens, def, true, emph),
+          this.painted(def.ty ?? "", def.ty_refs ?? [], def.ty_tokens, def, false, emph),
         [old, d],
       )}</div>`;
     }
@@ -1040,7 +1040,7 @@ class Viewer {
         old.effects ?? "",
         d.effects ?? "",
         (def, emph) =>
-          this.painted(def.effects ?? "", def.eff_refs ?? [], def.eff_tokens, def, true, emph),
+          this.painted(def.effects ?? "", def.eff_refs ?? [], def.eff_tokens, def, false, emph),
         [old, d],
       )}</div>`;
     }
@@ -1312,6 +1312,8 @@ class Viewer {
       // A chip is marked when it is only the second, since a name appearing in
       // a row and nowhere in the body it belongs to reads as a bug.
       const written = this.mentions.get(dir, id);
+      const oldId = this.oldId(id);
+      const wasWritten = oldId === undefined ? [] : (this.was?.mentions.get(dir, oldId) ?? []);
       return this.row({
         key: `${id} ${kind} ${dir}`,
         label,
@@ -1320,6 +1322,7 @@ class Viewer {
         was,
         mode,
         derived: new Set(targets.filter((t) => !written.includes(t))),
+        wasDerived: new Set((was ?? []).filter((t) => !wasWritten.includes(t))),
       });
     }).join("");
   }
@@ -1410,8 +1413,20 @@ class Viewer {
     attrs?: string;
     /// Targets the dependency graph reports that the source does not name.
     derived?: Set<string>;
+    /// The same classification in the old revision.
+    wasDerived?: Set<string>;
   }): string {
-    const { key, label, hint, targets, was, mode = "split", attrs = "", derived } = spec;
+    const {
+      key,
+      label,
+      hint,
+      targets,
+      was,
+      mode = "split",
+      attrs = "",
+      derived,
+      wasDerived,
+    } = spec;
     if (targets.length === 0 && !was?.length) return "";
     const head = (count: string): string =>
       `<span class="rel-label" data-tip="${esc(hint)}">${label}
@@ -1428,12 +1443,13 @@ class Viewer {
     const count = `${was.length} &rarr; ${targets.length}`;
     if (mode === "split") {
       return `<div class="rel rel--split${attrs}">${head(count)}
-      <div class="rel-chips rel-chips--old">${this.chips(`${key} was`, was, derived, (t) => (targets.includes(t) ? "" : "del"))}</div>
+      <div class="rel-chips rel-chips--old">${this.chips(`${key} was`, was, wasDerived, (t) => (targets.includes(t) ? "" : "del"))}</div>
       <div class="rel-chips rel-chips--new">${this.chips(key, targets, derived, (t) => (was.includes(t) ? "" : "ins"))}</div></div>`;
     }
     const gone = was.filter((t) => !targets.includes(t));
+    const unifiedDerived = new Set([...(derived ?? []), ...gone.filter((t) => wasDerived?.has(t))]);
     return `<div class="rel${attrs}">${head(count)}
-      <div class="rel-chips">${this.chips(key, [...targets, ...gone], derived, (t) =>
+      <div class="rel-chips">${this.chips(key, [...targets, ...gone], unifiedDerived, (t) =>
         gone.includes(t) ? "del" : was.includes(t) ? "" : "ins",
       )}</div></div>`;
   }
@@ -1486,7 +1502,7 @@ class Viewer {
       }
       default:
         if (this.revs?.get(t)?.status === "removed") {
-          return `<button class="${cls}" data-goto="${esc(t)}" data-tip="${esc(`${t}\nremoved in this revision`)}">${name}</button>`;
+          return `<button class="${cls}" data-goto="${esc(t)}" data-tip="${esc(`${t}\nremoved in this revision${why}`)}">${name}</button>`;
         }
         return `<span class="${cls} chip--out" ${tip}>${name}</span>`;
     }

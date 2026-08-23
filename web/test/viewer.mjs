@@ -933,7 +933,14 @@ check(
     ]),
 );
 check("a text against itself has no edits", !textDiff("a\nb", "a\nb").changed);
-check("an empty old side is all introduction", textDiff("", "a\nb").blocks[0].kind === "change");
+const fromEmpty = textDiff("", "a\nb");
+check(
+  "an empty old side is all introduction",
+  fromEmpty.oldLines.length === 0 &&
+    fromEmpty.blocks.length === 1 &&
+    fromEmpty.blocks[0].kind === "change" &&
+    fromEmpty.blocks[0].dels.length === 0,
+);
 const td = textDiff("  let x = foo(a, b)\n  x", "  let x = bar(a, b)\n  x");
 check(
   "an edited line marks only the word that moved",
@@ -966,6 +973,20 @@ check(
       seenB.size === b.length &&
       script.filter((o) => "a" in o).length === a.length &&
       script.filter((o) => "b" in o).length === b.length,
+  );
+}
+// A wholly rewritten large middle falls back before Myers' retained trace can
+// grow quadratically, while preserving the useful common ends.
+{
+  const a = ["shared head", ...Array.from({ length: 1_200 }, (_, i) => `old ${i}`), "shared tail"];
+  const b = ["shared head", ...Array.from({ length: 1_200 }, (_, i) => `new ${i}`), "shared tail"];
+  const script = diff(a, b);
+  check(
+    "a large unrelated middle keeps its common boundaries",
+    script[0]?.kind === "eq" &&
+      script.at(-1)?.kind === "eq" &&
+      script.filter((o) => o.kind === "del").length === 1_200 &&
+      script.filter((o) => o.kind === "ins").length === 1_200,
   );
 }
 
@@ -1174,16 +1195,20 @@ check(
 );
 check(
   "a target the old revision called and this one does not is struck",
-  /class="chip is-del" data-goto="Data.List.gone" data-tip="Data.List.gone\nremoved in this revision">gone</.test(
+  /class="chip chip--derived is-del" data-goto="Data.List.gone" data-tip="Data.List.gone\nremoved in this revision[^"]*">gone</.test(
     callsRow,
   ),
   callsRow,
 );
 check(
   "and a renamed one leads to its new name, under its old",
-  /class="chip is-del" data-goto="Data.List.reverse" data-tip="Data.List.reverse[^"]*was Data.List.rev">rev</.test(
+  /class="chip chip--derived is-del" data-goto="Data.List.reverse" data-tip="Data.List.reverse[^"]*was Data.List.rev[^"]*">rev</.test(
     callsRow,
   ),
+);
+check(
+  "old-only elaborated calls keep their dotted classification",
+  callsRow.includes("chip--derived"),
 );
 check(
   "the count says what it was and is",
@@ -1215,7 +1240,9 @@ check(
   /class="chip is-ins" data-goto="List".*class="chip is-del" data-goto="Data.List.gone"/s.test(
     fieldCard,
   ) === false &&
-    /rel-chips">.*<button class="chip is-del" data-goto="Data.List.gone"/s.test(fieldCard) &&
+    /rel-chips">.*<button class="chip chip--derived is-del" data-goto="Data.List.gone"/s.test(
+      fieldCard,
+    ) &&
     !fieldCard.includes("rel-chips--old"),
 );
 // The card's choice is its own: another card still follows the page. The
@@ -1241,6 +1268,56 @@ check(
 );
 check("and is remembered", new Review("x", fieldStore).diffMode() === "unified");
 
+// Empty fields have zero rows on their absent side, and compared rendered types
+// keep qualifications so a module-only change cannot collapse to `T` versus `T`.
+const qualifiedNow = {
+  ...mapNow,
+  ty: "B.T",
+  ty_refs: [{ start: 0, end: 3, target: "B.T" }],
+  ty_tokens: "",
+  doc: "new docs",
+};
+const qualifiedWas = {
+  ...mapNow,
+  ty: "A.T",
+  ty_refs: [{ start: 0, end: 3, target: "A.T" }],
+  ty_tokens: "",
+  doc: undefined,
+};
+index.byId.set(mapNow.id, qualifiedNow);
+const edgeDeck = new Viewer(
+  index,
+  new Revisions({
+    envelope: {
+      format: "prism-index-diff-v1",
+      old: { title: "t", contract: "aaaa" },
+      new: { title: "t", contract: "bbbb" },
+      counts: { changed: 1, added: 0, removed: 0, moved: 0, cone: 0, cosmetic: 0, unchanged: 9 },
+    },
+    entries: [{ status: "changed", id: mapNow.id, old: qualifiedWas }],
+    edges: {},
+  }),
+  nodes(),
+  new Storage(),
+);
+edgeDeck.start();
+edgeDeck.setMode("unified");
+edgeDeck.show(mapNow.id);
+const edgeCard = card(edgeDeck.nodes.cards.innerHTML, mapNow.id);
+check(
+  "a field added in unified mode has no synthetic undefined line",
+  !edgeCard.includes("undefined") &&
+    /card-doc--diff.*is-ins"><code>new docs<\/code>/s.test(edgeCard),
+  edgeCard,
+);
+check(
+  "a qualified-only type change remains visible",
+  edgeCard.includes('<mark class="dfx">A</mark>.T') &&
+    edgeCard.includes('<mark class="dfx">B</mark>.T'),
+  edgeCard,
+);
+index.byId.set(mapNow.id, mapNow);
+
 // The cap never hides a change: a row with more targets than the cap still
 // shows the one that left.
 const many = index.defs.find((d) => rel.get("calls", "in", d.id).length > 14);
@@ -1265,7 +1342,8 @@ capDeck.show(many.id);
 const capCard = card(capDeck.nodes.cards.innerHTML, many.id);
 check(
   "a capped row still shows the chip that left",
-  /class="chip is-del chip--out"[^>]*>gone</.test(capCard) && /\+\d+ more/.test(capCard),
+  /class="chip chip--derived is-del chip--out"[^>]*>gone</.test(capCard) &&
+    /\+\d+ more/.test(capCard),
   many.id,
 );
 

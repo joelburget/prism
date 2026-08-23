@@ -20,7 +20,14 @@ export type Op =
   | { kind: "del"; a: number }
   | { kind: "ins"; b: number };
 
-/// The shortest edit script from `a` to `b` (Myers, 1986).
+// Retaining one full diagonal array per edit-distance round is what makes Myers
+// easy to walk backward, but its worst case is quadratic. Past this many cells,
+// preserve the common ends and render the unrelated middle as one replacement;
+// a coarse diff is more useful than a viewer tab lost to memory pressure.
+const MAX_TRACE_CELLS = 4_000_000;
+
+/// The shortest edit script from `a` to `b` (Myers, 1986), with a bounded
+/// coarse fallback for unusually large, unrelated inputs.
 ///
 /// The greedy forward search with a trace of each round's furthest-reaching
 /// paths, walked back from the end. O((N+M)·D) time and memory, where D is the
@@ -40,6 +47,7 @@ export function diff<T>(
   const v = new Int32Array(2 * max + 3);
   const trace: Int32Array[] = [];
   for (let d = 0; d <= max; d++) {
+    if ((trace.length + 1) * v.length > MAX_TRACE_CELLS) return coarse(a, b, eq);
     trace.push(v.slice());
     for (let k = -d; k <= d; k += 2) {
       let x =
@@ -57,6 +65,28 @@ export function diff<T>(
   }
   // Unreachable: the search always terminates by round `max`.
   return backtrack(trace, off, n, m);
+}
+
+// A valid edit script that keeps the shared prefix and suffix and treats the
+// middle as one replacement. Used only when retaining the shortest script's
+// trace would exceed the memory budget above.
+function coarse<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boolean): Op[] {
+  let head = 0;
+  while (head < a.length && head < b.length && eq(a[head], b[head])) head++;
+  let oldTail = a.length;
+  let newTail = b.length;
+  while (oldTail > head && newTail > head && eq(a[oldTail - 1], b[newTail - 1])) {
+    oldTail--;
+    newTail--;
+  }
+  const out: Op[] = [];
+  for (let i = 0; i < head; i++) out.push({ kind: "eq", a: i, b: i });
+  for (let i = head; i < oldTail; i++) out.push({ kind: "del", a: i });
+  for (let i = head; i < newTail; i++) out.push({ kind: "ins", b: i });
+  for (let i = 0; oldTail + i < a.length; i++) {
+    out.push({ kind: "eq", a: oldTail + i, b: newTail + i });
+  }
+  return out;
 }
 
 const same = <T>(x: T, y: T): boolean => x === y;
@@ -141,8 +171,10 @@ export interface TextDiff {
 const ALIKE = 0.4;
 
 export function textDiff(oldText: string, newText: string): TextDiff {
-  const oldLines = oldText.split("\n");
-  const newLines = newText.split("\n");
+  // No text has no lines. Keeping `""` as one artificial line makes a field
+  // added or removed in unified mode index a painted line that does not exist.
+  const oldLines = oldText === "" ? [] : oldText.split("\n");
+  const newLines = newText === "" ? [] : newText.split("\n");
   const oldStarts = starts(oldLines);
   const newStarts = starts(newLines);
   const bs = blocks(diff(oldLines, newLines));
