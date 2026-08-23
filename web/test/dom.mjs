@@ -70,6 +70,7 @@ export function nodes() {
     rail: new El("nav"),
     main: new El("main"),
     railToggle: new El("button"),
+    mode: new El("span"),
   };
 }
 

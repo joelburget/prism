@@ -46,6 +46,42 @@
   border-color: var(--line);
 }
 
+/* The split/unified control: two buttons reading as one, the current layout
+   pressed. On the page header for every card, and on a card for itself. */
+.seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.seg[hidden] {
+  display: none;
+}
+
+.seg-btn {
+  padding: 1px 7px;
+  font-family: var(--ui);
+  font-size: 10.5px;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--bg-soft);
+  border: 0;
+}
+
+.seg-btn + .seg-btn {
+  border-left: 1px solid var(--line);
+}
+
+.seg-btn:hover {
+  color: var(--ink);
+}
+
+.seg-btn[aria-pressed="true"] {
+  color: var(--panel);
+  background: var(--accent);
+}
+
 /* With the rail away the deck takes the whole width; the grid must give up the
    column too, or an empty track is left behind. */
 .viewer-main.is-alone {
@@ -316,6 +352,71 @@ kbd {
   color: var(--warn);
 }
 
+/* A field shown as a diff keeps its place and its colour; the rows inside take
+   the diff's own gutter and tints. The signature's box and the doc's measure
+   stay, so a changed field sits where the unchanged one would. */
+.card-sig--diff {
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-sig--diff .card-diff,
+.card-eff--diff .card-diff,
+.card-doc--diff .card-diff {
+  padding: 3px 0 4px;
+  border-top: 0;
+}
+
+.card-sig--diff .card-diff {
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.card-sig--diff .dl,
+.card-eff--diff .dl,
+.card-doc--diff .dl {
+  padding-left: 22px;
+}
+
+.card-sig--diff .dl::before,
+.card-eff--diff .dl::before,
+.card-doc--diff .dl::before {
+  left: 7px;
+}
+
+.card-eff--diff .card-diff {
+  display: inline-grid;
+  width: calc(100% - 52px);
+  margin-left: 4px;
+  font-size: 11.5px;
+  vertical-align: top;
+}
+
+.card-eff--diff .card-diff--split {
+  display: grid;
+  width: auto;
+  margin: 4px 0 0;
+}
+
+/* Prose diffs in the reading face, wider than a single docstring since two
+   sit beside each other; the inline-code styling a rendered docstring gives
+   its `code` must not reach the cells. */
+.card-doc--diff {
+  max-width: 124ch;
+}
+
+.card-doc--diff .card-diff--prose {
+  font-family: var(--ui);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.card-doc--diff .dl code {
+  padding: 0;
+  font: inherit;
+  background: none;
+}
+
 .card-doc {
   max-width: 82ch;
   padding: 0 10px 9px 32px;
@@ -478,7 +579,13 @@ button.ref--prim:hover {
   grid-template-columns: 1fr 1fr;
 }
 
-.card.is-folded .card-diff {
+.card-diff--unified {
+  grid-template-columns: 1fr;
+}
+
+/* Folding hides the body whichever form it takes; a diffed signature stays,
+   as the signature does. */
+.card.is-folded > .card-diff {
   display: none;
 }
 
@@ -761,6 +868,38 @@ button.ref--prim:hover {
 
 .chip:hover {
   border-color: var(--accent);
+}
+
+/* A chip, tag or badge the other revision had and this one lacks, or the
+   reverse: the same red and green the line diff uses, and a strike through
+   what left so the mark survives without its colour. */
+.chip.is-del,
+.tag.is-del,
+.kind.is-del {
+  color: var(--err);
+  text-decoration: line-through;
+  background: var(--del-wash);
+  border-color: rgb(164 54 47 / 35%);
+}
+
+.chip.is-ins,
+.tag.is-ins,
+.kind.is-ins {
+  color: var(--accent-strong);
+  background: var(--ins-wash);
+  border-color: rgb(47 111 79 / 45%);
+}
+
+/* A relation row in both revisions, side by side: what it was, what it is. */
+.rel--split {
+  display: grid;
+  grid-template-columns: 92px 1fr 1fr;
+  align-items: baseline;
+}
+
+.rel-chips--new {
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
 }
 
 /* A compiler primitive: muted like a name that leaves the index, but a live

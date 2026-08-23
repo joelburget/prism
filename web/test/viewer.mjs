@@ -1075,6 +1075,225 @@ index.byId.set(long.id, long);
   check("and the text is still exact", plain(painted.join("\n")) === source);
 }
 
+section("every field of a revision pair reads as a diff");
+// A definition whose every review-facing fact moved: visibility, claims,
+// deprecation, signature, doc and body, and, through the edge delta, what it
+// relates to. The old side is the record as it was; the index holds the new.
+const mapNow = index.byId.get("Data.List.map");
+const mapWas = {
+  ...mapNow,
+  vis: "private",
+  claims: ["total"],
+  deprecated: "use map2",
+  ty: "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(b) ! {e0}",
+  doc: "Apply `f` to every element.",
+  source: `${mapNow.source}\n  -- gone`,
+};
+const fieldDeck = new Viewer(
+  index,
+  new Revisions({
+    envelope: {
+      format: "prism-index-diff-v1",
+      old: { title: "t", contract: "aaaa" },
+      new: { title: "t", contract: "bbbb" },
+      counts: { changed: 1, added: 0, removed: 1, moved: 1, cone: 0, cosmetic: 0, unchanged: 9 },
+    },
+    entries: [
+      { status: "changed", id: "Data.List.map", old: mapWas },
+      { status: "removed", id: "Data.List.gone", old: { ...oldOnly, id: "Data.List.gone" } },
+      {
+        status: "moved",
+        id: "Data.List.reverse",
+        old_id: "Data.List.rev",
+        old: index.byId.get("Data.List.reverse"),
+      },
+    ],
+    // `map` used to call the removed definition and the renamed one, and did not
+    // yet type-mention `List`.
+    edges: {
+      removed: [
+        { kind: "calls", from: "Data.List.map", to: "Data.List.gone" },
+        { kind: "calls", from: "Data.List.map", to: "Data.List.rev" },
+      ],
+      added: [{ kind: "uses-type", from: "Data.List.map", to: "List" }],
+    },
+  }),
+  nodes(),
+  new Storage(),
+);
+fieldDeck.start();
+fieldDeck.show("Data.List.map");
+let fieldCard = card(fieldDeck.nodes.cards.innerHTML, "Data.List.map");
+check("the page offers the layout control", fieldDeck.nodes.mode.hidden === false);
+check(
+  "and so does the card",
+  /data-mode="split" data-card-mode="Data.List.map" aria-pressed="true"/.test(fieldCard),
+);
+check(
+  "the status line names every field that moved",
+  /status--changed">changed<\/span> visibility, claims, deprecation, signature, doc, body, calls, types</.test(
+    fieldCard,
+  ),
+  fieldCard.match(/changed<\/span>[^<]*/)?.[0],
+);
+check(
+  "visibility: the old tag struck, the new marked",
+  fieldCard.includes('class="tag tag--pub is-del">private</span>') &&
+    fieldCard.includes('class="tag tag--pub is-ins">pub</span>'),
+);
+check(
+  "a claim that left is struck",
+  fieldCard.includes('class="tag tag--claim is-del">total</span>'),
+);
+check(
+  "a deprecation that was lifted is struck",
+  /tag--dep is-del" data-tip="deprecated: use map2"/.test(fieldCard),
+);
+check("the signature is a diff", fieldCard.includes('class="card-sig card-sig--diff"'));
+check(
+  "marking the type that moved",
+  /card-sig--diff.*is-del"><code>.*<mark class="dfx">b<\/mark>/s.test(fieldCard) &&
+    /card-sig--diff.*is-ins"><code>.*<mark class="dfx">a<\/mark>/s.test(fieldCard),
+);
+check("the doc is a diff of its text", fieldCard.includes('class="card-doc card-doc--diff"'));
+check(
+  "in the reading face, with the words that moved marked",
+  /card-diff--split card-diff--prose.*is-ins"><code>Apply `f` to every element<mark class="dfx">, preserving order and length<\/mark>\./s.test(
+    fieldCard,
+  ),
+);
+check("the body is a diff", /dl--old is-del"><code>.*-- gone/.test(fieldCard));
+// The relation rows: the old graph is rebuilt from the new one and the delta,
+// and a row that moved shows both sides.
+const callsRow = fieldCard
+  .split('data-tip="definitions this body calls')[1]
+  .split("</div></div>")[0];
+check(
+  "a moved relation row shows old beside new",
+  callsRow.includes('class="rel-chips rel-chips--old"'),
+);
+check(
+  "a target the old revision called and this one does not is struck",
+  /class="chip is-del" data-goto="Data.List.gone" data-tip="Data.List.gone\nremoved in this revision">gone</.test(
+    callsRow,
+  ),
+  callsRow,
+);
+check(
+  "and a renamed one leads to its new name, under its old",
+  /class="chip is-del" data-goto="Data.List.reverse" data-tip="Data.List.reverse[^"]*was Data.List.rev">rev</.test(
+    callsRow,
+  ),
+);
+check(
+  "the count says what it was and is",
+  />calls\s*<span class="rel-n">2 &rarr; 0<\/span>/.test(callsRow),
+);
+const typesRow = fieldCard
+  .split('data-tip="types this signature mentions"')[1]
+  .split("</div></div>")[0];
+check("a target that arrived is marked", /class="chip is-ins" data-goto="List"/.test(typesRow));
+const mapCallers = rel.get("calls", "in", "Data.List.map").length;
+check(
+  "a row the two revisions agree on reads as before",
+  new RegExp(
+    `data-tip="definitions whose body calls this[^"]*">callers\\s*<span class="rel-n">${mapCallers}</span>`,
+  ).test(fieldCard),
+);
+
+// Unified: one row per relation, what left struck at the end; one column for
+// the text diffs. Chosen for one card, then for the page.
+fieldDeck.setCardMode("Data.List.map", "unified");
+fieldCard = card(fieldDeck.nodes.cards.innerHTML, "Data.List.map");
+check(
+  "a card can choose its own layout",
+  /data-mode="unified" data-card-mode="Data.List.map" aria-pressed="true"/.test(fieldCard),
+);
+check("the body is then one column", fieldCard.includes('class="card-diff card-diff--unified"'));
+check(
+  "and a relation row one row, with what left at its end",
+  /class="chip is-ins" data-goto="List".*class="chip is-del" data-goto="Data.List.gone"/s.test(
+    fieldCard,
+  ) === false &&
+    /rel-chips">.*<button class="chip is-del" data-goto="Data.List.gone"/s.test(fieldCard) &&
+    !fieldCard.includes("rel-chips--old"),
+);
+// The card's choice is its own: another card still follows the page. The
+// page-wide control then resets every card to what it says, and is remembered.
+fieldDeck.show("Data.List.reverse");
+check(
+  "another card still follows the page",
+  /data-mode="split" data-card-mode="Data.List.reverse" aria-pressed="true"/.test(
+    card(fieldDeck.nodes.cards.innerHTML, "Data.List.reverse"),
+  ),
+);
+const fieldStore = new Storage();
+const remembered = new Viewer(index, fieldDeck.revs, nodes(), fieldStore);
+remembered.start();
+remembered.show("Data.List.map");
+remembered.setCardMode("Data.List.map", "split");
+remembered.setMode("unified");
+check(
+  "the page-wide choice resets a card's own",
+  /data-mode="unified" data-card-mode="Data.List.map" aria-pressed="true"/.test(
+    card(remembered.nodes.cards.innerHTML, "Data.List.map"),
+  ),
+);
+check("and is remembered", new Review("x", fieldStore).diffMode() === "unified");
+
+// The cap never hides a change: a row with more targets than the cap still
+// shows the one that left.
+const many = index.defs.find((d) => rel.get("calls", "in", d.id).length > 14);
+const capDeck = new Viewer(
+  index,
+  new Revisions({
+    envelope: {
+      format: "prism-index-diff-v1",
+      old: { title: "t", contract: "aaaa" },
+      new: { title: "t", contract: "bbbb" },
+      counts: { changed: 1, added: 0, removed: 0, moved: 0, cone: 0, cosmetic: 0, unchanged: 9 },
+    },
+    entries: [{ status: "changed", id: many.id, old: { ...many, doc: "was" } }],
+    edges: { removed: [{ kind: "calls", from: "Data.List.gone", to: many.id }] },
+  }),
+  nodes(),
+  new Storage(),
+);
+capDeck.start();
+capDeck.setMode("unified");
+capDeck.show(many.id);
+const capCard = card(capDeck.nodes.cards.innerHTML, many.id);
+check(
+  "a capped row still shows the chip that left",
+  /class="chip is-del chip--out"[^>]*>gone</.test(capCard) && /\+\d+ more/.test(capCard),
+  many.id,
+);
+
+// An artifact without an edge delta cannot say what the rows were, and says
+// nothing rather than guessing: the rows read as on a single revision.
+const blind = new Viewer(
+  index,
+  new Revisions({
+    envelope: {
+      format: "prism-index-diff-v1",
+      old: { title: "t", contract: "aaaa" },
+      new: { title: "t", contract: "bbbb" },
+      counts: { changed: 1, added: 0, removed: 0, moved: 0, cone: 0, cosmetic: 0, unchanged: 9 },
+    },
+    entries: [{ status: "changed", id: "Data.List.map", old: mapWas }],
+  }),
+  nodes(),
+  new Storage(),
+);
+blind.start();
+blind.show("Data.List.map");
+const blindCard = card(blind.nodes.cards.innerHTML, "Data.List.map");
+check(
+  "without an edge delta the relation rows do not pretend",
+  !blindCard.includes("rel-chips--old") && !blindCard.includes("&rarr;"),
+);
+check("but the fields still do", blindCard.includes("card-sig--diff"));
+
 section("keyboard shortcuts yield to text fields");
 // The one exception, and the reason it is checked: a modified shortcut has to
 // work from inside the field it focuses, so it is handled before the guard.
