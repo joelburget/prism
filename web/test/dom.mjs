@@ -140,6 +140,15 @@ export function card(html, id) {
   return at ? at.split("</article>")[0] : "";
 }
 
+/// The cells of one side of a split diff, concatenated.
+export function column(html, side) {
+  return [
+    ...html.matchAll(new RegExp(`<div class="dl dl--${side}[^"]*"><code>(.*?)</code></div>`, "gs")),
+  ]
+    .map((m) => m[1])
+    .join("\n");
+}
+
 export function done() {
   console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
   process.exit(failures === 0 ? 0 : 1);

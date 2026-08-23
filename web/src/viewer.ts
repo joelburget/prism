@@ -15,6 +15,7 @@
 // generated somewhere else and handed over.
 
 import "./viewer.css";
+import { folded, type Range, type TextDiff, textDiff } from "./viewer-diff.js";
 import {
   type Def,
   type DiffEntry,
@@ -91,6 +92,10 @@ const CHIPS = 12;
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+// For an attribute inside painted text, whose lines are split on the newline: a
+// tooltip puts a type on its own line, and that newline must not read as a
+// line of source.
+const attr = (s: string): string => esc(s).replace(/\n/g, "&#10;");
 
 class Viewer {
   private readonly rel: Relations;
@@ -110,6 +115,8 @@ class Viewer {
   private readonly openMods = new Set<string>();
   // The relation rows the reader asked to see in full.
   private readonly wide = new Set<string>();
+  // The folded runs of unchanged lines a reader opened, by card, field and run.
+  private readonly unfolded = new Set<string>();
   // The cards whose note field is open. A note is rare and a definition is not, so
   // the field appears when there is one or when it has been asked for, rather than
   // standing on every card in the deck waiting to be used.
@@ -784,11 +791,16 @@ class Viewer {
     }
   }
 
-  // The definition's text, beside the other revision's when there is one.
+  // The definition's text, as a diff against the other revision's when there is
+  // one.
   //
-  // Side by side rather than stacked: the two versions of a definition are being
-  // compared, and comparing means reading across, not scrolling. The left pane is
-  // painted and linked exactly like the right one, from the old revision's own
+  // A diff, not two bodies: the revisions are being compared, and two full texts
+  // side by side leave the reader to find the edit by eye, which on a body of any
+  // length is the work a diff exists to do. Lines are aligned by the shortest edit
+  // script and each edited line marks the words that moved, so a one-token change
+  // in a twelve-line body reads as one token (`viewer-diff.ts`).
+  //
+  // Both sides are painted and linked exactly alike, each from its own revision's
   // occurrence rows. A name in the version you are moving away from is as worth
   // following as one in the version you are moving to, and the artifact carries
   // what it needs to do that. A target the old revision had and this one does not
@@ -796,18 +808,50 @@ class Viewer {
   // outside the index follows.
   private sources(d: Def): string {
     const old = this.revs?.get(d.id)?.old;
-    const now = `<pre class="card-src"><code>${this.body(d)}</code></pre>`;
-    if (!old || old.source === d.source) return now;
-    return `<div class="card-diff">
-      <div class="card-pane">
-        <div class="card-pane-head">before</div>
-        <pre class="card-src card-src--was"><code>${this.body(old)}</code></pre>
-      </div>
-      <div class="card-pane">
-        <div class="card-pane-head">after</div>
-        ${now}
-      </div>
-    </div>`;
+    if (!old || old.source === d.source) {
+      return `<pre class="card-src"><code>${this.body(d)}</code></pre>`;
+    }
+    const td = textDiff(old.source, d.source);
+    const was = this.painted(old.source, this.marks(old), old.tokens, old, false, td.oldEmph);
+    const now = this.painted(d.source, this.marks(d), d.tokens, d, false, td.newEmph);
+    return this.splitDiff(`${d.id} source`, td, was.split("\n"), now.split("\n"));
+  }
+
+  // Two revisions of one text, side by side, line against line.
+  //
+  // Aligned rather than two independent panes: comparing means reading across,
+  // and reading across only works when the line on the left is the line the one
+  // on the right replaced. An edit that drops three lines and adds one pads the
+  // short side, so the rows stay level. Long runs of kept lines fold to their
+  // ends, since a body that is mostly unchanged is mostly not what the reader
+  // came for; the fold says how much it hides and opens on a click.
+  //
+  // `was` and `now` are the two texts painted, one fragment per line.
+  private splitDiff(key: string, td: TextDiff, was: string[], now: string[]): string {
+    const cell = (
+      side: "old" | "new",
+      line: string | undefined,
+      mark: "" | "del" | "ins",
+    ): string =>
+      line === undefined
+        ? `<div class="dl dl--${side} dl--pad"></div>`
+        : `<div class="dl dl--${side}${mark ? ` is-${mark}` : ""}"><code>${line}</code></div>`;
+    let html = `<div class="card-diff card-diff--split">
+      <div class="diff-head">before</div><div class="diff-head">after</div>`;
+    td.blocks.forEach((b, i) => {
+      if (b.kind === "change") {
+        for (let k = 0; k < Math.max(b.dels.length, b.inss.length); k++) {
+          html += cell("old", was[b.dels[k]], "del") + cell("new", now[b.inss[k]], "ins");
+        }
+        return;
+      }
+      const fold = `${key} ${i}`;
+      const { head, hidden, tail } = folded(b.pairs, this.unfolded.has(fold));
+      for (const [a, c] of head) html += cell("old", was[a], "") + cell("new", now[c], "");
+      if (hidden.length > 0) html += foldRow(fold, hidden.length);
+      for (const [a, c] of tail) html += cell("old", was[a], "") + cell("new", now[c], "");
+    });
+    return `${html}</div>`;
   }
 
   // The definition's own text, with every name that resolves to a definition
@@ -855,14 +899,54 @@ class Viewer {
   // since that is exactly the ambiguity the qualification exists to resolve. No
   // signature in the standard library does, across 1108 qualified names, but a
   // corpus property is not a guarantee.
+  //
+  // `emph` marks the parts of the text a revision pair moved (see `sources`).
+  // They are the innermost layer: a mark wraps only raw text, inside whatever
+  // token and reference it falls in, so it can never cross either's markup.
+  //
+  // A newline is never inside a tag. A token that spans lines (a multi-line
+  // string, a block comment) is painted once per line, so the result splits on
+  // `\n` into one well-formed fragment per line, which is what lets a diff lay
+  // the lines of two revisions beside each other without painting twice.
   private painted(
     text: string,
     marks: Mark[],
     packed: string | undefined,
     d: Def,
     brief = false,
+    emph: Range[] = [],
   ): string {
     const spans = decodeSpans(packed, this.index.tokenClasses);
+    // One slice of text, escaped, in its token class, with the emphasised parts
+    // marked and every line break left bare between tags.
+    let em = 0;
+    const chunk = (from: number, to: number, cls: string | null): string => {
+      let html = "";
+      let pos = from;
+      while (em < emph.length && emph[em][1] <= from) em++;
+      const piece = (lo: number, hi: number, marked: boolean): void => {
+        html += text
+          .slice(lo, hi)
+          .split("\n")
+          .map((line) => {
+            let h = esc(line);
+            if (line && marked) h = `<mark class="dfx">${h}</mark>`;
+            if (line && cls) h = `<span class="tk-${cls}">${h}</span>`;
+            return h;
+          })
+          .join("\n");
+      };
+      for (let i = em; i < emph.length && emph[i][0] < to; i++) {
+        const lo = Math.max(emph[i][0], pos);
+        const hi = Math.min(emph[i][1], to);
+        if (hi <= lo) continue;
+        if (lo > pos) piece(pos, lo, false);
+        piece(lo, hi, true);
+        pos = hi;
+      }
+      if (pos < to) piece(pos, to, false);
+      return html;
+    };
     const distinct = new Map<string, string>();
     if (brief) {
       for (const m of marks) {
@@ -884,11 +968,11 @@ class Viewer {
         const from = Math.max(spans[i].start, lo);
         const to = Math.min(spans[i].end, hi);
         if (to <= from) continue;
-        html += esc(text.slice(pos, from));
-        html += `<span class="tk-${spans[i].cls}">${esc(text.slice(from, to))}</span>`;
+        html += chunk(pos, from, null);
+        html += chunk(from, to, spans[i].cls);
         pos = to;
       }
-      return html + esc(text.slice(pos, hi));
+      return html + chunk(pos, hi, null);
     };
 
     let html = "";
@@ -912,12 +996,12 @@ class Viewer {
       if (r.ty !== undefined) {
         // Hoverable, not navigable: a local binds here and leads nowhere.
         const tip = `${text.slice(r.start, r.end)}\n${r.ty}`;
-        html += `<span class="ref ref--local" data-tip="${esc(tip)}">${name}</span>`;
+        html += `<span class="ref ref--local" data-tip="${attr(tip)}">${name}</span>`;
         continue;
       }
       if (r.member !== undefined) {
         const users = this.members.users(d.id, r.member);
-        const tip = esc(this.aboutMember(d, r.member));
+        const tip = attr(this.aboutMember(d, r.member));
         // A link only when there is somewhere to go. A member nothing uses still
         // says what it is on hover, but an underline promising a destination that
         // does not exist is worse than plain text.
@@ -931,7 +1015,7 @@ class Viewer {
       // Prism definition because it is implemented in the compiler, which is a
       // different fact from a name this artifact happens not to cover. It still
       // leads somewhere, to the builtin's own synthesized card.
-      const tip = `data-tip="${esc(this.index.describe(r.target))}"`;
+      const tip = `data-tip="${attr(this.index.describe(r.target))}"`;
       switch (this.index.classify(r.target)) {
         case "definition":
           html += `<button class="ref" data-goto="${esc(r.target)}" ${tip}>${name}</button>`;
@@ -1034,6 +1118,12 @@ class Viewer {
         derived: new Set(derived),
       });
     }).join("");
+  }
+
+  /// Open a folded run of unchanged lines in a diff.
+  unfold(key: string): void {
+    this.unfolded.add(key);
+    this.render();
   }
 
   /// Show a row in full rather than capped.
@@ -1192,6 +1282,11 @@ const brokenModules = (modules: IndexModule[]): string => {
 const short = (id: string): string => id.split(/[.@]/).at(-1) ?? id;
 const shortName = short;
 
+// The row standing in for a folded run of unchanged lines: how many, and an
+// invitation. Spans both columns of a split diff.
+const foldRow = (key: string, n: number): string =>
+  `<button class="dl-fold" data-unfold="${esc(key)}" data-tip="show these lines">&#8943; ${n} unchanged lines</button>`;
+
 const hashChip = (d: Def): string =>
   d.hash
     ? `<button class="hash" data-tip="${esc(d.hash)}\nclick to copy" data-copy="${esc(d.hash)}">${d.hash.slice(0, HASH_CHIP)}</button>`
@@ -1343,6 +1438,11 @@ function wireNavigation(viewer: Viewer): void {
     const wide = target?.closest<HTMLElement>("[data-wide]");
     if (wide) {
       viewer.widen(wide.dataset.wide ?? "");
+      return;
+    }
+    const unfold = target?.closest<HTMLElement>("[data-unfold]");
+    if (unfold) {
+      viewer.unfold(unfold.dataset.unfold ?? "");
       return;
     }
     const mod = target?.closest<HTMLElement>("[data-mod]");

@@ -3,6 +3,15 @@
    for the two-column reading surface. */
 @import "./theme.css";
 
+/* The diff tints: the site's own red and green, washed for a whole line and
+   stronger for the words inside it that moved. */
+:root {
+  --del-wash: rgb(164 54 47 / 9%);
+  --del-mark: rgb(164 54 47 / 26%);
+  --ins-wash: rgb(47 111 79 / 10%);
+  --ins-mark: rgb(47 111 79 / 28%);
+}
+
 .viewer-body {
   display: flex;
   flex-direction: column;
@@ -451,44 +460,122 @@ button.ref--prim:hover {
   color: var(--muted);
 }
 
-/* Two revisions of one definition, side by side: comparing means reading across,
-   not scrolling. Each pane scrolls its own long lines, so neither can push the
-   other off the card. */
+/* Two revisions of one text, as a diff. Rows are aligned: the line on the left
+   is the line the one on the right replaced, with the short side of an uneven
+   edit padded so that the rows stay level. Cells wrap rather than scroll: a
+   pane that scrolls on its own unaligns the very rows the layout exists to
+   align. */
 .card-diff {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  padding: 5px 0 11px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.45;
   border-top: 1px solid var(--line);
 }
 
-.card-pane {
-  min-width: 0;
-  border-left: 1px solid var(--line);
+.card-diff--split {
+  grid-template-columns: 1fr 1fr;
 }
 
-.card-pane:first-child {
-  border-left: 0;
+.card.is-folded .card-diff {
+  display: none;
 }
 
-.card-pane-head {
-  padding: 5px 12px 0 32px;
+.diff-head {
+  padding: 0 12px 4px 32px;
+  font-family: var(--ui);
   font-size: 10px;
   letter-spacing: 0.03em;
   color: var(--muted);
   text-transform: uppercase;
 }
 
-.card-diff .card-src {
-  border-top: 0;
+/* One line of one side. The gutter carries the sign, for a reader who does not
+   see the tint; an empty line still takes its row. */
+.dl {
+  position: relative;
+  min-width: 0;
+  min-height: 1.45em;
+  padding: 0 12px 0 32px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-/* The old pane is styled exactly like the new one. It was tinted and dimmed back
-   when the two were stacked and nothing else told them apart; side by side, the
-   captions and the divider do that, and a wash over one side now suggests a
-   meaning it does not have. In a conventional diff a tinted region marks what
-   changed, and this tints a whole pane regardless. It also made the version being
-   reviewed the harder of the two to read. */
-.card-src--was {
-  border-top: 0;
+.dl::before {
+  position: absolute;
+  left: 16px;
+  color: var(--muted);
+  content: "";
+}
+
+.dl--new {
+  border-left: 1px solid var(--line);
+}
+
+/* What one revision has and the other does not. The whole line is tinted, and
+   within an edited line the words that moved are marked more strongly: the
+   tint says "here", the mark says "this". */
+.dl.is-del {
+  background: var(--del-wash);
+}
+
+.dl.is-ins {
+  background: var(--ins-wash);
+}
+
+.dl.is-del::before {
+  content: "−";
+}
+
+.dl.is-ins::before {
+  content: "+";
+}
+
+.dfx {
+  color: inherit;
+  border-radius: 2px;
+}
+
+.is-del .dfx {
+  background: var(--del-mark);
+}
+
+.is-ins .dfx {
+  background: var(--ins-mark);
+}
+
+/* The padding opposite a line the other side lacks: hatched, so it reads as
+   "nothing here" rather than as an empty line. */
+.dl--pad {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 5px,
+    var(--bg-soft) 5px,
+    var(--bg-soft) 6px
+  );
+}
+
+/* A folded run of unchanged lines: one row across both columns, saying how
+   much it hides. */
+.dl-fold {
+  grid-column: 1 / -1;
+  padding: 2px 12px 2px 32px;
+  font-family: var(--ui);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-soft);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.dl-fold:hover {
+  color: var(--ink);
+  background: var(--accent-wash);
 }
 
 .status {
@@ -796,23 +883,6 @@ button.ref--prim:hover {
 .tag--dep {
   color: var(--err);
   cursor: help;
-}
-
-/* One column when there is no room for two: a pane squeezed to nothing compares
-   nothing. */
-@media (max-width: 1000px) {
-  .card-diff {
-    grid-template-columns: 1fr;
-  }
-
-  .card-pane {
-    border-top: 1px solid var(--line);
-    border-left: 0;
-  }
-
-  .card-pane:first-child {
-    border-top: 0;
-  }
 }
 
 @media (max-width: 720px) {

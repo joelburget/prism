@@ -5,7 +5,17 @@
 
 import { readFileSync } from "node:fs";
 
-import { card, check, done, installGlobals, nodes, plain, Storage, section } from "./dom.mjs";
+import {
+  card,
+  check,
+  column,
+  done,
+  installGlobals,
+  nodes,
+  plain,
+  Storage,
+  section,
+} from "./dom.mjs";
 
 installGlobals();
 
@@ -13,6 +23,7 @@ const { Index, Members, Mentions, Relations, Revisions } = await import("./build
 const { Review, freshness, needsAttention } = await import("./build/viewer-review.mjs");
 const { packet } = await import("./build/viewer-context.mjs");
 const { KINDS, Viewer, isEditable, renderDoc } = await import("./build/viewer.mjs");
+const { blocks, diff, textDiff } = await import("./build/viewer-diff.mjs");
 const { decodeSpans } = await import("./build/viewer-model.mjs");
 
 const index = new Index(JSON.parse(readFileSync("public/stdlib-index.json", "utf8")));
@@ -507,7 +518,7 @@ check(
 );
 const painted2 = viewer.body(typed);
 check("a local is hoverable but not a link", painted2.includes('class="ref ref--local"'));
-check("carrying its type", /data-tip="xs\nList\(/.test(painted2), painted2.slice(0, 120));
+check("carrying its type", /data-tip="xs&#10;List\(/.test(painted2), painted2.slice(0, 120));
 // Nothing claims a span twice: a reference's tooltip already names the definition's
 // own type, which is the better answer where there is one.
 const claimed = decodeSpans(typed.types, index.typeTable).filter((s) =>
@@ -738,16 +749,22 @@ pair.show("Data.List.map");
 const changed = card(pair.nodes.cards.innerHTML, "Data.List.map");
 check("a changed card says so", changed.includes('class="status status--changed">changed<'));
 check("and on a changed one", changed.includes("data-reviewed"));
-// Side by side, and the left pane is painted and linked like the right one.
-check("the two revisions sit side by side", changed.includes('class="card-diff"'));
+// Side by side as a diff, and the left side is painted and linked like the right.
+check("the two revisions sit side by side", changed.includes('class="card-diff card-diff--split"'));
 check(
   "before on the left, after on the right",
   changed.indexOf(">before<") < changed.indexOf(">after<"),
 );
-const before = changed.split("card-src--was")[1].split("</pre>")[0];
 check(
   "and carries what the other revision had",
-  plain(before).includes("fn map(f, xs) = previously"),
+  plain(column(changed, "old")).includes("fn map(f, xs) = previously"),
+);
+check("the old line is marked dropped", /class="dl dl--old is-del"/.test(changed));
+check("the new lines are marked introduced", /class="dl dl--new is-ins"/.test(changed));
+check(
+  "and the old column still links its names",
+  column(changed, "old").includes('data-goto="Data.List.map"') ||
+    column(changed, "old").includes('class="ref'),
 );
 
 // A removed definition exists only on the diff's old side, and its review row
@@ -881,6 +898,182 @@ check(
   moved.source.slice(moved.refs[0].start, moved.refs[0].end) === "g",
   JSON.stringify(moved.source.slice(moved.refs[0].start, moved.refs[0].end)),
 );
+
+section("a revision pair is shown as a diff");
+// The engine: the shortest edit script, grouped into edits, with the words that
+// moved inside each edited line.
+const ops = diff(["a", "b", "c", "d"], ["a", "x", "c", "d", "e"]);
+check(
+  "the edit script keeps what is shared and edits the rest",
+  JSON.stringify(ops) ===
+    JSON.stringify([
+      { kind: "eq", a: 0, b: 0 },
+      { kind: "del", a: 1 },
+      { kind: "ins", b: 1 },
+      { kind: "eq", a: 2, b: 2 },
+      { kind: "eq", a: 3, b: 3 },
+      { kind: "ins", b: 4 },
+    ]),
+  JSON.stringify(ops),
+);
+check(
+  "edits are grouped, drops before introductions",
+  JSON.stringify(blocks(ops)) ===
+    JSON.stringify([
+      { kind: "eq", pairs: [[0, 0]] },
+      { kind: "change", dels: [1], inss: [1] },
+      {
+        kind: "eq",
+        pairs: [
+          [2, 2],
+          [3, 3],
+        ],
+      },
+      { kind: "change", dels: [], inss: [4] },
+    ]),
+);
+check("a text against itself has no edits", !textDiff("a\nb", "a\nb").changed);
+check("an empty old side is all introduction", textDiff("", "a\nb").blocks[0].kind === "change");
+const td = textDiff("  let x = foo(a, b)\n  x", "  let x = bar(a, b)\n  x");
+check(
+  "an edited line marks only the word that moved",
+  td.oldEmph.length === 1 &&
+    "  let x = foo(a, b)".slice(td.oldEmph[0][0], td.oldEmph[0][1]) === "foo" &&
+    td.newEmph.length === 1 &&
+    "  let x = bar(a, b)".slice(td.newEmph[0][0], td.newEmph[0][1]) === "bar",
+  JSON.stringify([td.oldEmph, td.newEmph]),
+);
+check(
+  "a line replaced outright marks nothing inside it",
+  textDiff("fn f(x) = x + 1", "-- entirely different now").oldEmph.length === 0,
+);
+// Myers on a larger pair: every old line is either kept or dropped exactly
+// once, and likewise every new line, so the script is a bijection.
+{
+  const a = Array.from({ length: 120 }, (_, i) => `line ${i}`);
+  const b = a.filter((_, i) => i % 7 !== 3).map((l, i) => (i % 11 === 5 ? `${l}!` : l));
+  b.splice(40, 0, "new 1", "new 2");
+  const script = diff(a, b);
+  const seenA = new Set();
+  const seenB = new Set();
+  for (const op of script) {
+    if ("a" in op) seenA.add(op.a);
+    if ("b" in op) seenB.add(op.b);
+  }
+  check(
+    "the script covers both sides exactly once",
+    seenA.size === a.length &&
+      seenB.size === b.length &&
+      script.filter((o) => "a" in o).length === a.length &&
+      script.filter((o) => "b" in o).length === b.length,
+  );
+}
+
+// The rendering: a real definition edited in one place. Its old column is the
+// old text and its new column the new, each painted; the edited line carries
+// the moved word as a mark; the long unchanged run is folded and opens.
+const long = index.defs.find(
+  (d) => d.source.split("\n").length >= 24 && (d.refs ?? []).some((r) => r.end < 200),
+);
+const lines = long.source.split("\n");
+// A line introduced in the middle, and a word appended to the last line. The
+// new revision keeps only the spans that lie before the insertion, since the
+// rest would drift; what is checked is the text, which painting preserves.
+const cut = lines.slice(0, 12).join("\n").length;
+const edited = {
+  ...long,
+  source: [
+    ...lines.slice(0, 12),
+    "  -- a new line",
+    ...lines.slice(12, -1),
+    `${lines.at(-1)} -- trailing`,
+  ].join("\n"),
+  tokens: "",
+  types: "",
+  refs: (long.refs ?? []).filter((r) => r.end <= cut),
+  members: (long.members ?? []).filter((m) => m.end <= cut),
+};
+const oldRev = { ...long };
+const diffDeck = new Viewer(
+  index,
+  new Revisions({
+    envelope: {
+      format: "prism-index-diff-v1",
+      old: { title: "t", contract: "aaaa" },
+      new: { title: "t", contract: "bbbb" },
+      counts: { changed: 1, added: 0, removed: 0, moved: 0, cone: 0, cosmetic: 0, unchanged: 9 },
+    },
+    entries: [{ status: "changed", id: long.id, old: oldRev, new: edited }],
+  }),
+  nodes(),
+  new Storage(),
+);
+// The loaded index holds the new revision.
+index.byId.set(long.id, edited);
+diffDeck.start();
+diffDeck.show(long.id);
+let diffCard = card(diffDeck.nodes.cards.innerHTML, long.id);
+const cells = (html, side) =>
+  [
+    ...html.matchAll(
+      new RegExp(`<div class="dl dl--${side}[^"]*">(?:<code>(.*?)</code>)?</div>`, "gs"),
+    ),
+  ].map((m) => m[1]);
+check(
+  "the inserted line is introduced on the right only",
+  cells(diffCard, "new").some((c) => c !== undefined && plain(c) === "  -- a new line") &&
+    !cells(diffCard, "old").some((c) => c !== undefined && plain(c) === "  -- a new line"),
+);
+check("and padded on the left", /dl--old dl--pad/.test(diffCard));
+check(
+  "the edited last line marks what was appended",
+  /is-ins"><code>.*<mark class="dfx">[^<]*trailing<\/mark>/.test(diffCard),
+);
+const folds = [...diffCard.matchAll(/data-unfold="([^"]+)"[^>]*>&#8943; \d+ unchanged lines/g)];
+check("a long unchanged run is folded", folds.length > 0);
+for (const [, key] of folds) diffDeck.unfold(key);
+diffCard = card(diffDeck.nodes.cards.innerHTML, long.id);
+check("and opens on request", !diffCard.includes("unchanged lines"));
+check(
+  "opened, the old column is the old text",
+  cells(diffCard, "old")
+    .filter((c) => c !== undefined)
+    .map(plain)
+    .join("\n") === long.source,
+);
+check(
+  "and the new column is the new text",
+  cells(diffCard, "new")
+    .filter((c) => c !== undefined)
+    .map(plain)
+    .join("\n") === edited.source,
+);
+check(
+  "links survive on both sides",
+  cells(diffCard, "old").join("").includes('class="ref"') &&
+    cells(diffCard, "new").join("").includes('class="ref"'),
+);
+index.byId.set(long.id, long);
+
+// A token that spans lines (a multi-line string) is painted once per line, so
+// each line of the body is a well-formed fragment on its own. None in the
+// standard library does, so the case is built: a three-line string literal.
+{
+  const str = index.tokenClasses.indexOf("str");
+  const kw = index.tokenClasses.indexOf("kw");
+  const source = 'fn f() =\n  "one\ntwo\nthree"\n';
+  const spanning = { ...oldOnly, source, tokens: `0 2 ${kw} 9 15 ${str}`, refs: [], members: [] };
+  const painted = viewer.body(spanning).split("\n");
+  const balanced = (h) => (h.match(/<span/g) ?? []).length === (h.match(/<\/span>/g) ?? []).length;
+  check(
+    "a token spanning lines closes at each line end",
+    painted.length === source.split("\n").length &&
+      painted.every(balanced) &&
+      painted[2] === '<span class="tk-str">two</span>',
+    JSON.stringify(painted),
+  );
+  check("and the text is still exact", plain(painted.join("\n")) === source);
+}
 
 section("keyboard shortcuts yield to text fields");
 // The one exception, and the reason it is checked: a modified shortcut has to
