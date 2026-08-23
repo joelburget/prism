@@ -878,11 +878,12 @@ button.ref--prim:hover {
 /* A relation row in both revisions, side by side: what it was, what it is.
    The divider sits at the card's midpoint, where the body's does, so every
    split on the card reads down one line. The strip is inset 32px on the
-   left and 10px on the right and the label takes 92px, so the old half is
-   half the strip plus half the inset difference (11px) less the label. */
+   left and 10px on the right, the label takes 92px, and the row's 8px gap
+   falls twice before the new half; so the old half is half the strip, less
+   half the inset difference (11px), the label, and the two gaps. */
 .rel--split {
   display: grid;
-  grid-template-columns: 92px calc(50% - 103px) 1fr;
+  grid-template-columns: 92px calc(50% - 11px - 92px - 16px) 1fr;
   align-items: baseline;
 }
 
