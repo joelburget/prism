@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prism::lineage::{
@@ -12,7 +12,7 @@ use prism::{
     SessionStats,
 };
 
-use crate::support::{require_cc, TempDir};
+use crate::support::{assert_same_binary, require_cc, TempDir};
 
 // The default worker count auto-detects host parallelism, so the sequential
 // arm of each byte-diff oracle must pin one worker explicitly.
@@ -43,15 +43,38 @@ fn drop_linked_queries(root: &Path) {
     }
 }
 
+// Query bindings sit one shard level below the kind directory
+// (queries/<kind>/<2hex>/<rest>), so every direct reader walks that level.
+fn query_files(root: &Path, kind: &str) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for shard in fs::read_dir(root.join(kind)).unwrap() {
+        let shard = shard.unwrap();
+        if !shard.file_type().unwrap().is_dir() {
+            continue;
+        }
+        for entry in fs::read_dir(shard.path()).unwrap() {
+            files.push(entry.unwrap().path());
+        }
+    }
+    files.sort();
+    files
+}
+
+fn query_count(root: &Path, kind: &str) -> usize {
+    query_files(root, kind).len()
+}
+
 fn query_bindings(root: &Path, kind: &str) -> BTreeMap<String, String> {
-    fs::read_dir(root.join(kind))
-        .unwrap()
-        .map(|entry| {
-            let entry = entry.unwrap();
-            (
-                entry.file_name().to_string_lossy().into_owned(),
-                fs::read_to_string(entry.path()).unwrap(),
-            )
+    query_files(root, kind)
+        .into_iter()
+        .map(|path| {
+            let shard = path.parent().unwrap().file_name().unwrap();
+            let key = format!(
+                "{}{}",
+                shard.to_string_lossy(),
+                path.file_name().unwrap().to_string_lossy()
+            );
+            (key, fs::read_to_string(path).unwrap())
         })
         .collect()
 }
@@ -148,21 +171,11 @@ fn warm_native_build_materializes_byte_identical_binary() {
         first.cache_explanation(),
         "linked artifact and LLVM bitcode keys changed"
     );
-    let native_objects = fs::read_dir(tmp.store_root().join(NATIVE_OBJECT_QUERIES))
-        .unwrap()
-        .count();
-    let runtime_objects = fs::read_dir(tmp.store_root().join(RUNTIME_OBJECT_QUERIES))
-        .unwrap()
-        .count();
-    let optimized_sccs = fs::read_dir(tmp.store_root().join(OPTIMIZED_SCC_QUERIES))
-        .unwrap()
-        .count();
-    let llvm_sccs = fs::read_dir(tmp.store_root().join(LLVM_SCC_QUERIES))
-        .unwrap()
-        .count();
-    let closure_summaries = fs::read_dir(tmp.store_root().join(CLOSURE_SUMMARY_QUERIES))
-        .unwrap()
-        .count();
+    let native_objects = query_count(&tmp.store_root(), NATIVE_OBJECT_QUERIES);
+    let runtime_objects = query_count(&tmp.store_root(), RUNTIME_OBJECT_QUERIES);
+    let optimized_sccs = query_count(&tmp.store_root(), OPTIMIZED_SCC_QUERIES);
+    let llvm_sccs = query_count(&tmp.store_root(), LLVM_SCC_QUERIES);
+    let closure_summaries = query_count(&tmp.store_root(), CLOSURE_SUMMARY_QUERIES);
     assert!(native_objects > 1);
     assert!(llvm_sccs > 1);
     assert!(closure_summaries > 0);
@@ -187,7 +200,11 @@ fn warm_native_build_materializes_byte_identical_binary() {
     assert_eq!(second.bitcode_cache, NativeCacheStatus::Disabled);
     assert!(second.definition_hashes.is_none());
     assert_eq!(second.cache_explanation(), "linked artifact key matched");
-    assert_eq!(fs::read(&bin).unwrap(), cold);
+    assert_same_binary(
+        "warm link hit vs cold build",
+        &cold,
+        &fs::read(&bin).unwrap(),
+    );
     assert!(!bin.with_extension("bc").exists());
     let warm_run = Command::new(&bin).output().unwrap();
     let warm_trace = prism::ObservationTrace::from_process(
@@ -205,7 +222,11 @@ fn warm_native_build_materializes_byte_identical_binary() {
     fs::remove_file(&bin).unwrap();
     let parallel = build_on_report(&src, &roots, &bin, &parallel_cfg).unwrap();
     assert_eq!(parallel.cache, NativeCacheStatus::Hit);
-    assert_eq!(fs::read(&bin).unwrap(), cold);
+    assert_same_binary(
+        "parallel workers vs cold build",
+        &cold,
+        &fs::read(&bin).unwrap(),
+    );
     let parallel_run = Command::new(&bin).output().unwrap();
     assert_eq!(
         prism::ObservationTrace::from_process(
@@ -227,23 +248,21 @@ fn warm_native_build_materializes_byte_identical_binary() {
         relocation.cache_explanation(),
         "linked artifact key matched"
     );
-    assert_eq!(fs::read(&relocated).unwrap(), cold);
+    assert_same_binary(
+        "relocated output vs cold build",
+        &cold,
+        &fs::read(&relocated).unwrap(),
+    );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(NATIVE_OBJECT_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), NATIVE_OBJECT_QUERIES),
         native_objects
     );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(RUNTIME_OBJECT_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), RUNTIME_OBJECT_QUERIES),
         runtime_objects
     );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(OPTIMIZED_SCC_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), OPTIMIZED_SCC_QUERIES),
         optimized_sccs
     );
 
@@ -252,25 +271,23 @@ fn warm_native_build_materializes_byte_identical_binary() {
     let semantic = build_on_report(&formatted_only, &roots, &bin, &cfg).unwrap();
     assert_eq!(semantic.cache, NativeCacheStatus::Hit);
     assert!(semantic.definition_hashes.is_some());
-    assert_eq!(fs::read(&bin).unwrap(), cold);
+    assert_same_binary(
+        "formatting-only edit vs cold build",
+        &cold,
+        &fs::read(&bin).unwrap(),
+    );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(OPTIMIZED_SCC_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), OPTIMIZED_SCC_QUERIES),
         optimized_sccs,
         "formatting-only edits must write no semantic SCC artifacts"
     );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(LLVM_SCC_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), LLVM_SCC_QUERIES),
         llvm_sccs,
         "formatting-only edits must write no backend SCC artifacts"
     );
     assert_eq!(
-        fs::read_dir(tmp.store_root().join(CLOSURE_SUMMARY_QUERIES))
-            .unwrap()
-            .count(),
+        query_count(&tmp.store_root(), CLOSURE_SUMMARY_QUERIES),
         closure_summaries,
         "formatting-only edits must write no closure summaries"
     );
@@ -280,31 +297,22 @@ fn warm_native_build_materializes_byte_identical_binary() {
     let changed_report = build_on_report(&changed, &roots, &bin, &cfg).unwrap();
     assert_eq!(changed_report.cache, NativeCacheStatus::Write);
     assert!(
-        fs::read_dir(tmp.store_root().join(OPTIMIZED_SCC_QUERIES))
-            .unwrap()
-            .count()
-            > optimized_sccs,
+        query_count(&tmp.store_root(), OPTIMIZED_SCC_QUERIES) > optimized_sccs,
         "a semantic edit must write its affected SCC cone"
     );
-    let changed_llvm_sccs = fs::read_dir(tmp.store_root().join(LLVM_SCC_QUERIES))
-        .unwrap()
-        .count();
+    let changed_llvm_sccs = query_count(&tmp.store_root(), LLVM_SCC_QUERIES);
     assert_eq!(
         changed_llvm_sccs - llvm_sccs,
         2,
         "only the changed backend SCC and the explicit global metadata plan move"
     );
-    let changed_closure_summaries = fs::read_dir(tmp.store_root().join(CLOSURE_SUMMARY_QUERIES))
-        .unwrap()
-        .count();
+    let changed_closure_summaries = query_count(&tmp.store_root(), CLOSURE_SUMMARY_QUERIES);
     assert_eq!(
         changed_closure_summaries - closure_summaries,
         1,
         "only the changed backend SCC may write a new closure summary"
     );
-    let changed_native_objects = fs::read_dir(tmp.store_root().join(NATIVE_OBJECT_QUERIES))
-        .unwrap()
-        .count();
+    let changed_native_objects = query_count(&tmp.store_root(), NATIVE_OBJECT_QUERIES);
     assert_eq!(
         changed_native_objects - native_objects,
         2,
@@ -324,7 +332,7 @@ fn warm_native_build_materializes_byte_identical_binary() {
     let report = build_on_report(&changed, &roots, &bin, &cfg).unwrap();
     assert_eq!(report.cache, NativeCacheStatus::Disabled);
     let uncached = fs::read(&bin).unwrap();
-    assert_eq!(uncached, changed_cached);
+    assert_same_binary("cache disabled vs cache warm", &changed_cached, &uncached);
     let uncached_run = Command::new(&bin).output().unwrap();
     assert_eq!(
         prism::ObservationTrace::from_process(
@@ -425,7 +433,11 @@ fn typed_route_second_build_preserves_warm_cache_artifacts() {
         "an unchanged input must reuse the final artifact"
     );
     assert_eq!(warm_report.bitcode_cache, NativeCacheStatus::Disabled);
-    assert_eq!(fs::read(observed_bin).unwrap(), observed_bytes);
+    assert_same_binary(
+        "warm rebuild vs observed build",
+        &observed_bytes,
+        &fs::read(observed_bin).unwrap(),
+    );
 }
 
 #[test]
@@ -491,8 +503,16 @@ fn incremental_store_reaches_the_fresh_final_artifacts() {
     let incremental_bytes = fs::read(&incremental_bin).unwrap();
     let fresh_bytes = fs::read(&fresh_bin).unwrap();
     let parallel_bytes = fs::read(&parallel_bin).unwrap();
-    assert_eq!(incremental_bytes, fresh_bytes);
-    assert_eq!(parallel_bytes, fresh_bytes);
+    assert_same_binary(
+        "incremental store vs fresh store",
+        &fresh_bytes,
+        &incremental_bytes,
+    );
+    assert_same_binary(
+        "parallel workers vs fresh store",
+        &fresh_bytes,
+        &parallel_bytes,
+    );
 
     let run = |path: &Path| {
         let output = Command::new(path).output().unwrap();
@@ -564,9 +584,10 @@ fn sequential_and_parallel_scc_artifacts_are_identical() {
         query_bindings(&parallel.store_root(), CLOSURE_SUMMARY_QUERIES),
         "worker count must not alter closure summary identities"
     );
-    assert_eq!(
-        fs::read(sequential_bin).unwrap(),
-        fs::read(parallel_bin).unwrap()
+    assert_same_binary(
+        "sequential SCC backend vs parallel SCC backend",
+        &fs::read(sequential_bin).unwrap(),
+        &fs::read(parallel_bin).unwrap(),
     );
 }
 
@@ -717,7 +738,11 @@ fn effectful_build_publishes_no_legacy_effect_queries_and_retires_stale_facts() 
     assert_eq!(second_report.cache, NativeCacheStatus::Hit);
     assert_eq!(second_report.bitcode_cache, NativeCacheStatus::Disabled);
     let second = Command::new(&first_bin).output().unwrap();
-    assert_eq!(fs::read(&first_bin).unwrap(), first_bytes);
+    assert_same_binary(
+        "session warm rebuild vs first build",
+        &first_bytes,
+        &fs::read(&first_bin).unwrap(),
+    );
     assert_eq!(second.stdout, first.stdout);
     assert_eq!(second.stderr, first.stderr);
     assert_eq!(second.status.code(), first.status.code());
@@ -762,17 +787,18 @@ fn effectful_build_publishes_no_legacy_effect_queries_and_retires_stale_facts() 
         .decisions()
         .iter()
         .all(|decision| decision.kind != QueryKind::Effect));
+    // The planted bindings sit flat under their kind directories, the shape a
+    // real pre-sharding store leaves behind. A build must not touch them: a
+    // flat relic is invisible to the sharded read path and its removal belongs
+    // to `store gc` alone.
     assert_eq!(
-        query_bindings(&upgrade.store_root(), RETIRED_EFFECT_PLAN_QUERIES),
-        BTreeMap::from([("legacy-plan".to_string(), "stale plan binding".to_string())]),
+        fs::read_to_string(stale_plan.join("legacy-plan")).unwrap(),
+        "stale plan binding",
         "old plan bindings are inert and remain Store-GC-owned"
     );
     assert_eq!(
-        query_bindings(&upgrade.store_root(), RETIRED_EFFECT_RESULT_QUERIES),
-        BTreeMap::from([(
-            "legacy-result".to_string(),
-            "stale result binding".to_string()
-        )]),
+        fs::read_to_string(stale_result.join("legacy-result")).unwrap(),
+        "stale result binding",
         "old result bindings are inert and remain Store-GC-owned"
     );
     let ledger = FactLedger::load(&store, &scope).unwrap();
@@ -816,12 +842,10 @@ fn corrupt_backend_scc_is_rejected() {
     cfg.flags.store_path = Some(tmp.store_root());
 
     build_on_report(&src, &roots, &tmp.join("first"), &cfg).unwrap();
-    let query = fs::read_dir(tmp.store_root().join(LLVM_SCC_QUERIES))
-        .unwrap()
+    let query = query_files(&tmp.store_root(), LLVM_SCC_QUERIES)
+        .into_iter()
         .next()
-        .unwrap()
-        .unwrap()
-        .path();
+        .unwrap();
     let binding = fs::read_to_string(query).unwrap();
     let object_hash = binding.lines().nth(1).unwrap();
     let object = tmp
@@ -852,12 +876,10 @@ fn corrupt_backend_closure_summary_is_rejected() {
     cfg.flags.store_path = Some(tmp.store_root());
 
     build_on_report(&src, &roots, &tmp.join("first"), &cfg).unwrap();
-    let query = fs::read_dir(tmp.store_root().join(CLOSURE_SUMMARY_QUERIES))
-        .unwrap()
+    let query = query_files(&tmp.store_root(), CLOSURE_SUMMARY_QUERIES)
+        .into_iter()
         .next()
-        .unwrap()
-        .unwrap()
-        .path();
+        .unwrap();
     let binding = fs::read_to_string(query).unwrap();
     let object_hash = binding.lines().nth(1).unwrap();
     let object = tmp
@@ -888,12 +910,10 @@ fn corrupt_optimized_scc_is_rejected() {
     cfg.flags.store_path = Some(tmp.store_root());
 
     build_on_report(&src, &roots, &tmp.join("first"), &cfg).unwrap();
-    let query = fs::read_dir(tmp.store_root().join(OPTIMIZED_SCC_QUERIES))
-        .unwrap()
+    let query = query_files(&tmp.store_root(), OPTIMIZED_SCC_QUERIES)
+        .into_iter()
         .next()
-        .unwrap()
-        .unwrap()
-        .path();
+        .unwrap();
     let binding = fs::read_to_string(query).unwrap();
     let object_hash = binding.lines().nth(1).unwrap();
     let object = tmp
@@ -934,7 +954,11 @@ fn session_semantic_hit_matches_cold_native_build() {
     fs::remove_file(&bin).unwrap();
     let second = build_on_report(&formatted, &roots, &bin, &cfg).unwrap();
     assert_eq!(second.cache, NativeCacheStatus::Disabled);
-    assert_eq!(fs::read(&bin).unwrap(), cold);
+    assert_same_binary(
+        "session semantic hit vs cold build",
+        &cold,
+        &fs::read(&bin).unwrap(),
+    );
     assert_eq!(
         session.stats(),
         SessionStats {

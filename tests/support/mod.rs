@@ -9,6 +9,7 @@
 // spelling, and we side with plain `pub`.
 #![allow(dead_code, unreachable_pub)]
 
+use std::mem::size_of;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -34,18 +35,46 @@ pub const ALLOC_STATS: &str = "PRISM_ALLOC_STATS";
 /// that arms a counter strips the reports out of the program's own stderr with
 /// [`program_stderr`] and reads a value back with [`counter_report`], so no
 /// harness re-types the line format.
+///
+/// The list must name every counter the runtime can emit, not only the ones a
+/// gate reads back, because an oracle that arms one counter still has to strip
+/// its neighbours: the parity gate arms the balance and the allocation reports
+/// together, so an unlisted line from either lands in the observation trace and
+/// diverges the whole corpus against an interpreter that never printed it.
+/// [`counter_reports_are_registered`] holds the list against the runtime source.
 const COUNTER_PREFIX: &str = "prism: ";
 const LEAKED_SUFFIX: &str = " cells leaked";
 const ALLOCATED_SUFFIX: &str = " cells allocated";
+/// Companion byte total to [`ALLOCATED_SUFFIX`], reported under the same env var.
+/// Cells are not one size, so a pass that stops copying a payload and starts
+/// sharing it moves this and leaves the count alone.
+pub const ALLOCATED_BYTES_SUFFIX: &str = " cell bytes allocated";
 const REUSED_SUFFIX: &str = " cells reused";
 const EFF_OPS_SUFFIX: &str = " eff ops allocated";
 const DRIVE_STEPS_SUFFIX: &str = " drive steps";
+const PROMOTED_SUFFIX: &str = " cells promoted";
+const PROMOTION_SHARED_SUFFIX: &str = " promotion copies shared";
+const PROMOTION_NODES_SUFFIX: &str = " promotion nodes visited";
+const PROMOTION_EDGES_SUFFIX: &str = " promotion edges visited";
+const RC_INCS_SUFFIX: &str = " rc increments";
+const RC_CELL_INCS_SUFFIX: &str = " rc increments on cells";
+const RC_DECS_SUFFIX: &str = " rc decrements";
+const RC_CELL_DECS_SUFFIX: &str = " rc decrements on cells";
 const COUNTER_SUFFIXES: &[&str] = &[
     LEAKED_SUFFIX,
     ALLOCATED_SUFFIX,
+    ALLOCATED_BYTES_SUFFIX,
     REUSED_SUFFIX,
     EFF_OPS_SUFFIX,
     DRIVE_STEPS_SUFFIX,
+    PROMOTED_SUFFIX,
+    PROMOTION_SHARED_SUFFIX,
+    PROMOTION_NODES_SUFFIX,
+    PROMOTION_EDGES_SUFFIX,
+    RC_INCS_SUFFIX,
+    RC_CELL_INCS_SUFFIX,
+    RC_DECS_SUFFIX,
+    RC_CELL_DECS_SUFFIX,
 ];
 /// A balanced run leaks nothing.
 const NO_LEAKED_CELLS: i64 = 0;
@@ -57,6 +86,66 @@ const COUNTER_VALUE_FIELD: usize = 1;
 fn is_counter_report(line: &str) -> bool {
     let line = line.trim_end();
     line.starts_with(COUNTER_PREFIX) && COUNTER_SUFFIXES.iter().any(|s| line.ends_with(s))
+}
+
+/// Directory holding the C runtime sources, relative to the crate root tests run
+/// from.
+const RUNTIME_DIR: &str = "runtime";
+/// A counter report's format string, up to and after the counted value. Keying on
+/// `%ld` is what separates a counter from a genuine diagnostic: `read_file`'s
+/// failure line also opens with [`COUNTER_PREFIX`] but interpolates a `%s`, and it
+/// is program-visible stderr that must never be stripped.
+const REPORT_FORMAT_OPEN: &str = "\"prism: %ld ";
+const REPORT_FORMAT_CLOSE: &str = "\\n";
+
+/// [`COUNTER_SUFFIXES`] and the runtime name the same set of counters, in two
+/// languages, and nothing but this test makes them agree. Read the format strings
+/// back out of the C source and check both directions: an unregistered report is
+/// the expensive failure (it lands in the observation trace and diverges every
+/// parity case against an interpreter that never printed it), and a registered
+/// suffix the runtime no longer emits is a stale strip rule that would hide a
+/// future line of real program output.
+#[test]
+fn counter_reports_are_registered() {
+    let mut emitted = Vec::new();
+    let entries =
+        fs::read_dir(RUNTIME_DIR).unwrap_or_else(|e| panic!("cannot read {RUNTIME_DIR}: {e}"));
+    for entry in entries {
+        let path = entry.expect("runtime directory entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("c") {
+            continue;
+        }
+        let src = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+        for rest in src.split(REPORT_FORMAT_OPEN).skip(1) {
+            // The literal ends at the next quote; these format strings escape none.
+            let literal = &rest[..rest.find('"').expect("unterminated format string")];
+            let suffix = literal
+                .strip_suffix(REPORT_FORMAT_CLOSE)
+                .expect("counter report is one whole line");
+            emitted.push((path.clone(), format!(" {suffix}")));
+        }
+    }
+
+    let unregistered: Vec<_> = emitted
+        .iter()
+        .filter(|(_, suffix)| !COUNTER_SUFFIXES.contains(&suffix.as_str()))
+        .map(|(path, suffix)| format!("  {} emits {suffix:?}", path.display()))
+        .collect();
+    assert!(
+        unregistered.is_empty(),
+        "the runtime emits counter reports this module does not strip:\n{}",
+        unregistered.join("\n")
+    );
+
+    let stale: Vec<_> = COUNTER_SUFFIXES
+        .iter()
+        .filter(|suffix| !emitted.iter().any(|(_, e)| e == *suffix))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "these registered suffixes are no longer emitted by the runtime: {stale:?}"
+    );
 }
 
 /// The value the runtime reported for the counter named by `suffix`, or `None`
@@ -76,6 +165,11 @@ pub fn counter_report(stderr: &str, suffix: &str) -> Option<i64> {
 /// Opt-in memoization of verified native cases: set it to skip programs whose
 /// complete toolchain fingerprint is unchanged since a previous green run.
 const GATE_CACHE: &str = "PRISM_GATE_CACHE";
+/// A runtime compiler-tool source override is outside the repository roots a
+/// reusable receipt commits to. Even source-fingerprint mode cannot prove what
+/// an arbitrary external directory contained, so enabling the override makes
+/// every gate run cold and prevents it from writing a misleading green marker.
+const TOOL_PACKAGES_ROOT: &str = "PRISM_TOOL_PACKAGES_ROOT";
 /// Selects how the compiler half of the cache key is fingerprinted. Unset (the
 /// default) hashes the test executable itself, maximally conservative and stable
 /// between local runs where cargo does not rebuild. Set to `source` to hash the
@@ -243,8 +337,8 @@ const CORPUS_DIRS: [&str; 2] = ["examples", "tests/cases/run"];
 /// Committed `.pr` programs intentionally outside the runnable corpus, each with
 /// why. `corpus_skip_list_is_exact` (tests/parity.rs) asserts the set of programs
 /// that actually drop out of `corpus()` equals these keys, so a regression that
-/// silently stops a program interpreting (which would quietly shrink every oracle
-/// built on the corpus) fails CI by name, and a program that becomes runnable
+/// stops a program interpreting fails CI by name instead of shrinking every
+/// corpus-based oracle. A program that becomes runnable
 /// again is flagged here as a stale entry. Labels are `dir/name.pr`.
 pub const CORPUS_SKIPS: &[(&str, &str)] = &[
     ("examples/capabilities.pr", "off-platform: getenv"),
@@ -432,6 +526,140 @@ pub fn cleanup_bin(bin: &Path) {
 /// directory the other's C compiler is still writing into.
 pub fn temp_bin(tag: &str, stem: &str) -> PathBuf {
     env::temp_dir().join(format!("prism_parity_{tag}_{}_{stem}", std::process::id()))
+}
+
+/// Bytes of context printed either side of a first difference.
+const DIFFERENCE_WINDOW: usize = 12;
+/// Digest characters that name a binary; enough to tell two builds apart.
+const DIGEST_PREFIX: usize = 16;
+
+/// Byte offsets into the ELF64 header and its section headers, named so the
+/// reader below walks a documented layout instead of a pile of literals.
+const ELF_MAGIC: &[u8] = b"\x7fELF";
+const ELF_CLASS_OFFSET: usize = 4;
+const ELF_CLASS_64: u8 = 2;
+const ELF_DATA_OFFSET: usize = 5;
+const ELF_DATA_LITTLE_ENDIAN: u8 = 1;
+const ELF_SECTION_TABLE_OFFSET: usize = 0x28;
+const ELF_SECTION_ENTRY_SIZE_OFFSET: usize = 0x3a;
+const ELF_SECTION_COUNT_OFFSET: usize = 0x3c;
+const ELF_SECTION_NAME_TABLE_OFFSET: usize = 0x3e;
+const SECTION_NAME_OFFSET: usize = 0x00;
+const SECTION_TYPE_OFFSET: usize = 0x04;
+const SECTION_FILE_OFFSET: usize = 0x18;
+const SECTION_SIZE_OFFSET: usize = 0x20;
+/// A section that occupies no file bytes, so no file offset falls inside it.
+const SECTION_TYPE_NOBITS: u64 = 8;
+
+/// A little-endian integer field of `width` bytes.
+fn le_number(bytes: &[u8], at: usize, width: usize) -> Option<u64> {
+    let field = bytes.get(at..at.checked_add(width)?)?;
+    Some(field.iter().enumerate().fold(0, |value, (index, byte)| {
+        value | u64::from(*byte) << (index * 8)
+    }))
+}
+
+/// The name of the ELF section holding a file offset.
+///
+/// `None` for any other container (a Mach-O image, a truncated file), where the
+/// offset and the bytes around it have to speak for themselves.
+fn elf_section_at(bytes: &[u8], offset: u64) -> Option<String> {
+    if !bytes.starts_with(ELF_MAGIC)
+        || bytes.get(ELF_CLASS_OFFSET) != Some(&ELF_CLASS_64)
+        || bytes.get(ELF_DATA_OFFSET) != Some(&ELF_DATA_LITTLE_ENDIAN)
+    {
+        return None;
+    }
+    let table = le_number(bytes, ELF_SECTION_TABLE_OFFSET, size_of::<u64>())?;
+    let entry = le_number(bytes, ELF_SECTION_ENTRY_SIZE_OFFSET, size_of::<u16>())?;
+    let count = le_number(bytes, ELF_SECTION_COUNT_OFFSET, size_of::<u16>())?;
+    let name_section = le_number(bytes, ELF_SECTION_NAME_TABLE_OFFSET, size_of::<u16>())?;
+    let section_header =
+        |index: u64| usize::try_from(table.checked_add(index.checked_mul(entry)?)?).ok();
+    let names = le_number(
+        bytes,
+        section_header(name_section)? + SECTION_FILE_OFFSET,
+        size_of::<u64>(),
+    )?;
+    for index in 0..count {
+        let header = section_header(index)?;
+        if le_number(bytes, header + SECTION_TYPE_OFFSET, size_of::<u32>())? == SECTION_TYPE_NOBITS
+        {
+            continue;
+        }
+        let start = le_number(bytes, header + SECTION_FILE_OFFSET, size_of::<u64>())?;
+        let size = le_number(bytes, header + SECTION_SIZE_OFFSET, size_of::<u64>())?;
+        if offset < start || offset >= start.checked_add(size)? {
+            continue;
+        }
+        let name = le_number(bytes, header + SECTION_NAME_OFFSET, size_of::<u32>())?;
+        let at = usize::try_from(names.checked_add(name)?).ok()?;
+        let text = bytes.get(at..)?;
+        let end = text.iter().position(|byte| *byte == 0)?;
+        return String::from_utf8(text[..end].to_vec()).ok();
+    }
+    None
+}
+
+fn short_digest(bytes: &[u8]) -> String {
+    blake3::hash(bytes).to_hex()[..DIGEST_PREFIX].to_string()
+}
+
+fn hex_window(bytes: &[u8], at: usize) -> String {
+    let at = at.min(bytes.len());
+    let start = at.saturating_sub(DIFFERENCE_WINDOW);
+    let end = (at + DIFFERENCE_WINDOW).min(bytes.len());
+    bytes[start..end]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Asserts two linked artifacts are byte-identical, and explains any difference.
+///
+/// Byte identity is the assertion; legibility is why this exists. Comparing the
+/// two byte vectors directly prints both binaries as decimal arrays, tens of
+/// thousands of lines that truncate a CI log and still never say what moved. A
+/// linked binary differs structurally, so report structure: a digest naming each
+/// side, the two lengths, where they first diverge and in which section, how
+/// many bytes differ in all, and the bytes around the divergence. That is the
+/// difference between "the link is not reproducible" and knowing whether code
+/// or only its placement changed.
+pub fn assert_same_binary(what: &str, expected: &[u8], actual: &[u8]) {
+    if expected == actual {
+        return;
+    }
+    let shared = expected.len().min(actual.len());
+    let first = expected
+        .iter()
+        .zip(actual)
+        .position(|(left, right)| left != right)
+        .unwrap_or(shared);
+    let differing = expected
+        .iter()
+        .zip(actual)
+        .filter(|(left, right)| left != right)
+        .count();
+    let section = u64::try_from(first)
+        .ok()
+        .and_then(|offset| elf_section_at(expected, offset))
+        .map_or_else(String::new, |name| format!(" in {name}"));
+    panic!(
+        "{what}: linked bytes differ\n  \
+         expected  {} bytes  blake3 {}\n  \
+         actual    {} bytes  blake3 {}\n  \
+         first difference at byte {first} ({first:#x}){section}, \
+         {differing} of {shared} shared bytes differ\n  \
+         expected  {}\n  \
+         actual    {}",
+        expected.len(),
+        short_digest(expected),
+        actual.len(),
+        short_digest(actual),
+        hex_window(expected, first),
+        hex_window(actual, first),
+    );
 }
 
 /// The single leak predicate for every native oracle: the balance report must be
@@ -684,6 +912,14 @@ fn collect_files(dir: &Path, filter: RootFilter, out: &mut Vec<PathBuf>) {
 /// The cache directory when memoization is enabled, else `None`. Lives under
 /// `target/` so `cargo clean` clears it and it never enters version control.
 fn gate_cache_dir() -> Option<PathBuf> {
+    if env::var_os(TOOL_PACKAGES_ROOT).is_some() {
+        if env::var_os(GATE_CACHE).is_some() {
+            eprintln!(
+                "gate-cache: disabled because {TOOL_PACKAGES_ROOT} selects runtime tool sources"
+            );
+        }
+        return None;
+    }
     env::var_os(GATE_CACHE)?;
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target")
@@ -817,7 +1053,7 @@ fn check_native_parity_uncached(
     // A program whose `main` returns a tagged-immediate value exits with that
     // value as its code; `canonical_exit` reconstructs it the way the native
     // `main` shim does, so exit-code divergence (the class the `error`/`exit`
-    // seam exposed) is now inside the oracle, not just the empty-stdin instances.
+    // seam exposed) is now inside the oracle for every instance.
     // A crash by signal reports no code and diverges here as well as truncating
     // stdout above.
     let want_exit = canonical_exit(&reference);
@@ -902,18 +1138,28 @@ pub fn parallel_collect<T: Send>(
     cases: &[PathBuf],
     check: impl Fn(&Path) -> Result<T, String> + Sync,
 ) -> (Vec<String>, Vec<T>) {
+    parallel_each(cases, |case| check(case))
+}
+
+/// The worker pool underneath [`parallel_check`], generic over the item type so
+/// generated-program sweeps reuse the same big-stack corpus workers as
+/// path-keyed sweeps.
+pub fn parallel_each<I: Sync, T: Send>(
+    items: &[I],
+    check: impl Fn(&I) -> Result<T, String> + Sync,
+) -> (Vec<String>, Vec<T>) {
     let next = AtomicUsize::new(0);
     let fails: Mutex<Vec<String>> = Mutex::new(Vec::new());
     let values: Mutex<Vec<T>> = Mutex::new(Vec::new());
     let threads = thread::available_parallelism()
         .map_or(DEFAULT_PARALLELISM, NonZeroUsize::get)
-        .min(cases.len().max(MIN_WORKER_COUNT));
+        .min(items.len().max(MIN_WORKER_COUNT));
     thread::scope(|s| {
         for _ in 0..threads {
             let worker = || loop {
                 let i = next.fetch_add(1, Ordering::Relaxed);
-                let Some(case) = cases.get(i) else { break };
-                match check(case) {
+                let Some(item) = items.get(i) else { break };
+                match check(item) {
                     Ok(v) => values.lock().unwrap().push(v),
                     Err(e) => fails.lock().unwrap().push(e),
                 }
