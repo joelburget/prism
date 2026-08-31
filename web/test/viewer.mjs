@@ -1110,7 +1110,10 @@ const mapWas = {
   claims: ["total"],
   deprecated: "use map2",
   ty: "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(b) ! {e0}",
-  doc: "Apply `f` to every element.",
+  doc: mapNow.doc.replace(
+    "Apply `f` to every element, preserving order and length.",
+    "Apply `f` to every element.",
+  ),
   source: `${mapNow.source}\n  -- gone`,
 };
 const fieldDeck = new Viewer(
