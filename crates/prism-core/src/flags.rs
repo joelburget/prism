@@ -22,10 +22,12 @@
 //! env-knob audit (`tests/env_knobs.rs`) catalogues all three and fails if any
 //! knob is read from an undocumented site.
 
+use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
+use std::thread;
 
-use crate::core::{EffectStrategy, OptLevel};
+use crate::core::{EffectStrategy, OptLevel, EFFECT_TIERS};
 
 /// Sequential fallback when the host's parallelism cannot be queried.
 const SEQUENTIAL_QUERY_THREADS: usize = 1;
@@ -41,30 +43,15 @@ const MAX_AUTO_QUERY_THREADS: usize = 8;
 /// byte-identical at any value, which `tests/native/compiler_cache.rs` enforces
 /// by diffing sequential and parallel builds.
 fn default_query_threads() -> usize {
-    std::thread::available_parallelism().map_or(SEQUENTIAL_QUERY_THREADS, |threads| {
+    thread::available_parallelism().map_or(SEQUENTIAL_QUERY_THREADS, |threads| {
         threads.get().min(MAX_AUTO_QUERY_THREADS)
     })
 }
 
 /// The lowest rung of the effect-lowering cascade a compile is allowed to take.
 ///
-/// The typed cascade (`core/typed/effect_lower`) is a cost-decreasing ladder:
-/// var/loop erasure, evidence fusion, state fusion, local confinement, free
-/// monad. Tier selection is contractually unobservable, so capping the ladder
-/// must never change a program's output; this knob exists precisely to enforce
-/// that, by letting a differential oracle (`tests/tier_parity.rs`) run one
-/// program on two tiers and diff the results. It is a test/debug instrument, not
-/// a user-facing performance switch.
-///
-/// One position per rung, so a forced run isolates exactly one lowering. Each
-/// position but `auto` names the cheapest rung the cascade may take, and takes
-/// its spelling and its order from [`EffectStrategy`] itself, so the ladder is
-/// described in one place. There is no position for the pure or evidence rungs:
-/// a program with no effects has no rung to force, and flooring at evidence is
-/// what `auto` already does. Erasure is a separate axis
-/// ([`DynFlags::erasures`]), because a cap that turned off the erasures *and*
-/// every fusion rung at once could not say which of the two a divergence came
-/// from.
+/// Used by differential tests to force a costlier lowering without changing
+/// program behavior. Each non-`auto` value names the cheapest admitted rung.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum EffectTier {
     /// The full cascade: every rung tried in cost order (the shipping default).
@@ -129,6 +116,57 @@ impl EffectTier {
     #[must_use]
     pub fn admits(self, rung: EffectStrategy) -> bool {
         self.floor().is_none_or(|floor| rung >= floor)
+    }
+}
+
+/// An experimental set of rungs the cascade skips even when the floor admits
+/// them, forcing each affected program down to the next rung.
+///
+/// Unlike [`EffectTier`], this can remove one middle rung for measurements. The
+/// default excludes nothing.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct RungExclude([bool; EffectStrategy::COUNT]);
+
+impl RungExclude {
+    /// A strategy's index is its position on the cost ladder, so the set never
+    /// re-spells the ladder's order.
+    fn index(rung: EffectStrategy) -> usize {
+        EFFECT_TIERS
+            .iter()
+            .position(|&tier| tier == rung)
+            .expect("every strategy sits on the cost ladder")
+    }
+
+    /// Whether `rung` is excluded.
+    #[must_use]
+    pub fn excludes(self, rung: EffectStrategy) -> bool {
+        self.0[Self::index(rung)]
+    }
+
+    /// Parse a `PRISM_EFFECT_EXCLUDE` list: strategy [`label`](EffectStrategy::label)
+    /// spellings separated by commas or whitespace (`state-fusion, local-partial`).
+    /// An empty or unset value excludes nothing. A token that names no rung, or
+    /// names one of the two terminals the knob cannot skip (see
+    /// [`is_excludable`](EffectStrategy::is_excludable)), is ignored: the set only
+    /// ever records an exclusion the cascade will actually honor, so the knob has
+    /// no silently dropped middle ground.
+    #[must_use]
+    pub fn parse(s: &str) -> Self {
+        let mut set = [false; EffectStrategy::COUNT];
+        for tok in s
+            .split([',', ' ', '\t'])
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+        {
+            if let Some(rung) = EFFECT_TIERS
+                .iter()
+                .copied()
+                .find(|tier| tier.label() == tok && tier.is_excludable())
+            {
+                set[Self::index(rung)] = true;
+            }
+        }
+        Self(set)
     }
 }
 
@@ -323,9 +361,20 @@ pub struct DynFlags {
     /// entry point hands `cc` when the CLI does not pass `--backend-opt`. An
     /// invalid value is reported once here and falls back to the default.
     pub backend_opt: BackendOpt,
+    /// `PRISM_DIRECT_OBJECT` (default off): optimize and lower emitted LLVM
+    /// bitcode to native objects inside Prism, omitting `ThinLTO` and retaining
+    /// only the final platform `cc` link. This is a development-latency mode;
+    /// release builds retain the optimizing `ThinLTO` path by default.
+    pub direct_object: bool,
     /// `PRISM_NO_SPECIALIZE` (default off): turn off the `Specialize` Core pass.
     /// Presence-flagged, resolved into `Config::disabled`.
     pub no_specialize: bool,
+    /// `PRISM_NO_HO_SPEC` (default off): turn off the `HoSpecialize` Core pass
+    /// (higher-order specialization on constant callable arguments). Kept a
+    /// separate toggle from `no_specialize` so a measurement can attribute a
+    /// change to dictionary specialization or to higher-order specialization
+    /// individually. Presence-flagged, resolved into `Config::disabled`.
+    pub no_ho_spec: bool,
     /// `PRISM_FUSE` (default off): force the whole-program stream-fusion pass
     /// (`core/opt/fuse`) to run first in the pre-lowering stage, collapsing
     /// recognized pull-`Sequence` pipelines into allocation-free loops. Off by
@@ -360,6 +409,12 @@ pub struct DynFlags {
     /// independently asserts the forcing engaged, so a typo cannot make the
     /// oracle silently vacuous).
     pub effect_tier: EffectTier,
+    /// `PRISM_EFFECT_EXCLUDE` (default none): experimental per-rung exclusion set
+    /// (see [`RungExclude`]). Skips the named fusion rungs even when the floor
+    /// admits them, so one engine's marginal value can be measured by forcing its
+    /// programs onto the next rung. Apparatus, not a supported surface; empty by
+    /// default and, like the floor, unobservable in output.
+    pub effect_exclude: RungExclude,
     /// `PRISM_ERASURES` (default on): run the var and loop-control erasures that
     /// precede the cascade. Off leaves those constructs for the cascade to lower
     /// as ordinary effects. Orthogonal to [`DynFlags::effect_tier`], so a forced
@@ -448,11 +503,14 @@ impl Default for DynFlags {
             mdbook_strict: false,
             opt_level: OptLevel::default(),
             backend_opt: BackendOpt::default(),
+            direct_object: false,
             no_specialize: false,
+            no_ho_spec: false,
             fuse: false,
             borrow_infer: true,
             scheduler: Scheduler::default(),
             effect_tier: EffectTier::default(),
+            effect_exclude: RungExclude::default(),
             erasures: true,
             compiler_cache: true,
             store: false,
@@ -471,6 +529,16 @@ impl Default for DynFlags {
 }
 
 impl DynFlags {
+    /// Whether the effect cascade may take `rung`: the floor
+    /// ([`effect_tier`](Self::effect_tier)) admits it and the experimental
+    /// exclusion set ([`effect_exclude`](Self::effect_exclude)) does not remove
+    /// it. The cascade gates every middle rung through here so the two knobs
+    /// compose in one place and default to plain [`EffectTier::admits`].
+    #[must_use]
+    pub fn rung_enabled(&self, rung: EffectStrategy) -> bool {
+        self.effect_tier.admits(rung) && !self.effect_exclude.excludes(rung)
+    }
+
     /// Parse the process environment into a [`DynFlags`], starting from
     /// [`Default`]. This is the single site that reads the environment for these
     /// knobs; call it once at process start and thread the result down.
@@ -494,7 +562,7 @@ impl DynFlags {
             core_lint: base.core_lint || env_present("PRISM_CORE_LINT"),
             rt_checks: base.rt_checks || env_present("PRISM_RT_CHECKS"),
             native_kont_frames: base.native_kont_frames || env_present("PRISM_NATIVE_KONT_FRAMES"),
-            dump_core: std::env::var_os("PRISM_DUMP_CORE")
+            dump_core: env::var_os("PRISM_DUMP_CORE")
                 .map_or_else(|| base.dump_core.clone(), dump_sink),
             opt_stats: base.opt_stats || env_present("PRISM_OPT_STATS"),
             compiler_stats: base.compiler_stats || env_present("PRISM_COMPILER_STATS"),
@@ -505,40 +573,44 @@ impl DynFlags {
             quiet: base.quiet || env_present("PRISM_QUIET"),
             verbose: base.verbose || env_present("PRISM_VERBOSE"),
             mdbook_strict: base.mdbook_strict || env_present("PRISM_MDBOOK_STRICT"),
-            opt_level: std::env::var("PRISM_OPT_LEVEL")
+            opt_level: env::var("PRISM_OPT_LEVEL")
                 .ok()
                 .and_then(|s| OptLevel::parse(&s))
                 .unwrap_or(base.opt_level),
             backend_opt: backend_opt_from_env(base.backend_opt),
+            direct_object: env_bool("PRISM_DIRECT_OBJECT", base.direct_object),
             no_specialize: base.no_specialize || env_present("PRISM_NO_SPECIALIZE"),
+            no_ho_spec: base.no_ho_spec || env_present("PRISM_NO_HO_SPEC"),
             fuse: env_bool("PRISM_FUSE", base.fuse),
             borrow_infer: env_bool("PRISM_BORROW_INFER", base.borrow_infer),
-            scheduler: std::env::var("PRISM_SCHEDULER")
+            scheduler: env::var("PRISM_SCHEDULER")
                 .ok()
                 .and_then(|s| Scheduler::parse(&s))
                 .unwrap_or(base.scheduler),
             effect_tier: effect_tier_from_env(base.effect_tier),
+            effect_exclude: env::var("PRISM_EFFECT_EXCLUDE")
+                .map_or(base.effect_exclude, |s| RungExclude::parse(&s)),
             erasures: env_bool("PRISM_ERASURES", base.erasures),
             compiler_cache: env_bool("PRISM_COMPILER_CACHE", base.compiler_cache),
             store: base.store || env_present("PRISM_STORE"),
-            store_path: std::env::var_os("PRISM_STORE_PATH")
+            store_path: env::var_os("PRISM_STORE_PATH")
                 .map(PathBuf::from)
                 .or_else(|| base.store_path.clone()),
-            tool_packages_root: std::env::var_os("PRISM_TOOL_PACKAGES_ROOT")
+            tool_packages_root: env::var_os("PRISM_TOOL_PACKAGES_ROOT")
                 .map(PathBuf::from)
                 .or_else(|| base.tool_packages_root.clone()),
-            solver_timeout_ms: std::env::var("PRISM_SOLVER_TIMEOUT_MS")
+            solver_timeout_ms: env::var("PRISM_SOLVER_TIMEOUT_MS")
                 .ok()
                 .and_then(|s| s.trim().parse().ok())
                 .or(base.solver_timeout_ms),
             sign_mode: sign_mode_from_env(base.sign_mode),
-            sign_key: std::env::var_os("PRISM_SIGN_KEY")
+            sign_key: env::var_os("PRISM_SIGN_KEY")
                 .map(PathBuf::from)
                 .or_else(|| base.sign_key.clone()),
-            sign_identity: std::env::var("PRISM_SIGN_IDENTITY")
+            sign_identity: env::var("PRISM_SIGN_IDENTITY")
                 .ok()
                 .or_else(|| base.sign_identity.clone()),
-            sign_allowed_signers: std::env::var_os("PRISM_SIGN_ALLOWED_SIGNERS")
+            sign_allowed_signers: env::var_os("PRISM_SIGN_ALLOWED_SIGNERS")
                 .map(PathBuf::from)
                 .or_else(|| base.sign_allowed_signers.clone()),
             warn_dupes: warn_dupes_from_env("PRISM_WARN_DUPES", base.warn_dupes),
@@ -586,6 +658,7 @@ impl DynFlags {
             "quiet" => self.quiet = toml_bool(key, val)?,
             "verbose" => self.verbose = toml_bool(key, val)?,
             "no-specialize" => self.no_specialize = toml_bool(key, val)?,
+            "no-ho-spec" => self.no_ho_spec = toml_bool(key, val)?,
             "fuse" => self.fuse = toml_bool(key, val)?,
             "borrow-infer" => self.borrow_infer = toml_bool(key, val)?,
             "compiler-cache" => self.compiler_cache = toml_bool(key, val)?,
@@ -593,6 +666,7 @@ impl DynFlags {
             "query-threads" => self.query_threads = toml_pos_int(key, val)?,
             "opt-level" => self.opt_level = toml_parsed(key, val, OptLevel::parse)?,
             "backend-opt" => self.backend_opt = toml_parsed(key, val, BackendOpt::parse)?,
+            "direct-object" => self.direct_object = toml_bool(key, val)?,
             "scheduler" => self.scheduler = toml_parsed(key, val, Scheduler::parse)?,
             "effect-tier" => self.effect_tier = toml_parsed(key, val, EffectTier::parse)?,
             "erasures" => self.erasures = toml_bool(key, val)?,
@@ -650,7 +724,7 @@ fn toml_parsed<T>(
 }
 
 fn query_threads_from_env(base: usize) -> usize {
-    std::env::var("PRISM_QUERY_THREADS").map_or(base, |value| {
+    env::var("PRISM_QUERY_THREADS").map_or(base, |value| {
         value.parse::<usize>().ok().filter(|n| *n > 0).unwrap_or_else(|| {
             eprintln!(
                 "ignoring invalid PRISM_QUERY_THREADS={value:?} (expected a positive integer); using {base}"
@@ -663,7 +737,7 @@ fn query_threads_from_env(base: usize) -> usize {
 // The signing seam from `PRISM_SIGN_MODE`. An unrecognized value is reported once
 // and falls back to `base` rather than silently signing nothing.
 fn sign_mode_from_env(base: SignMode) -> SignMode {
-    std::env::var("PRISM_SIGN_MODE").map_or(base, |s| {
+    env::var("PRISM_SIGN_MODE").map_or(base, |s| {
         SignMode::parse(&s).unwrap_or_else(|| {
             eprintln!(
                 "ignoring invalid PRISM_SIGN_MODE={s:?} (expected ssh, minisign, unsigned); using {}",
@@ -683,7 +757,7 @@ fn spellings(labels: impl IntoIterator<Item = &'static str>) -> String {
 // reported once and falls back to `base` rather than silently forcing (or
 // silently not forcing) a tier.
 fn effect_tier_from_env(base: EffectTier) -> EffectTier {
-    std::env::var("PRISM_EFFECT_TIER").map_or(base, |s| {
+    env::var("PRISM_EFFECT_TIER").map_or(base, |s| {
         EffectTier::parse(&s).unwrap_or_else(|| {
             eprintln!(
                 "ignoring invalid PRISM_EFFECT_TIER={s:?} (expected {}); using {}",
@@ -699,7 +773,7 @@ fn effect_tier_from_env(base: EffectTier) -> EffectTier {
 // levels clang accepts. An out-of-range value is reported once and falls back to
 // `base` rather than reaching `cc`.
 fn backend_opt_from_env(base: BackendOpt) -> BackendOpt {
-    let Ok(s) = std::env::var("PRISM_BACKEND_OPT") else {
+    let Ok(s) = env::var("PRISM_BACKEND_OPT") else {
         return base;
     };
     BackendOpt::parse(&s).unwrap_or_else(|| {
@@ -716,7 +790,7 @@ fn backend_opt_from_env(base: BackendOpt) -> BackendOpt {
 // `PRISM_WARN_STDLIB_DUPES` for stdlib reimplementations). An unrecognized value
 // is reported once and falls back to `base`.
 fn warn_dupes_from_env(var: &str, base: WarnDupes) -> WarnDupes {
-    std::env::var(var).map_or(base, |s| {
+    env::var(var).map_or(base, |s| {
         WarnDupes::parse(&s).unwrap_or_else(|| {
             eprintln!(
                 "ignoring invalid {var}={s:?} (expected off, warn, strict); using {}",
@@ -741,7 +815,7 @@ fn env_off(value: &str) -> bool {
 // An opt-out boolean flag: absent takes `default`; an off spelling is false,
 // anything else true.
 fn env_bool(name: &str, default: bool) -> bool {
-    std::env::var(name).map_or(default, |v| !env_off(&v))
+    env::var(name).map_or(default, |v| !env_off(&v))
 }
 
 // The Core-dump sink from a raw knob value. An off spelling disables the dump
@@ -756,7 +830,7 @@ fn dump_sink(value: OsString) -> Option<OsString> {
 
 // A presence flag: any value (even empty) is true, absent is false.
 fn env_present(name: &str) -> bool {
-    std::env::var_os(name).is_some()
+    env::var_os(name).is_some()
 }
 
 #[cfg(all(test, feature = "native"))]
@@ -802,6 +876,16 @@ mod tests {
         assert!(DynFlags::default()
             .apply_toml(&table("nonesuch = true"))
             .is_err());
+    }
+
+    #[test]
+    fn direct_object_is_opt_in_and_manifest_settable() {
+        let mut flags = DynFlags::default();
+        assert!(!flags.direct_object);
+        flags
+            .apply_toml(&table("direct-object = true"))
+            .expect("known direct-object flag applies");
+        assert!(flags.direct_object);
     }
 
     #[test]

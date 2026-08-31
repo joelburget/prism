@@ -3,6 +3,8 @@ use std::io;
 
 use serde::{Deserialize, Serialize};
 
+use crate::core::opt::{dump_core, next_dump_run};
+use crate::core::typed::specialize::ho_specialize as ho_specialize_typed;
 use crate::core::typed::specialize::specialize as specialize_typed;
 use crate::core::typed::{
     cse as cse_typed, erase_newtypes as erase_newtypes_typed, fuse as fuse_typed,
@@ -32,11 +34,13 @@ const OPT_SCC_QUERY: &str = "optimized-scc";
 // fixed point certifies the TYPED pass, not only its erased shadow.
 const OPT_SCC_QUERY_SCHEMA: &[u8] = b"prism-optimized-scc-query-v4";
 const OPT_SCC_FORMAT: &str = "prism-optimized-scc-fixed-point-v2";
-const MAX_OPT_SCC_ARTIFACT_BYTES: usize = 64 * 1024;
+const KIBIBYTE: usize = 1024;
+const MEBIBYTE: usize = KIBIBYTE * KIBIBYTE;
+const MAX_OPT_SCC_ARTIFACT_BYTES: usize = 64 * KIBIBYTE;
 
 // Typed passes recurse over witness-carrying trees; scheduler workers start on
 // small stacks, so each per-group pass run grows its own.
-const TYPED_PASS_STACK: usize = 64 * 1024 * 1024;
+const TYPED_PASS_STACK: usize = 64 * MEBIBYTE;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OptimizedSccArtifact {
@@ -121,7 +125,7 @@ pub(super) fn run_typed_opt_queries<P: TypedCorePhase>(
                 },
             )?
         } else {
-            run_typed_pass(pass, current, newtype_ctors, env)?.0
+            run_typed_pass(pass, current, newtype_ctors, env, cfg.flags.opt_stats)?.0
         };
         current = verify_typed_core(next, env).map_err(typed_verification_error)?;
     }
@@ -150,13 +154,13 @@ fn run_typed_stage_plain<P: TypedCorePhase>(
         }
     };
     let dump_sink = flags.dump_core.clone();
-    let dump_run = crate::core::opt::next_dump_run();
+    let dump_run = next_dump_run();
     let mut ord = 0;
     let mut stats = PassStats::default();
     if dump_sink.is_some() || flags.core_lint {
         let erased = typed.clone().erase();
         if let Some(sink) = &dump_sink {
-            crate::core::opt::dump_core(sink, dump_run, ord, "input", &erased);
+            dump_core(sink, dump_run, ord, "input", &erased);
             ord += 1;
         }
         lint(&erased, "<input>");
@@ -164,14 +168,14 @@ fn run_typed_stage_plain<P: TypedCorePhase>(
     let mut current = typed;
     for &pass in passes {
         reject_off_stage(pass, stage)?;
-        let (next, ticks) = run_typed_pass(pass, current, newtype_ctors, env)?;
+        let (next, ticks) = run_typed_pass(pass, current, newtype_ctors, env, flags.opt_stats)?;
         let next = verify_typed_core(next, env).map_err(typed_verification_error)?;
         stats.record(pass.name(), ticks);
         if dump_sink.is_some() || flags.core_lint {
             let erased = next.clone().erase();
             lint(&erased, pass.name());
             if let Some(sink) = &dump_sink {
-                crate::core::opt::dump_core(sink, dump_run, ord, pass.name(), &erased);
+                dump_core(sink, dump_run, ord, pass.name(), &erased);
                 ord += 1;
             }
         }
@@ -200,6 +204,7 @@ fn run_typed_pass<P: TypedCorePhase>(
     core: TypedCore<P>,
     newtype_ctors: &BTreeSet<Sym>,
     env: &VerifyEnv,
+    report_declines: bool,
 ) -> Result<(UncheckedTypedCore<P>, u64), Error> {
     Ok(match pass {
         CorePass::Fuse => {
@@ -208,6 +213,10 @@ fn run_typed_pass<P: TypedCorePhase>(
         }
         CorePass::Specialize => {
             let (next, stats) = specialize_typed(core).map_err(Error::from)?;
+            (next, stats.ticks())
+        }
+        CorePass::HoSpecialize => {
+            let (next, stats) = ho_specialize_typed(core, report_declines).map_err(Error::from)?;
             (next, stats.ticks())
         }
         CorePass::Inline => {
@@ -392,7 +401,7 @@ fn run_typed_local_transform<P>(
             let (next, stats) = cse_typed(core);
             (next, stats.ticks())
         }
-        CorePass::Fuse | CorePass::Specialize | CorePass::Inline => {
+        CorePass::Fuse | CorePass::Specialize | CorePass::HoSpecialize | CorePass::Inline => {
             return Err(Error::InternalInvariant(format!(
                 "whole-program pass routed through SCC-local runner: {}",
                 pass.name()

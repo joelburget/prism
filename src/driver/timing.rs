@@ -29,7 +29,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 #[cfg(feature = "native")]
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use crate::core::work::{self, WorkCounts};
@@ -166,6 +166,12 @@ pub(crate) enum CountKey {
     CcCompileInvocations,
     #[cfg(feature = "native")]
     CcCompileMs,
+    /// How many bitcode modules LLVM lowered to objects inside Prism.
+    #[cfg(feature = "native")]
+    LlvmObjectEmissions,
+    /// Summed in-process LLVM object-lowering time in integer milliseconds.
+    #[cfg(feature = "native")]
+    LlvmObjectMs,
     #[cfg(feature = "native")]
     CcLinkInvocations,
     #[cfg(feature = "native")]
@@ -205,6 +211,10 @@ impl CountKey {
             Self::CcCompileInvocations => "cc_compile_invocations",
             #[cfg(feature = "native")]
             Self::CcCompileMs => "cc_compile_ms",
+            #[cfg(feature = "native")]
+            Self::LlvmObjectEmissions => "llvm_object_emissions",
+            #[cfg(feature = "native")]
+            Self::LlvmObjectMs => "llvm_object_ms",
             #[cfg(feature = "native")]
             Self::CcLinkInvocations => "cc_link_invocations",
             #[cfg(feature = "native")]
@@ -291,6 +301,8 @@ impl RowExtras {
             (CountKey::CcProbeMs, duration_ms(stats.probe_time)),
             (CountKey::CcCompileInvocations, stats.compile_invocations),
             (CountKey::CcCompileMs, duration_ms(stats.compile_time)),
+            (CountKey::LlvmObjectEmissions, stats.llvm_object_emissions),
+            (CountKey::LlvmObjectMs, duration_ms(stats.llvm_object_time)),
             (CountKey::CcLinkInvocations, stats.link_invocations),
             (CountKey::CcLinkMs, duration_ms(stats.link_time)),
             (CountKey::RuntimeObjectHits, stats.runtime_object_hits),
@@ -368,7 +380,7 @@ impl TimingSink {
     pub fn tallies(&self) -> BTreeMap<&'static str, PhaseTally> {
         self.0
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or_else(PoisonError::into_inner)
             .tallies
             .clone()
     }
@@ -379,10 +391,7 @@ impl TimingSink {
     fn src_key(&self, src: &str) -> String {
         // Take an owned digest under the lock, then release it before formatting.
         let digest = {
-            let mut inner = self
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut inner = self.0.lock().unwrap_or_else(PoisonError::into_inner);
             if inner.src_digest.is_none() && !src.is_empty() {
                 inner.src_digest = Some(blake3::hash(src.as_bytes()).to_hex().to_string());
             }
@@ -405,10 +414,7 @@ impl TimingSink {
         // first prints. A re-elaboration on the same compile repeats phases; the
         // guard is released before any formatting or stderr write.
         let first = {
-            let mut inner = self
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut inner = self.0.lock().unwrap_or_else(PoisonError::into_inner);
             inner
                 .tallies
                 .entry(phase.label())

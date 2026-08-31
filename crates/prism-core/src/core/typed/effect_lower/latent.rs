@@ -10,7 +10,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use prism_common::sym::Sym;
 
-use super::super::{TypedComp, TypedCompKind, TypedCoreFn, TypedHandler};
+use super::super::{
+    TypedComp, TypedCompKind, TypedCoreFn, TypedHandler, TypedValue, TypedValueKind,
+};
+
+/// Hard ceiling on the mask depth the analysis will track. A real program's
+/// depth is bounded by its syntactic mask nesting along a call path (each
+/// level demands one more enclosing handler, so the row typing keeps it
+/// small), but the least fixpoint threads a callee's set back through its own
+/// `Mask` nodes, and a call cycle that re-masked its own latent op would mint
+/// a new depth every round and never stabilize. Refusing loudly turns that
+/// hang into a reportable compiler fault.
+const MAX_MASK_DEPTH: u32 = 512;
 
 /// A latent op with the mask depth at which it is in flight.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -36,6 +47,10 @@ pub fn latent_map(fns: &[TypedCoreFn]) -> Latent {
 }
 
 /// The ops `c` can still perform in its enclosing context.
+///
+/// # Panics
+/// When a mask ladder exceeds `MAX_MASK_DEPTH`, the signature of a call
+/// cycle re-masking its own latent op (see the assert for the reasoning).
 pub fn latent(c: &TypedComp, fl: &Latent, out: &mut BTreeSet<MaskOp>) {
     match c.kind() {
         TypedCompKind::Do { operation, .. } => {
@@ -74,6 +89,12 @@ pub fn latent(c: &TypedComp, fl: &Latent, out: &mut BTreeSet<MaskOp>) {
             latent(body, fl, &mut inner);
             out.extend(inner.into_iter().map(|l| {
                 if ops.contains(&l.id) {
+                    assert!(
+                        l.depth < MAX_MASK_DEPTH,
+                        "latent mask depth exceeded {MAX_MASK_DEPTH} for op {}: \
+                         a call cycle is re-masking its own latent op",
+                        l.id
+                    );
                     MaskOp {
                         id: l.id,
                         depth: l.depth + 1,
@@ -155,9 +176,9 @@ pub fn handle_escapes(
 
 // The computation under a thunk value, looking through representation
 // wrappers that do not change thunk flow.
-fn thunk_body(v: &super::super::TypedValue) -> Option<&TypedComp> {
+fn thunk_body(v: &TypedValue) -> Option<&TypedComp> {
     match &super::peel(v).kind {
-        super::super::TypedValueKind::Thunk(c) => Some(c),
+        TypedValueKind::Thunk(c) => Some(c),
         _ => None,
     }
 }
