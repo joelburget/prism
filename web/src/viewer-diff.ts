@@ -116,8 +116,11 @@ function backtrack(trace: Int32Array[], off: number, n: number, m: number): Op[]
 /// A run of kept lines, or one edit: the old lines it drops and the new ones it
 /// introduces, together.
 ///
-/// The script interleaves drops and introductions however the search happened to
-/// reach them; a reader wants each edit as one thing, old above (or beside) new.
+/// An `eq` pair means the two lines are byte-identical; a line edited *within*
+/// is a del and an ins in a `change` block, re-paired by `textDiff` for its
+/// word-level marks. The script interleaves drops and introductions however the
+/// search happened to reach them; a reader wants each edit as one thing, old
+/// above (or beside) new.
 export type Block =
   | { kind: "eq"; pairs: [number, number][] }
   | { kind: "change"; dels: number[]; inss: number[] };
@@ -147,21 +150,16 @@ export function blocks(ops: Op[]): Block[] {
 export type Range = [number, number];
 
 /// Two revisions of one text, compared line by line and then, inside each edited
-/// line, word by word.
+/// line, word by word: how the lines align, and what to emphasise inside them.
 export interface TextDiff {
-  oldLines: string[];
-  newLines: string[];
-  /// Where each line starts in its text, so a line-local offset can be made
-  /// absolute: the painter works over the whole text.
-  oldStarts: number[];
-  newStarts: number[];
+  /// The line alignment. Indices are into each text's lines, in order.
   blocks: Block[];
-  /// The parts of edited lines that actually moved, as absolute spans of each
-  /// text. Empty for a line that was replaced outright rather than edited.
+  /// The words that moved inside edited lines (the marks a rendered diff
+  /// highlights), as absolute spans of each whole text: the painter works over
+  /// the whole text, not line by line. Empty for a line that was replaced
+  /// outright rather than edited.
   oldEmph: Range[];
   newEmph: Range[];
-  /// Whether anything differs at all.
-  changed: boolean;
 }
 
 /// The threshold below which two paired lines are called a replacement rather
@@ -195,16 +193,7 @@ export function textDiff(oldText: string, newText: string): TextDiff {
       for (const [s, e] of within.new) newEmph.push([newStarts[c] + s, newStarts[c] + e]);
     }
   }
-  return {
-    oldLines,
-    newLines,
-    oldStarts,
-    newStarts,
-    blocks: bs,
-    oldEmph,
-    newEmph,
-    changed: bs.some((b) => b.kind === "change"),
-  };
+  return { blocks: bs, oldEmph, newEmph };
 }
 
 // Where each part starts when the parts are joined by a separator of `sep`

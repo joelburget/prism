@@ -932,14 +932,17 @@ check(
       { kind: "change", dels: [], inss: [4] },
     ]),
 );
-check("a text against itself has no edits", !textDiff("a\nb", "a\nb").changed);
+check(
+  "a text against itself has no edits",
+  textDiff("a\nb", "a\nb").blocks.every((b) => b.kind === "eq"),
+);
 const fromEmpty = textDiff("", "a\nb");
 check(
   "an empty old side is all introduction",
-  fromEmpty.oldLines.length === 0 &&
-    fromEmpty.blocks.length === 1 &&
+  fromEmpty.blocks.length === 1 &&
     fromEmpty.blocks[0].kind === "change" &&
-    fromEmpty.blocks[0].dels.length === 0,
+    fromEmpty.blocks[0].dels.length === 0 &&
+    fromEmpty.blocks[0].inss.length === 2,
 );
 const td = textDiff("  let x = foo(a, b)\n  x", "  let x = bar(a, b)\n  x");
 check(
