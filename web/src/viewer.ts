@@ -691,12 +691,14 @@ class Viewer {
         ${claimTags(d, old)}
         ${deprecatedTags(d, old)}
         <span class="grow"></span>
-        ${old ? modeToggle(mode, id) : ""}
-        ${this.seen(id, mark)}
-        <button class="seen${mark?.note ? " is-on" : ""}" data-write-note="${esc(id)}"
-          data-tip="${mark?.note ? "edit this note" : "attach a note"}">note</button>
-        ${hashChip(d)}
-        <button class="card-x" data-close="${esc(id)}" data-tip="close">&times;</button>
+        <span class="card-actions">
+          ${old ? modeToggle(mode, id) : ""}
+          ${this.seen(id, mark)}
+          <button class="seen${mark?.note ? " is-on" : ""}" data-write-note="${esc(id)}"
+            data-tip="${mark?.note ? "edit this note" : "attach a note"}">note</button>
+          ${hashChip(d)}
+          <button class="card-x" data-close="${esc(id)}" data-tip="close">&times;</button>
+        </span>
       </header>
       ${this.since(id)}
       ${this.signature(d, old, mode)}
@@ -733,8 +735,10 @@ class Viewer {
         ${builtinBadge()}
         <button class="card-name" data-fold aria-expanded="${!shut}">${esc(p.name)}</button>
         <span class="grow"></span>
-        <span class="hash hash--none" data-tip="no content address: implemented in the compiler, not defined in Prism">&mdash;</span>
-        <button class="card-x" data-close="${esc(id)}" data-tip="close">&times;</button>
+        <span class="card-actions">
+          <span class="hash hash--none" data-tip="no content address: implemented in the compiler, not defined in Prism">&mdash;</span>
+          <button class="card-x" data-close="${esc(id)}" data-tip="close">&times;</button>
+        </span>
       </header>
       ${p.signature ? `<div class="card-sig"><code>${esc(p.name)} : ${this.linkedSig(p.signature)}</code></div>` : ""}
       ${p.doc ? `<div class="card-doc"><p>${esc(p.doc)}</p></div>` : ""}

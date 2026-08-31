@@ -50,6 +50,7 @@
    pressed. On the page header for every card, and on a card for itself. */
 .seg {
   display: inline-flex;
+  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -294,6 +295,15 @@ kbd {
   /* Deeper below than above: what follows is a block of code, and it needs to
      read as the header's subject rather than as its next line. */
   padding: 8px 10px 10px;
+}
+
+/* Keep the card's controls as one unit. At narrow widths the unit moves below
+   the definition name instead of shrinking the diff selector out of sight. */
+.card-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  align-items: center;
 }
 
 /* Expanded by default: opening a card is already the reader asking for the
@@ -1015,11 +1025,63 @@ button.ref--prim:hover {
 }
 
 @media (max-width: 720px) {
+  /* The desktop header has enough room for its identity, revision summary and
+     navigation on one line. Give each a readable row on a narrow screen rather
+     than squeezing the summary one word wide and pushing links off the page. */
+  .viewer-body > header {
+    flex-wrap: wrap;
+    gap: 0.45rem 0.7rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .viewer-body > header #index-title,
+  .viewer-body > header .controls {
+    flex: 1 0 100%;
+  }
+
+  .viewer-body > header #index-title {
+    order: 2;
+    line-height: 1.35;
+  }
+
+  .viewer-body > header .controls {
+    order: 3;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.8rem;
+  }
+
   .viewer-main {
     grid-template-columns: 1fr;
   }
 
   .rail {
     max-height: 32vh;
+  }
+
+  .card-head {
+    flex-wrap: wrap;
+  }
+
+  .card-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .card-actions {
+    margin-left: auto;
+  }
+
+  /* Keep the code itself split: even here it remains useful. Only the relation
+     label moves above its pair, restoring two real half-width chip columns in
+     place of the fixed label plus a 30px old side. */
+  .rel--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .rel--split .rel-label {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 }
