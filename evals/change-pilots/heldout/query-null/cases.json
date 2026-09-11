@@ -1,0 +1,2717 @@
+{
+  "schema_version": 1,
+  "task": "query-null",
+  "cases": [
+    {
+      "id": "heldout-aliased-self-inner-join",
+      "phase": "baseline",
+      "description": "Two aliases of one table have independent row bindings and preserve left encounter order.",
+      "input": {
+        "database": [
+          {
+            "name": "nodes",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "parent",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "weight",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3,
+                1,
+                7
+              ],
+              [
+                1,
+                0,
+                4
+              ],
+              [
+                2,
+                1,
+                7
+              ],
+              [
+                4,
+                2,
+                2
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT child.id AS child_id, ancestor.weight AS parent_weight FROM nodes AS child JOIN nodes AS ancestor ON child.parent = ancestor.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT child.id AS child_id, ancestor.weight AS parent_weight FROM nodes AS child JOIN nodes AS ancestor ON child.parent = ancestor.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "child_id",
+                "parent_weight"
+              ],
+              "rows": [
+                [
+                  3,
+                  4
+                ],
+                [
+                  2,
+                  4
+                ],
+                [
+                  4,
+                  7
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "child_id",
+                "parent_weight"
+              ],
+              "rows": [
+                [
+                  3,
+                  4
+                ],
+                [
+                  2,
+                  4
+                ],
+                [
+                  4,
+                  7
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-group-keys-without-aggregates",
+      "phase": "baseline",
+      "description": "GROUP BY without aggregates supports key expressions and HAVING while retaining first-encounter group order.",
+      "input": {
+        "database": [
+          {
+            "name": "nodes",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "parent",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "weight",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3,
+                1,
+                7
+              ],
+              [
+                1,
+                0,
+                4
+              ],
+              [
+                2,
+                1,
+                7
+              ],
+              [
+                4,
+                2,
+                2
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT parent + 10 AS bucket FROM nodes GROUP BY parent HAVING parent <> 0",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT parent + 10 AS bucket FROM nodes GROUP BY parent HAVING parent <> 0",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "bucket"
+              ],
+              "rows": [
+                [
+                  11
+                ],
+                [
+                  12
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "bucket"
+              ],
+              "rows": [
+                [
+                  11
+                ],
+                [
+                  12
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-empty-inner-join-global-count",
+      "phase": "baseline",
+      "description": "An empty right scan yields an empty inner join but one zero global count row.",
+      "input": {
+        "database": [
+          {
+            "name": "nodes",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "parent",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "weight",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3,
+                1,
+                7
+              ],
+              [
+                1,
+                0,
+                4
+              ],
+              [
+                2,
+                1,
+                7
+              ],
+              [
+                4,
+                2,
+                2
+              ]
+            ]
+          },
+          {
+            "name": "other",
+            "columns": [
+              {
+                "name": "key",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": []
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COUNT(*) AS rows, COUNT(nodes.id) AS ids FROM nodes JOIN other ON nodes.id = other.key",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COUNT(*) AS rows, COUNT(nodes.id) AS ids FROM nodes JOIN other ON nodes.id = other.key",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "rows",
+                "ids"
+              ],
+              "rows": [
+                [
+                  0,
+                  0
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "rows",
+                "ids"
+              ],
+              "rows": [
+                [
+                  0,
+                  0
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-alias-hides-original-table",
+      "phase": "baseline",
+      "description": "A table alias hides its original qualifier even on an empty table.",
+      "input": {
+        "database": [
+          {
+            "name": "nodes",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": []
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT nodes.id AS id FROM nodes AS n",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_COLUMN"
+        }
+      }
+    },
+    {
+      "id": "heldout-duplicate-source-qualifier",
+      "phase": "baseline",
+      "description": "Duplicate table aliases are rejected even when qualified references otherwise resolve.",
+      "input": {
+        "database": [
+          {
+            "name": "nodes",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "parent",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "weight",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3,
+                1,
+                7
+              ],
+              [
+                1,
+                0,
+                4
+              ],
+              [
+                2,
+                1,
+                7
+              ],
+              [
+                4,
+                2,
+                2
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT x.id AS id FROM nodes AS x JOIN nodes AS x ON TRUE",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "DUPLICATE_ALIAS"
+        }
+      }
+    },
+    {
+      "id": "heldout-empty-left-global-aggregation",
+      "phase": "extension",
+      "description": "A nonempty right side contributes no rows to an empty-left outer join; global aggregation still emits its empty group.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": []
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                8
+              ],
+              [
+                9
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COUNT(*) AS n, SUM(r.id) AS total, COALESCE(MIN(l.id), -9) AS fallback FROM l LEFT JOIN r ON l.id = r.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COUNT(*) AS n, SUM(r.id) AS total, COALESCE(MIN(l.id), -9) AS fallback FROM l LEFT JOIN r ON l.id = r.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "n",
+                "total",
+                "fallback"
+              ],
+              "rows": [
+                [
+                  0,
+                  null,
+                  -9
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "n",
+                "total",
+                "fallback"
+              ],
+              "rows": [
+                [
+                  0,
+                  null,
+                  -9
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-both-empty-left-grouped",
+      "phase": "extension",
+      "description": "Two empty join inputs produce no grouped rows, even though global aggregation would produce one.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": []
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": []
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS id, COUNT(*) AS n FROM l LEFT JOIN r ON TRUE GROUP BY l.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS id, COUNT(*) AS n FROM l LEFT JOIN r ON TRUE GROUP BY l.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "n"
+              ],
+              "rows": []
+            },
+            {
+              "columns": [
+                "id",
+                "n"
+              ],
+              "rows": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-true-or-unknown-on",
+      "phase": "extension",
+      "description": "TRUE OR UNKNOWN is a match, not an unmatched-row condition.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                2
+              ],
+              [
+                1
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                7,
+                null
+              ],
+              [
+                8,
+                false
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS left_id, r.id AS right_id FROM l LEFT JOIN r ON r.flag OR TRUE",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS left_id, r.id AS right_id FROM l LEFT JOIN r ON r.flag OR TRUE",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "left_id",
+                "right_id"
+              ],
+              "rows": [
+                [
+                  2,
+                  7
+                ],
+                [
+                  2,
+                  8
+                ],
+                [
+                  1,
+                  7
+                ],
+                [
+                  1,
+                  8
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "left_id",
+                "right_id"
+              ],
+              "rows": [
+                [
+                  2,
+                  7
+                ],
+                [
+                  2,
+                  8
+                ],
+                [
+                  1,
+                  7
+                ],
+                [
+                  1,
+                  8
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-false-and-unknown-on",
+      "phase": "extension",
+      "description": "FALSE AND UNKNOWN never matches; padding occurs exactly once per left row.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                2
+              ],
+              [
+                1
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                7,
+                null
+              ],
+              [
+                8,
+                false
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS left_id, r.id AS right_id FROM l LEFT JOIN r ON r.flag AND FALSE",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS left_id, r.id AS right_id FROM l LEFT JOIN r ON r.flag AND FALSE",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "left_id",
+                "right_id"
+              ],
+              "rows": [
+                [
+                  2,
+                  null
+                ],
+                [
+                  1,
+                  null
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "left_id",
+                "right_id"
+              ],
+              "rows": [
+                [
+                  2,
+                  null
+                ],
+                [
+                  1,
+                  null
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-explicit-null-safe-join",
+      "phase": "extension",
+      "description": "An explicit OR/IS NULL predicate intentionally matches NULL keys and preserves duplicate matches.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                null
+              ],
+              [
+                2
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                null,
+                "a"
+              ],
+              [
+                2,
+                "b"
+              ],
+              [
+                null,
+                "c"
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS id, r.label AS label FROM l LEFT JOIN r ON l.id = r.id OR (l.id IS NULL AND r.id IS NULL)",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS id, r.label AS label FROM l LEFT JOIN r ON l.id = r.id OR (l.id IS NULL AND r.id IS NULL)",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "label"
+              ],
+              "rows": [
+                [
+                  null,
+                  "a"
+                ],
+                [
+                  null,
+                  "c"
+                ],
+                [
+                  2,
+                  "b"
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "label"
+              ],
+              "rows": [
+                [
+                  null,
+                  "a"
+                ],
+                [
+                  null,
+                  "c"
+                ],
+                [
+                  2,
+                  "b"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-nullable-self-left-join",
+      "phase": "extension",
+      "description": "Nullable roots and missing references in an aliased self outer join are both padded.",
+      "input": {
+        "database": [
+          {
+            "name": "staff",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "manager",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "name",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3,
+                1,
+                "c"
+              ],
+              [
+                1,
+                null,
+                "a"
+              ],
+              [
+                2,
+                99,
+                "b"
+              ],
+              [
+                4,
+                1,
+                "d"
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT worker.id AS id, COALESCE(boss.name, 'root') AS manager FROM staff AS worker LEFT JOIN staff AS boss ON worker.manager = boss.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT worker.id AS id, COALESCE(boss.name, 'root') AS manager FROM staff AS worker LEFT JOIN staff AS boss ON worker.manager = boss.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "manager"
+              ],
+              "rows": [
+                [
+                  3,
+                  "a"
+                ],
+                [
+                  1,
+                  "root"
+                ],
+                [
+                  2,
+                  "root"
+                ],
+                [
+                  4,
+                  "a"
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "manager"
+              ],
+              "rows": [
+                [
+                  3,
+                  "a"
+                ],
+                [
+                  1,
+                  "root"
+                ],
+                [
+                  2,
+                  "root"
+                ],
+                [
+                  4,
+                  "a"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-coalesce-rematches-padded-join",
+      "phase": "extension",
+      "description": "A later join may match both stored and introduced NULL through COALESCE.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [
+                3
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "next_id",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                1,
+                null
+              ],
+              [
+                2,
+                20
+              ]
+            ]
+          },
+          {
+            "name": "s",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                0,
+                "default"
+              ],
+              [
+                20,
+                "twenty"
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS id, s.label AS label FROM l LEFT JOIN r ON l.id = r.id LEFT JOIN s ON COALESCE(r.next_id, 0) = s.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS id, s.label AS label FROM l LEFT JOIN r ON l.id = r.id LEFT JOIN s ON COALESCE(r.next_id, 0) = s.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "label"
+              ],
+              "rows": [
+                [
+                  1,
+                  "default"
+                ],
+                [
+                  2,
+                  "twenty"
+                ],
+                [
+                  3,
+                  "default"
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "label"
+              ],
+              "rows": [
+                [
+                  1,
+                  "default"
+                ],
+                [
+                  2,
+                  "twenty"
+                ],
+                [
+                  3,
+                  "default"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-where-disjunction-preserves-padding",
+      "phase": "extension",
+      "description": "A WHERE disjunction keeps padded rows and selected matches, without turning rejected matches into padding.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3
+              ],
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [
+                4
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                1,
+                null
+              ],
+              [
+                1,
+                8
+              ],
+              [
+                2,
+                3
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS id, r.v AS v FROM l LEFT JOIN r ON l.id = r.id WHERE r.v > 5 OR r.id IS NULL",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT l.id AS id, r.v AS v FROM l LEFT JOIN r ON l.id = r.id WHERE r.v > 5 OR r.id IS NULL",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "v"
+              ],
+              "rows": [
+                [
+                  3,
+                  null
+                ],
+                [
+                  1,
+                  8
+                ],
+                [
+                  4,
+                  null
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "v"
+              ],
+              "rows": [
+                [
+                  3,
+                  null
+                ],
+                [
+                  1,
+                  8
+                ],
+                [
+                  4,
+                  null
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-distinct-null-ties-pagination",
+      "phase": "extension",
+      "description": "DISTINCT uses the entire projected row before stable sorting and pagination.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                3
+              ],
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [
+                4
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                1,
+                null
+              ],
+              [
+                1,
+                8
+              ],
+              [
+                2,
+                3
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT DISTINCT r.v AS v, l.id AS id FROM l LEFT JOIN r ON l.id = r.id ORDER BY v ASC NULLS FIRST LIMIT 3 OFFSET 1",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT DISTINCT r.v AS v, l.id AS id FROM l LEFT JOIN r ON l.id = r.id ORDER BY v ASC NULLS FIRST LIMIT 3 OFFSET 1",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "v",
+                "id"
+              ],
+              "rows": [
+                [
+                  null,
+                  1
+                ],
+                [
+                  null,
+                  4
+                ],
+                [
+                  3,
+                  2
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "v",
+                "id"
+              ],
+              "rows": [
+                [
+                  null,
+                  1
+                ],
+                [
+                  null,
+                  4
+                ],
+                [
+                  3,
+                  2
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-count-predicate-counts-false",
+      "phase": "extension",
+      "description": "COUNT of a comparison counts FALSE as a non-null value, not just TRUE.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COUNT(v > 0) AS comparable, COUNT(flag) AS known, COUNT(*) AS rows FROM t",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COUNT(v > 0) AS comparable, COUNT(flag) AS known, COUNT(*) AS rows FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "comparable",
+                "known",
+                "rows"
+              ],
+              "rows": [
+                [
+                  3,
+                  3,
+                  4
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "comparable",
+                "known",
+                "rows"
+              ],
+              "rows": [
+                [
+                  3,
+                  3,
+                  4
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-count-coalesce-and-null-literal",
+      "phase": "extension",
+      "description": "Aggregate arguments are evaluated per row, including COALESCE and an all-NULL expression.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COUNT(COALESCE(v, 0)) AS filled, COUNT(NULL) AS absent, COUNT(COALESCE(NULL, flag)) AS flags FROM t",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COUNT(COALESCE(v, 0)) AS filled, COUNT(NULL) AS absent, COUNT(COALESCE(NULL, flag)) AS flags FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "filled",
+                "absent",
+                "flags"
+              ],
+              "rows": [
+                [
+                  4,
+                  0,
+                  3
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "filled",
+                "absent",
+                "flags"
+              ],
+              "rows": [
+                [
+                  4,
+                  0,
+                  3
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-coalesce-inside-versus-outside-sum",
+      "phase": "extension",
+      "description": "Defaulting each missing value and defaulting the aggregate result have different totals.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "g",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                2,
+                null
+              ],
+              [
+                2,
+                null
+              ],
+              [
+                1,
+                4
+              ],
+              [
+                1,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT g AS g, SUM(COALESCE(v, 7)) AS inside, COALESCE(SUM(v), 7) AS outside, COUNT(v + 1) AS incremented FROM t GROUP BY g",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT g AS g, SUM(COALESCE(v, 7)) AS inside, COALESCE(SUM(v), 7) AS outside, COUNT(v + 1) AS incremented FROM t GROUP BY g",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "g",
+                "inside",
+                "outside",
+                "incremented"
+              ],
+              "rows": [
+                [
+                  2,
+                  14,
+                  7,
+                  0
+                ],
+                [
+                  1,
+                  11,
+                  4,
+                  1
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "g",
+                "inside",
+                "outside",
+                "incremented"
+              ],
+              "rows": [
+                [
+                  2,
+                  14,
+                  7,
+                  0
+                ],
+                [
+                  1,
+                  11,
+                  4,
+                  1
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-having-null-group-key",
+      "phase": "extension",
+      "description": "HAVING can select the NULL-key group through a non-null IS NULL boolean.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT label AS label, COUNT(*) AS n FROM t GROUP BY label HAVING label IS NULL",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT label AS label, COUNT(*) AS n FROM t GROUP BY label HAVING label IS NULL",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "label",
+                "n"
+              ],
+              "rows": [
+                [
+                  null,
+                  2
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "label",
+                "n"
+              ],
+              "rows": [
+                [
+                  null,
+                  2
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-distinct-after-group-projection",
+      "phase": "extension",
+      "description": "Different groups with equal projected aggregates collapse, including NULL aggregate results.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "g",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                null,
+                5
+              ],
+              [
+                2,
+                5
+              ],
+              [
+                1,
+                null
+              ],
+              [
+                3,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT DISTINCT SUM(v) AS total FROM t GROUP BY g ORDER BY total DESC NULLS LAST",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT DISTINCT SUM(v) AS total FROM t GROUP BY g ORDER BY total DESC NULLS LAST",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "total"
+              ],
+              "rows": [
+                [
+                  5
+                ],
+                [
+                  null
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "total"
+              ],
+              "rows": [
+                [
+                  5
+                ],
+                [
+                  null
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-later-query-error-aborts-result",
+      "phase": "extension",
+      "description": "A binding error after a successful nullable query returns only the request error.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COALESCE(v, 0) AS value FROM t",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COALESCE(missing, 0) AS value FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_COLUMN"
+        }
+      }
+    },
+    {
+      "id": "heldout-output-alias-shadows-source-sort",
+      "phase": "extension",
+      "description": "ORDER BY binds the projected alias, even when its name matches another source column.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COALESCE(v, -9) AS id, t.id AS original_id FROM t ORDER BY id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT COALESCE(v, -9) AS id, t.id AS original_id FROM t ORDER BY id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "original_id"
+              ],
+              "rows": [
+                [
+                  -9,
+                  4
+                ],
+                [
+                  -2,
+                  3
+                ],
+                [
+                  0,
+                  1
+                ],
+                [
+                  5,
+                  2
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "original_id"
+              ],
+              "rows": [
+                [
+                  -9,
+                  4
+                ],
+                [
+                  -2,
+                  3
+                ],
+                [
+                  0,
+                  1
+                ],
+                [
+                  5,
+                  2
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-unreachable-coalesce-name-check",
+      "phase": "extension",
+      "description": "A known non-null COALESCE prefix does not suppress name binding of later arguments.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COALESCE(1, missing) AS value FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_COLUMN"
+        }
+      }
+    },
+    {
+      "id": "heldout-on-cannot-reference-future-join",
+      "phase": "extension",
+      "description": "An earlier ON clause cannot reference a table introduced by a later join.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [
+                3
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "next_id",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                1,
+                null
+              ],
+              [
+                2,
+                20
+              ]
+            ]
+          },
+          {
+            "name": "s",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                0,
+                "default"
+              ],
+              [
+                20,
+                "twenty"
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT l.id AS id FROM l LEFT JOIN r ON l.id = s.id LEFT JOIN s ON r.next_id = s.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_COLUMN"
+        }
+      }
+    },
+    {
+      "id": "heldout-nested-aggregate-through-coalesce",
+      "phase": "extension",
+      "description": "Nesting an aggregate behind COALESCE is still forbidden.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "g",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                2,
+                null
+              ],
+              [
+                2,
+                null
+              ],
+              [
+                1,
+                4
+              ],
+              [
+                1,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT SUM(COALESCE(SUM(v), 0)) AS total FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_AGGREGATION"
+        }
+      }
+    },
+    {
+      "id": "heldout-ungrouped-reference-in-fallback",
+      "phase": "extension",
+      "description": "Every reference outside an aggregate must be grouped, even in a fallback branch.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "g",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                2,
+                null
+              ],
+              [
+                2,
+                null
+              ],
+              [
+                1,
+                4
+              ],
+              [
+                1,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT COALESCE(SUM(v), v) AS total FROM t GROUP BY g",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_AGGREGATION"
+        }
+      }
+    },
+    {
+      "id": "heldout-nullable-boolean-stable-sort",
+      "phase": "extension",
+      "description": "Boolean ordering preserves equal false rows while explicit NULL placement is independent of direction.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT id AS id, flag AS flag FROM t ORDER BY flag DESC NULLS LAST",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT id AS id, flag AS flag FROM t ORDER BY flag DESC NULLS LAST",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "flag"
+              ],
+              "rows": [
+                [
+                  3,
+                  true
+                ],
+                [
+                  1,
+                  false
+                ],
+                [
+                  2,
+                  false
+                ],
+                [
+                  4,
+                  null
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "flag"
+              ],
+              "rows": [
+                [
+                  3,
+                  true
+                ],
+                [
+                  1,
+                  false
+                ],
+                [
+                  2,
+                  false
+                ],
+                [
+                  4,
+                  null
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-coalesce-preserves-empty-and-zero",
+      "phase": "extension",
+      "description": "COALESCE tests nullness rather than truthiness for integer, boolean, and text values.",
+      "input": {
+        "database": [
+          {
+            "name": "t",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              },
+              {
+                "name": "flag",
+                "type": "bool",
+                "nullable": true
+              },
+              {
+                "name": "label",
+                "type": "text",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                4,
+                null,
+                null,
+                null
+              ],
+              [
+                1,
+                0,
+                false,
+                ""
+              ],
+              [
+                3,
+                -2,
+                true,
+                "x"
+              ],
+              [
+                2,
+                5,
+                false,
+                null
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT id AS id, COALESCE(v, 9) AS value, COALESCE(flag, TRUE) AS enabled, COALESCE(label, 'fallback') AS text FROM t",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT id AS id, COALESCE(v, 9) AS value, COALESCE(flag, TRUE) AS enabled, COALESCE(label, 'fallback') AS text FROM t",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "id",
+                "value",
+                "enabled",
+                "text"
+              ],
+              "rows": [
+                [
+                  4,
+                  9,
+                  true,
+                  "fallback"
+                ],
+                [
+                  1,
+                  0,
+                  false,
+                  ""
+                ],
+                [
+                  3,
+                  -2,
+                  true,
+                  "x"
+                ],
+                [
+                  2,
+                  5,
+                  false,
+                  "fallback"
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "id",
+                "value",
+                "enabled",
+                "text"
+              ],
+              "rows": [
+                [
+                  4,
+                  9,
+                  true,
+                  "fallback"
+                ],
+                [
+                  1,
+                  0,
+                  false,
+                  ""
+                ],
+                [
+                  3,
+                  -2,
+                  true,
+                  "x"
+                ],
+                [
+                  2,
+                  5,
+                  false,
+                  "fallback"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "heldout-distinct-outer-join-bag-multiplicity",
+      "phase": "extension",
+      "description": "Duplicate source rows and duplicate matches collapse only after projection; a padded NULL shares projected identity with a stored NULL.",
+      "input": {
+        "database": [
+          {
+            "name": "l",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              }
+            ],
+            "rows": [
+              [
+                1
+              ],
+              [
+                2
+              ],
+              [
+                1
+              ]
+            ]
+          },
+          {
+            "name": "r",
+            "columns": [
+              {
+                "name": "id",
+                "type": "int",
+                "nullable": false
+              },
+              {
+                "name": "v",
+                "type": "int",
+                "nullable": true
+              }
+            ],
+            "rows": [
+              [
+                1,
+                null
+              ],
+              [
+                1,
+                null
+              ],
+              [
+                1,
+                6
+              ]
+            ]
+          }
+        ],
+        "queries": [
+          {
+            "sql": "SELECT DISTINCT r.v AS v FROM l LEFT JOIN r ON l.id = r.id",
+            "optimize": false
+          },
+          {
+            "sql": "SELECT DISTINCT r.v AS v FROM l LEFT JOIN r ON l.id = r.id",
+            "optimize": true
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "results": [
+            {
+              "columns": [
+                "v"
+              ],
+              "rows": [
+                [
+                  null
+                ],
+                [
+                  6
+                ]
+              ]
+            },
+            {
+              "columns": [
+                "v"
+              ],
+              "rows": [
+                [
+                  null
+                ],
+                [
+                  6
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

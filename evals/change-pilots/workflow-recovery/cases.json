@@ -1,0 +1,4661 @@
+{
+  "schema_version": 1,
+  "task": "workflow-recovery",
+  "cases": [
+    {
+      "id": "empty-runner",
+      "phase": "baseline",
+      "description": "An empty command sequence produces empty state.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [],
+            "calls": [],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "pending-observation",
+      "phase": "baseline",
+      "description": "Starting a run is durable but does not execute it.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "observe"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "active",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "pending",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "one-step-success",
+      "phase": "baseline",
+      "description": "A single tick executes a successful action.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "idle-ticks",
+      "phase": "baseline",
+      "description": "Ticks without work and after completion do not call the service.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "tick"
+          },
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "forward-dependency-chain",
+      "phase": "baseline",
+      "description": "Forward references run in dependency order, while output retains definition order.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [
+              "b"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 20
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    },
+                    {
+                      "id": "b",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 20
+              },
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "diamond-dependencies",
+      "phase": "baseline",
+      "description": "A join waits for both branches and executes once.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "c",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "d",
+            "needs": [
+              "b",
+              "c"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    },
+                    {
+                      "id": "b",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    },
+                    {
+                      "id": "c",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    },
+                    {
+                      "id": "d",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "d",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "d"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "d"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "eligible-definition-order",
+      "phase": "baseline",
+      "description": "A blocked first definition does not block independent later steps.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [
+              "c"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "c",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "run-creation-order",
+      "phase": "baseline",
+      "description": "Ready runs execute by creation order, independent of run ID sorting.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "z"
+          },
+          {
+            "op": "start",
+            "run": "b"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "z",
+                  "status": "succeeded",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                },
+                {
+                  "id": "b",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "z",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              },
+              {
+                "id": "b",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "z",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "b",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "z",
+                  "a"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "b",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "creation-time-deadline",
+      "phase": "baseline",
+      "description": "Step initial deadlines equal run creation time; ticks do not advance time.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "advance",
+            "by": 7
+          },
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "advance",
+            "by": 0
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 7,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 7
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "amount-boundary",
+      "phase": "baseline",
+      "description": "The largest valid amount reaches the external service unchanged.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 1000000
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 1000000
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "duplicate-step",
+      "phase": "baseline",
+      "description": "Step IDs must be unique.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "DUPLICATE_STEP"
+        }
+      }
+    },
+    {
+      "id": "unknown-dependency",
+      "phase": "baseline",
+      "description": "All dependency references must exist.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [
+              "missing"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_DEPENDENCY"
+        }
+      }
+    },
+    {
+      "id": "dependency-cycle",
+      "phase": "baseline",
+      "description": "A multi-step cycle is rejected.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [
+              "b"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "DEPENDENCY_CYCLE"
+        }
+      }
+    },
+    {
+      "id": "duplicate-dependency",
+      "phase": "baseline",
+      "description": "A dependency list is a set, not a multiset.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a",
+              "a"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "boolean-amount",
+      "phase": "baseline",
+      "description": "Boolean true must not be accepted as integer amount one.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": true
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "unknown-step-field",
+      "phase": "baseline",
+      "description": "Unknown step fields are rejected rather than silently ignored.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "amout": 10
+          }
+        ],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "unknown-command",
+      "phase": "baseline",
+      "description": "Unknown command operations are rejected.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "flush"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "empty-graph",
+      "phase": "baseline",
+      "description": "At least one step is required.",
+      "input": {
+        "steps": [],
+        "commands": []
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "duplicate-run",
+      "phase": "baseline",
+      "description": "Completed run IDs cannot be reused.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "start",
+            "run": "r"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "DUPLICATE_RUN"
+        }
+      }
+    },
+    {
+      "id": "retry-waits-until-deadline",
+      "phase": "extension",
+      "description": "A committed transient schedules a retry and idle ticks cannot bypass its deadline.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "advance",
+            "by": 1
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 1,
+                      "ready_at": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 1,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "active",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "pending",
+                    "attempts": 1,
+                    "ready_at": 2
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "retry-at-exact-deadline",
+      "phase": "extension",
+      "description": "The next attempt is eligible at the exact durable retry deadline.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "retry-exhaustion-blocks-run",
+      "phase": "extension",
+      "description": "Exhausting the budget blocks dependent and independent pending work.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 3
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          },
+          {
+            "id": "c",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 4,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "failed",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "failed",
+                    "attempts": 3,
+                    "ready_at": 4
+                  },
+                  {
+                    "id": "b",
+                    "status": "blocked",
+                    "attempts": 0,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "blocked",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 3,
+                "outcome": "transient"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "one-attempt-budget",
+      "phase": "extension",
+      "description": "With max_attempts one the first transient is terminal.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 100
+          },
+          {
+            "op": "tick"
+          }
+        ],
+        "max_attempts": 1
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 100,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "failed",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "failed",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "waiting-run-allows-later-run",
+      "phase": "extension",
+      "description": "A waiting oldest run does not starve ready work in a later run.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r1"
+          },
+          {
+            "op": "start",
+            "run": "r2"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r1",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  }
+                ]
+              },
+              {
+                "id": "r2",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r1",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r2",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r1",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r2",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r1",
+                  "a"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r2",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "crash-before-effect",
+      "phase": "extension",
+      "description": "Recovery resumes a durably begun attempt without consuming another attempt.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "crash-after-effect",
+      "phase": "extension",
+      "description": "An applied effect lost before commit is replayed, not applied again.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "replayed"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "repeated-pre-effect-crashes",
+      "phase": "extension",
+      "description": "Repeated recovery crashes preserve the original attempt and make no service calls.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "repeated-post-effect-crashes",
+      "phase": "extension",
+      "description": "A replay whose response is also lost can be replayed again safely.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "replayed"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "replayed"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "lost-transient-reuses-attempt",
+      "phase": "extension",
+      "description": "An uncommitted transient consumes a service failure but not a new durable attempt.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ],
+        "max_attempts": 1
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "retry-deadline-survives-restart",
+      "phase": "extension",
+      "description": "Restart preserves a future retry deadline and does not call the service.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "advance",
+            "by": 3
+          },
+          {
+            "op": "tick"
+          }
+        ],
+        "retry_delay": 5
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 2,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 1,
+                      "ready_at": 5
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 5,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 5
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "retry-then-crash-after-success",
+      "phase": "extension",
+      "description": "The last permitted attempt can recover a successful effect with its original number.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ],
+        "max_attempts": 2
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "replayed"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-before-starting-work",
+      "phase": "extension",
+      "description": "Cancellation before execution cancels every pending step and emits no effects.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "cancelled",
+                    "attempts": 0,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "cancelled",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-completed-run-noop",
+      "phase": "extension",
+      "description": "Cancelling a completed run leaves its success and cancellation flag unchanged.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-uncertain-before-effect",
+      "phase": "extension",
+      "description": "Cancellation reconciles an in-flight pre-effect crash by lookup without execution.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "cancelling",
+                  "cancel_requested": true,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "cancelled",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "missing"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-uncertain-after-effect",
+      "phase": "extension",
+      "description": "Cancellation preserves an already recorded effect and reports a cancelled run.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "found"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-scheduled-retry",
+      "phase": "extension",
+      "description": "Cancellation removes future retries while preserving their durable deadline.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "advance",
+            "by": 10
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 10,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "cancelled",
+                    "attempts": 1,
+                    "ready_at": 2
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-after-partial-progress",
+      "phase": "extension",
+      "description": "Cancellation retains completed predecessors but does not start their dependents.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [
+              "a"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "cancelled",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "lookup-found-crashes-before-commit",
+      "phase": "extension",
+      "description": "A lost successful lookup is repeated; reconciliation remains durable and idempotent.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "cancelling",
+                  "cancel_requested": true,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "found"
+              },
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "found"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "lookup-missing-crashes-before-call",
+      "phase": "extension",
+      "description": "Crashing before cancellation lookup neither creates effects nor increments attempts.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "cancelled",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "missing"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-after-lost-transient",
+      "phase": "extension",
+      "description": "A lost transient is reconciled as missing after cancellation, even if execution would now succeed.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "cancelled",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "missing"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "structured-key-collision-resistance",
+      "phase": "extension",
+      "description": "Run and step pairs that collide under underscore concatenation remain distinct.",
+      "input": {
+        "steps": [
+          {
+            "id": "y_z",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "z",
+            "needs": [],
+            "amount": 20
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "x"
+          },
+          {
+            "op": "start",
+            "run": "x_y"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "x",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "y_z",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "z",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              },
+              {
+                "id": "x_y",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "y_z",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "z",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "x",
+                  "y_z"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "x",
+                  "z"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "x_y",
+                  "y_z"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "x_y",
+                  "z"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "x",
+                  "y_z"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "x",
+                  "z"
+                ],
+                "amount": 20
+              },
+              {
+                "key": [
+                  "x_y",
+                  "y_z"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "x_y",
+                  "z"
+                ],
+                "amount": 20
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "failed-run-does-not-block-other-run",
+      "phase": "extension",
+      "description": "Failure and later cancellation of a terminal run do not stop a separate run.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r1"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "cancel",
+            "run": "r1"
+          },
+          {
+            "op": "start",
+            "run": "r2"
+          },
+          {
+            "op": "tick"
+          }
+        ],
+        "max_attempts": 1
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r1",
+                "status": "failed",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "failed",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              },
+              {
+                "id": "r2",
+                "status": "failed",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "failed",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r1",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r2",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              }
+            ],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "restart-is-passive",
+      "phase": "extension",
+      "description": "Restart and observation never implicitly execute pending work.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "advance",
+            "by": 3
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "observe"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 3,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "now": 3,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 3,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "active",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "pending",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [],
+            "effects": []
+          }
+        }
+      }
+    },
+    {
+      "id": "idle-checkpoint-not-reached",
+      "phase": "extension",
+      "description": "An idle checkpointed tick does not crash the process.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "retry-independent-branch-and-recovery",
+      "phase": "extension",
+      "description": "Independent work can finish during backoff; recovery then unlocks a join.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "c",
+            "needs": [
+              "a",
+              "b"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "replayed"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "c"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "inflight-priority-over-earlier-ready-step",
+      "phase": "extension",
+      "description": "An in-flight later step is recovered before an earlier step whose retry becomes due.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_begin"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 2,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 1,
+                      "ready_at": 2
+                    },
+                    {
+                      "id": "b",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 2
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "cancel-uncertain-branch-blocks-join",
+      "phase": "extension",
+      "description": "Cancelling after a branch effect keeps successful branches and prevents a join.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 10
+          },
+          {
+            "id": "c",
+            "needs": [
+              "a",
+              "b"
+            ],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "cancel",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [],
+          "final": {
+            "now": 0,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "cancelled",
+                "cancel_requested": true,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "cancelled",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "lookup",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "found"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              },
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-run-cancellation",
+      "phase": "extension",
+      "description": "Cancelling an unknown run is an error.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "cancel",
+            "run": "missing"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "UNKNOWN_RUN"
+        }
+      }
+    },
+    {
+      "id": "tick-while-down",
+      "phase": "extension",
+      "description": "Execution requires a live process.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "crash"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "PROCESS_DOWN"
+        }
+      }
+    },
+    {
+      "id": "cancel-while-down-before-run-lookup",
+      "phase": "extension",
+      "description": "Process availability is checked before cancellation run existence.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "crash"
+          },
+          {
+            "op": "cancel",
+            "run": "missing"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "PROCESS_DOWN"
+        }
+      }
+    },
+    {
+      "id": "restart-while-up",
+      "phase": "extension",
+      "description": "Restarting an already running process is an error.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "restart"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "PROCESS_UP"
+        }
+      }
+    },
+    {
+      "id": "time-overflow",
+      "phase": "extension",
+      "description": "Simulated time cannot exceed the defined integer bound.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "advance",
+            "by": 2147483647
+          },
+          {
+            "op": "advance",
+            "by": 1
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "TIME_OVERFLOW"
+        }
+      }
+    },
+    {
+      "id": "retry-deadline-overflow",
+      "phase": "extension",
+      "description": "Scheduling a retry past the time bound is an error.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 1
+          }
+        ],
+        "commands": [
+          {
+            "op": "advance",
+            "by": 2147483647
+          },
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "TIME_OVERFLOW"
+        }
+      }
+    },
+    {
+      "id": "unknown-crash-checkpoint",
+      "phase": "extension",
+      "description": "Unknown fault injection names are rejected.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "tick",
+            "crash_at": "before_commit"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    },
+    {
+      "id": "lost-transient-recovery-reschedules-from-commit-time",
+      "phase": "extension",
+      "description": "A second transient during recovery reuses the original attempt and schedules backoff from recovery commit time.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 2
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick",
+            "crash_at": "after_call"
+          },
+          {
+            "op": "advance",
+            "by": 7
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "restart"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 7,
+              "up": false,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "running",
+                      "attempts": 1,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "now": 7,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 1,
+                      "ready_at": 9
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 9,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "succeeded",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "succeeded",
+                    "attempts": 2,
+                    "ready_at": 9
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "applied"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "amount": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "independent-success-preserved-on-exhaustion",
+      "phase": "extension",
+      "description": "A successful independent branch and its effect survive another branch exhausting its retry budget; the join is blocked.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10,
+            "failures": 2
+          },
+          {
+            "id": "b",
+            "needs": [],
+            "amount": 20
+          },
+          {
+            "id": "c",
+            "needs": [
+              "a",
+              "b"
+            ],
+            "amount": 30
+          }
+        ],
+        "max_attempts": 2,
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "observe"
+          },
+          {
+            "op": "advance",
+            "by": 2
+          },
+          {
+            "op": "tick"
+          },
+          {
+            "op": "tick"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "result": {
+          "observations": [
+            {
+              "now": 0,
+              "up": true,
+              "runs": [
+                {
+                  "id": "r",
+                  "status": "active",
+                  "cancel_requested": false,
+                  "steps": [
+                    {
+                      "id": "a",
+                      "status": "pending",
+                      "attempts": 1,
+                      "ready_at": 2
+                    },
+                    {
+                      "id": "b",
+                      "status": "succeeded",
+                      "attempts": 1,
+                      "ready_at": 0
+                    },
+                    {
+                      "id": "c",
+                      "status": "pending",
+                      "attempts": 0,
+                      "ready_at": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "final": {
+            "now": 2,
+            "up": true,
+            "runs": [
+              {
+                "id": "r",
+                "status": "failed",
+                "cancel_requested": false,
+                "steps": [
+                  {
+                    "id": "a",
+                    "status": "failed",
+                    "attempts": 2,
+                    "ready_at": 2
+                  },
+                  {
+                    "id": "b",
+                    "status": "succeeded",
+                    "attempts": 1,
+                    "ready_at": 0
+                  },
+                  {
+                    "id": "c",
+                    "status": "blocked",
+                    "attempts": 0,
+                    "ready_at": 0
+                  }
+                ]
+              }
+            ],
+            "calls": [
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 1,
+                "outcome": "transient"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "attempt": 1,
+                "outcome": "applied"
+              },
+              {
+                "kind": "execute",
+                "key": [
+                  "r",
+                  "a"
+                ],
+                "attempt": 2,
+                "outcome": "transient"
+              }
+            ],
+            "effects": [
+              {
+                "key": [
+                  "r",
+                  "b"
+                ],
+                "amount": 20
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "advance-argument-out-of-range",
+      "phase": "extension",
+      "description": "An individual advance argument above the static bound is INVALID_INPUT, distinct from runtime addition overflow.",
+      "input": {
+        "steps": [
+          {
+            "id": "a",
+            "needs": [],
+            "amount": 10
+          }
+        ],
+        "commands": [
+          {
+            "op": "start",
+            "run": "r"
+          },
+          {
+            "op": "advance",
+            "by": 2147483648
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_INPUT"
+        }
+      }
+    }
+  ]
+}
