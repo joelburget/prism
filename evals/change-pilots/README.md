@@ -10,6 +10,11 @@ Three modification tasks for comparing agents working in Prism and another langu
 
 This directory contains problem descriptions, public acceptance fixtures, an additional [evaluator-only held-out corpus](heldout/README.md), a shared executable runner, and [baseline starter implementations](starters/README.md) in **Prism, Python, and TypeScript for all three tasks**. Completed extension solutions are not included. Each language is evaluated in a separate agent run using the same process protocol and public cases. A run receives only its assigned language's starter. The Python test driver is independent of the implementation language.
 
+The [experiment controller](experiments/README.md) adds repeated API agent runs,
+isolated Docker execution, quantitative records and a model-blind human review UI.
+See the [eight-model cost scenarios](experiments/COST_ESTIMATE.md) before scheduling
+paid runs. Subscription-native CLI execution is still a preparation-only path.
+
 Each problem specifies the baseline implemented by the starters, the requested extension, observable behavior, and boundaries on scope. Compare extension runs from frozen starter revisions. An agent modifying a starter must preserve its existing public interfaces as well as satisfy this external acceptance contract; the black-box suite cannot enforce internal source compatibility on its own.
 
 ## Separate language runs
