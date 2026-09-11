@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "corpora": {
+    "public": {
+      "count": 167,
+      "sha256": "8b2ed9c35fe99a30a95cc8c47a96588c77bb5ecd4aff0114ae2e0d0f1244e570",
+      "tasks": {
+        "query-null": {
+          "baseline": 21,
+          "extension": 34
+        },
+        "workflow-recovery": {
+          "baseline": 19,
+          "extension": 38
+        },
+        "ledger-refunds": {
+          "baseline": 24,
+          "extension": 31
+        }
+      }
+    },
+    "heldout": {
+      "count": 77,
+      "sha256": "320cfd2d522b288ced4855c5cd4093db14ff9be0cbb997b4975fb2b071a1855b",
+      "tasks": {
+        "query-null": {
+          "baseline": 5,
+          "extension": 23
+        },
+        "workflow-recovery": {
+          "baseline": 5,
+          "extension": 21
+        },
+        "ledger-refunds": {
+          "baseline": 5,
+          "extension": 18
+        }
+      }
+    }
+  },
+  "files": {
+    "run.py": "91d5e12059a2ba7997ad8f91273c912ca0c5761b1c76fd5c63f55c07d311dc56",
+    "query-null/PROBLEM.md": "95cc159805694e67299aaaee253555a430b690c1e6699ed70fd5c30db4c8fac1",
+    "query-null/cases.json": "acccf51245c0b1a640c5c35d5aceb2abed0c4b787945df8d1906011281b0241d",
+    "heldout/query-null/cases.json": "34311fca664696a841a913586568631778477f74ade840fefbc6d4e8869f7059",
+    "workflow-recovery/PROBLEM.md": "7c301d3881a44b8ba7507ceb6c7b617a9479af55137af730912152876bbf8c5b",
+    "workflow-recovery/cases.json": "db2297967480e72c6b798a38b71311f2d580ccc2a544581b9712e94bdaf991ad",
+    "heldout/workflow-recovery/cases.json": "afdaaae1246757ceb9a051e65acb44e5c6cd9ac859c799abfe04f42c6395628f",
+    "ledger-refunds/PROBLEM.md": "88a136dfe81d4a72a8766dc576d66a777342c83da71b94c110c4b07e67c7e918",
+    "ledger-refunds/cases.json": "d050ff43efbb7f521aab54dff9584b6c8172d22005759759158ad8ccd35e3db6",
+    "heldout/ledger-refunds/cases.json": "fbe4ccc9929ca642dd4176bc53fd152246e78e4cacb5f31fb946b7804959236a"
+  }
+}
