@@ -9,7 +9,7 @@ service. Keep those behaviors working while introducing persistence boundaries.
 The benchmark adapter models crashes explicitly; it never kills an operating
 system process and uses no network, wall clock, or filesystem persistence.
 
-The starter implementations are a later deliverable. Each evaluation run receives
+Starter code is supplied with each evaluation run. Each run receives
 only its assigned language's starter. Prism and the comparison language run in
 separate, fresh agent sessions with no access to each other's code or run artifacts,
 as described in the parent README. The starters must implement the

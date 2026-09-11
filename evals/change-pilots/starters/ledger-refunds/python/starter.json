@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "task": "ledger-refunds",
+  "language": "python",
+  "entrypoint": "run.sh",
+  "build": null,
+  "files": [
+    ".gitignore",
+    "README.md",
+    "ledger.py",
+    "run.sh"
+  ]
+}

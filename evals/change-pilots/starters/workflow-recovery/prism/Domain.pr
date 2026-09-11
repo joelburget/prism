@@ -1,0 +1,60 @@
+-- Typed request and runner/service state. JSON is confined to validation and output.
+pub type StepDefinition = StepDefinition {
+  id: String,
+  needs: List(String),
+  amount: Int,
+  failures: Int
+}
+
+pub type Checkpoint = AfterBegin | AfterCall
+
+pub type Command
+  = Start(String)
+  | Tick(Option(Checkpoint))
+  | Advance(Int)
+  | Observe
+  | Crash
+  | Restart
+  | Cancel(String)
+
+pub type Workflow = Workflow {
+  steps: List(StepDefinition),
+  commands: List(Command),
+  max_attempts: Int,
+  retry_delay: Int
+}
+
+pub type StepStatus = Pending | Running | Succeeded deriving (Eq)
+pub type RunStatus = Active | Completed deriving (Eq)
+
+pub type StepState = StepState {
+  id: String,
+  status: StepStatus,
+  attempts: Int,
+  ready_at: Int
+}
+
+pub type RunState = RunState {
+  id: String,
+  status: RunStatus,
+  cancel_requested: Bool,
+  steps: List(StepState)
+}
+
+pub type ActionKey = ActionKey { run_id: String, step_id: String }
+pub type ServiceCall = ServiceCall { key: ActionKey, attempt: Int }
+pub type Effect = Effect { key: ActionKey, amount: Int }
+pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
+
+pub type Snapshot = Snapshot { now: Int, up: Bool, runs: List(RunState) }
+pub type Simulator = Simulator {
+  now: Int,
+  up: Bool,
+  runs: List(RunState),
+  service: MockService,
+  observations: List(Snapshot)
+}
+
+pub type Action = Action { run: RunState, step: StepState, definition: StepDefinition }
+
+pub fn time_limit() : Int = 2147483647

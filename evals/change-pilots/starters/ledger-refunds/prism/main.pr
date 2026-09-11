@@ -1,0 +1,471 @@
+import Json (..)
+import Data.Bytes (..)
+
+-- The domain admits only validated baseline commands. Events retain the original
+-- JSON separately, so auditing and retries never normalize allocation order.
+type Allocation = Allocation { invoice: String, amount: Int }
+
+type Mutation
+  = Issue(String, Int, String, Int)
+  | Pay(String, Int, List(Allocation))
+  | Close(String, Int)
+
+type Operation = Write(Mutation) | Read(String, Option(Int))
+
+type Event = Event {
+  id: Int,
+  mutation: Mutation,
+  payload: Json,
+  fingerprint: String
+}
+
+type Balance = Balance { invoice: String, total: Int, paid: Int }
+
+type Projection = Projection { closed: Int, invoices: List(Balance) }
+
+type Ledger = Ledger { events: List(Event), current: Projection, latest: Int }
+
+fn empty_projection() : Projection = Projection { closed = 0, invoices = [] }
+
+fn empty_ledger() : Ledger =
+  Ledger { events = [], current = empty_projection(), latest = 0 }
+
+fn failure(code : String) : Json =
+  JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn success(value : Json) : Json = JObj([("ok", JBool(true)), ("result", value)])
+
+fn receipt(id : Int, replayed : Bool) : Json =
+  success(JObj([("event_id", JInt(id)), ("replayed", JBool(replayed))]))
+
+fn member(key : String, fields : List((String, Json))) : Json =
+  match fields of
+    Nil => JNull
+    Cons((name, value), rest) =>
+      if str_eq(key, name) then
+        value
+      else
+        member(key, rest)
+
+fn field(value : Json, key : String) : Json =
+  match value of
+    JObj(fields) => member(key, fields)
+    _ => JNull
+
+fn text(value : Json) : String =
+  match value of
+    JStr(s) => s
+    _ => ""
+
+fn number(value : Json) : Int =
+  match value of
+    JInt(n) => n
+    _ => -1
+
+fn contains(names : List(String), name : String) : Bool =
+  match names of
+    Nil => false
+    Cons(head, rest) => str_eq(head, name) || contains(rest, name)
+
+fn field_names(fields : List((String, Json))) : List(String) =
+  match fields of
+    Nil => []
+    Cons((name, _), rest) => Cons(name, field_names(rest))
+
+fn same_names(actual : List(String), expected : List(String)) : Bool =
+  match expected of
+    Nil => true
+    Cons(name, rest) => contains(actual, name) && same_names(actual, rest)
+
+fn shape(value : Json, names : List(String)) : Bool =
+  match value of
+    JObj(fields) =>
+      length(fields) == length(names) && same_names(field_names(fields), names)
+    _ => false
+
+fn bounded(value : Json, low : Int, high : Int) : Bool =
+  match value of
+    JInt(n) => n >= low && n <= high
+    _ => false
+
+fn id_tail(bytes : Bytes, i : Int, n : Int) : Bool =
+  if i >= n then
+    true
+  else
+    let c = bytes_index(bytes, i)
+    (c >= 97 && c <= 122 || c >= 48 && c <= 57 || c == 45)
+      && id_tail(bytes, i + 1, n)
+
+fn identifier(value : Json) : Bool =
+  match value of
+    JStr(s) =>
+      let bytes = string_to_bytes(s)
+      let n = bytes_length(bytes)
+      if n < 1 || n > 40 then
+        false
+      else
+        let first = bytes_index(bytes, 0)
+        first >= 97 && first <= 122 && id_tail(bytes, 1, n)
+    _ => false
+
+fn parse_allocations(
+  items : List(Json),
+  seen : List(String)
+) : Result(List(Allocation), String) =
+  match items of
+    Nil => Ok([])
+    Cons(item, rest) =>
+      let name = field(item, "invoice")
+      let amount = field(item, "amount")
+      if (not(shape(item, ["invoice", "amount"]))
+          || not(identifier(name))
+          || not(bounded(amount, 1, 1000000000))
+          || contains(seen, text(name))) then
+        Err("INVALID_OPERATION")
+      else
+        match parse_allocations(rest, Cons(text(name), seen)) of
+          Err(code) => Err(code)
+          Ok(tail) =>
+            Ok(
+                Cons(
+                    Allocation {
+                      invoice = text(name),
+                      amount = number(amount)
+                    },
+                    tail,
+                  ),
+              )
+
+fn parse_payment(
+  raw : Json,
+  key : String,
+  period : Int
+) : Result(Operation, String) =
+  match field(raw, "allocations") of
+    JArr(items) =>
+      if length(items) < 1 || length(items) > 100 then
+        Err("INVALID_OPERATION")
+      else
+        match parse_allocations(items, []) of
+          Err(code) => Err(code)
+          Ok(allocations) => Ok(Write(Pay(key, period, allocations)))
+    _ => Err("INVALID_OPERATION")
+
+fn parse_read(raw : Json, kind : String) : Result(Operation, String) =
+  if shape(raw, ["op"]) then
+    Ok(Read(kind, None))
+  elif shape(raw, ["op", "as_of"]) then
+    match field(raw, "as_of") of
+      JInt(n) =>
+        if n >= 0 then
+          Ok(Read(kind, Some(n)))
+        else
+          Err("INVALID_OPERATION")
+      _ => Err("INVALID_OPERATION")
+  else
+    Err("INVALID_OPERATION")
+
+fn parse_operation(raw : Json) : Result(Operation, String) =
+  let kind = text(field(raw, "op"))
+  let key = field(raw, "key")
+  let period = field(raw, "period")
+  if str_eq(kind, "report") || str_eq(kind, "audit") then
+    parse_read(raw, kind)
+  elif str_eq(kind, "close") then
+    if (shape(raw, ["op", "key", "through"])
+        && identifier(key)
+        && bounded(field(raw, "through"), 1, 1200)) then
+      Ok(Write(Close(text(key), number(field(raw, "through")))))
+    else
+      Err("INVALID_OPERATION")
+  elif str_eq(kind, "invoice") then
+    if (shape(raw, ["op", "key", "period", "invoice", "total"])
+        && identifier(key)
+        && bounded(period, 1, 1200)
+        && identifier(field(raw, "invoice"))
+        && bounded(field(raw, "total"), 1, 1000000000)) then
+      Ok(
+          Write(
+              Issue(
+                  text(key),
+                  number(period),
+                  text(field(raw, "invoice")),
+                  number(field(raw, "total")),
+                ),
+            ),
+        )
+    else
+      Err("INVALID_OPERATION")
+  elif str_eq(kind, "payment") then
+    if (shape(raw, ["op", "key", "period", "allocations"])
+        && identifier(key)
+        && bounded(period, 1, 1200)) then
+      parse_payment(raw, text(key), number(period))
+    else
+      Err("INVALID_OPERATION")
+  else
+    Err("INVALID_OPERATION")
+
+fn mutation_key(mutation : Mutation) : String =
+  match mutation of
+    Issue(key, _, _, _) => key
+    Pay(key, _, _) => key
+    Close(key, _) => key
+
+fn lookup_invoice(invoices : List(Balance), name : String) : Option(Balance) =
+  match invoices of
+    Nil => None
+    Cons(balance, rest) =>
+      if str_eq(balance.invoice, name) then
+        Some(balance)
+      else
+        lookup_invoice(rest, name)
+
+fn known_invoices(items : List(Allocation), invoices : List(Balance)) : Bool =
+  match items of
+    Nil => true
+    Cons(item, rest) =>
+      match lookup_invoice(invoices, item.invoice) of
+        None => false
+        Some(_) => known_invoices(rest, invoices)
+
+fn within_balances(items : List(Allocation), invoices : List(Balance)) : Bool =
+  match items of
+    Nil => true
+    Cons(item, rest) =>
+      match lookup_invoice(invoices, item.invoice) of
+        None => false
+        Some(balance) =>
+          item.amount <= balance.total - balance.paid
+            && within_balances(rest, invoices)
+
+fn validate_payment(
+  items : List(Allocation),
+  projection : Projection
+) : Option(String) =
+  if not(known_invoices(items, projection.invoices)) then
+    Some("UNKNOWN_INVOICE")
+  elif not(within_balances(items, projection.invoices)) then
+    Some("OVERPAYMENT")
+  else
+    None
+
+fn validate_mutation(
+  mutation : Mutation,
+  projection : Projection
+) : Option(String) =
+  match mutation of
+    Close(_, through) =>
+      if through <= projection.closed then
+        Some("INVALID_CLOSE")
+      else
+        None
+    Issue(_, period, name, _) =>
+      if period <= projection.closed then
+        Some("CLOSED_PERIOD")
+      else
+        match lookup_invoice(projection.invoices, name) of
+          Some(_) => Some("DUPLICATE_INVOICE")
+          None => None
+    Pay(_, period, items) =>
+      if period <= projection.closed then
+        Some("CLOSED_PERIOD")
+      else
+        validate_payment(items, projection)
+
+-- Projections are immutable values. Invoices stay sorted as they are inserted.
+fn insert_invoice(balance : Balance, invoices : List(Balance)) : List(Balance) =
+  match invoices of
+    Nil => [balance]
+    Cons(head, rest) =>
+      if str_cmp(balance.invoice, head.invoice) < 0 then
+        Cons(balance, invoices)
+      else
+        Cons(head, insert_invoice(balance, rest))
+
+fn pay_invoice(invoices : List(Balance), item : Allocation) : List(Balance) =
+  match invoices of
+    Nil => []
+    Cons(balance, rest) =>
+      if str_eq(balance.invoice, item.invoice) then
+        Cons(Balance { ..balance, paid = balance.paid + item.amount }, rest)
+      else
+        Cons(balance, pay_invoice(rest, item))
+
+fn apply_allocations(
+  items : List(Allocation),
+  invoices : List(Balance)
+) : List(Balance) =
+  match items of
+    Nil => invoices
+    Cons(item, rest) => apply_allocations(rest, pay_invoice(invoices, item))
+
+fn apply_mutation(mutation : Mutation, projection : Projection) : Projection =
+  match mutation of
+    Issue(_, _, name, total) =>
+      Projection {
+        ..projection,
+        invoices = insert_invoice(
+            Balance { invoice = name, total = total, paid = 0 },
+            projection.invoices,
+          )
+      }
+    Pay(_, _, items) =>
+      Projection {
+        ..projection,
+        invoices = apply_allocations(items, projection.invoices)
+      }
+    Close(_, through) => Projection { ..projection, closed = through }
+
+fn invoice_json(balance : Balance) : Json =
+  let due = balance.total - balance.paid
+  let status =
+    if balance.paid == 0 then
+      "unpaid"
+    elif due == 0 then
+      "paid"
+    else
+      "partially_paid"
+  JObj([
+      ("invoice", JStr(balance.invoice)),
+      ("total", JInt(balance.total)),
+      ("paid", JInt(balance.paid)),
+      ("refunded", JInt(0)),
+      ("due", JInt(due)),
+      ("status", JStr(status)),
+    ])
+
+fn totals(
+  invoices : List(Balance),
+  cash : Int,
+  outstanding : Int
+) : (Int, Int) =
+  match invoices of
+    Nil => (cash, outstanding)
+    Cons(balance, rest) =>
+      totals(
+          rest,
+          cash + balance.paid,
+          outstanding + balance.total - balance.paid,
+        )
+
+fn report(projection : Projection) : Json =
+  let (cash, outstanding) = totals(projection.invoices, 0, 0)
+  JObj([
+      ("closed_through", JInt(projection.closed)),
+      ("invoices", JArr(map(invoice_json, projection.invoices))),
+      ("cash", JInt(cash)),
+      ("outstanding", JInt(outstanding)),
+    ])
+
+fn event_json(event : Event) : Json =
+  JObj([("event_id", JInt(event.id)), ("operation", event.payload)])
+
+fn prefix(events : List(Event), end : Int) : List(Event) =
+  match events of
+    Nil => []
+    Cons(event, rest) =>
+      if event.id <= end then
+        Cons(event, prefix(rest, end))
+      else
+        []
+
+fn project(events : List(Event), projection : Projection) : Projection =
+  match events of
+    Nil => projection
+    Cons(event, rest) =>
+      project(rest, apply_mutation(event.mutation, projection))
+
+fn read_ledger(kind : String, as_of : Option(Int), ledger : Ledger) : Json =
+  let end =
+    match as_of of
+      None => ledger.latest
+      Some(n) => n
+  if end > ledger.latest then
+    failure("INVALID_AS_OF")
+  else
+    let events = prefix(ledger.events, end)
+    if str_eq(kind, "audit") then
+      success(JObj([("events", JArr(map(event_json, events)))]))
+    else
+      success(report(project(events, empty_projection())))
+
+-- Successful events form the global key index; failed writes never enter it.
+fn find_key(events : List(Event), key : String) : Option(Event) =
+  match events of
+    Nil => None
+    Cons(event, rest) =>
+      if str_eq(mutation_key(event.mutation), key) then
+        Some(event)
+      else
+        find_key(rest, key)
+
+fn commit(mutation : Mutation, raw : Json, ledger : Ledger) : (Ledger, Json) =
+  let id = ledger.latest + 1
+  let event = Event {
+    id = id,
+    mutation = mutation,
+    payload = raw,
+    fingerprint = encode(raw)
+  }
+  let updated = Ledger {
+    latest = id,
+    events = append(ledger.events, [event]),
+    current = apply_mutation(mutation, ledger.current)
+  }
+  (updated, receipt(id, false))
+
+fn write_ledger(
+  mutation : Mutation,
+  raw : Json,
+  ledger : Ledger
+) : (Ledger, Json) =
+  match find_key(ledger.events, mutation_key(mutation)) of
+    Some(event) =>
+      if str_eq(event.fingerprint, encode(raw)) then
+        (ledger, receipt(event.id, true))
+      else
+        (ledger, failure("KEY_CONFLICT"))
+    None =>
+      match validate_mutation(mutation, ledger.current) of
+        Some(code) => (ledger, failure(code))
+        None => commit(mutation, raw, ledger)
+
+fn execute(raw : Json, ledger : Ledger) : (Ledger, Json) =
+  match parse_operation(raw) of
+    Err(code) => (ledger, failure(code))
+    Ok(Read(kind, as_of)) => (ledger, read_ledger(kind, as_of, ledger))
+    Ok(Write(mutation)) => write_ledger(mutation, raw, ledger)
+
+fn execute_all(
+  operations : List(Json),
+  ledger : Ledger,
+  results : List(Json)
+) : List(Json) =
+  match operations of
+    Nil => reverse(results)
+    Cons(raw, rest) =>
+      let (updated, result) = execute(raw, ledger)
+      execute_all(rest, updated, Cons(result, results))
+
+fn run(request : Json) : Json =
+  let input = field(request, "input")
+  if not(shape(input, ["operations"])) then
+    failure("INVALID_INPUT")
+  else
+    match field(input, "operations") of
+      JArr(operations) =>
+        if length(operations) > 500 then
+          failure("INVALID_INPUT")
+        else
+          success(JObj([
+              ("results", JArr(execute_all(operations, empty_ledger(), []))),
+            ]))
+      _ => failure("INVALID_INPUT")
+
+fn main() =
+  let response =
+    match decode_lossy(read_line()) of
+      Ok(request) => run(request)
+      Err(_) => failure("INVALID_INPUT")
+  println(encode(response))
