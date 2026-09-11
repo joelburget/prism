@@ -1,0 +1,50 @@
+import Data.List (..)
+import Data.Foldable (..)
+import Data.String (..)
+import Data.Result (..)
+import Json (..)
+import Domain (..)
+import Runner (snapshot)
+
+fn step_status(status : StepStatus) : String =
+  match status of
+    Pending => "pending"
+    Running => "running"
+    Succeeded => "succeeded"
+
+fn run_status(status : RunStatus) : String =
+  match status of
+    Active => "active"
+    Completed => "succeeded"
+
+fn step_json(step : StepState) : Json =
+  JObj([("id", JStr(step.id)), ("status", JStr(step_status(step.status))),
+    ("attempts", JInt(step.attempts)), ("ready_at", JInt(step.ready_at))])
+
+fn run_json(run : RunState) : Json =
+  JObj([("id", JStr(run.id)), ("status", JStr(run_status(run.status))),
+    ("cancel_requested", JBool(run.cancel_requested)), ("steps", JArr(map(step_json, run.steps)))])
+
+fn snapshot_fields(state : Snapshot) : List((String, Json)) =
+  [("now", JInt(state.now)), ("up", JBool(state.up)), ("runs", JArr(map(run_json, state.runs)))]
+
+fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))
+
+fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
+
+fn call_json(call : ServiceCall) : Json =
+  JObj([("kind", JStr("execute")), ("key", key_json(call.key)),
+    ("attempt", JInt(call.attempt)), ("outcome", JStr("applied"))])
+
+fn effect_json(entry : Effect) : Json =
+  JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
+
+pub fn result_json(sim : Simulator) : Json =
+  let final_fields = append(snapshot_fields(snapshot(sim)),
+    [("calls", JArr(map(call_json, sim.service.calls))), ("effects", JArr(map(effect_json, sim.service.effects)))])
+  JObj([("observations", JArr(map(snapshot_json, sim.observations))), ("final", JObj(final_fields))])
+
+pub fn response_json(result : Result(Simulator, String)) : Json =
+  match result of
+    Ok(sim) => JObj([("ok", JBool(true)), ("result", result_json(sim))])
+    Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])

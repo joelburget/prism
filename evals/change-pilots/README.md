@@ -8,9 +8,9 @@ Three modification tasks for comparing agents working in Prism and another langu
 | `workflow-recovery` | In-memory workflow runner | Durable recovery, retries, cancellation, and idempotent external actions | 19 / 38 | [Problem](workflow-recovery/PROBLEM.md), [cases](workflow-recovery/cases.json) |
 | `ledger-refunds` | Append-only ledger and invoice system | Partial refunds and compensating reversals | 24 / 31 | [Problem](ledger-refunds/PROBLEM.md), [cases](ledger-refunds/cases.json) |
 
-This directory contains problem descriptions, public acceptance fixtures, an additional [evaluator-only held-out corpus](heldout/README.md), and a shared executable runner. **It does not yet contain starting implementations or completed solutions.** Each language is evaluated in a separate agent run using the same process protocol and public cases. A run receives only its assigned language's starter. Python is used only to drive processes and compare JSON; it is not the required comparison language.
+This directory contains problem descriptions, public acceptance fixtures, an additional [evaluator-only held-out corpus](heldout/README.md), a shared executable runner, and [baseline starter implementations](starters/README.md) in **Prism, Python, and TypeScript for all three tasks**. Completed extension solutions are not included. Each language is evaluated in a separate agent run using the same process protocol and public cases. A run receives only its assigned language's starter. The Python test driver is independent of the implementation language.
 
-Each problem specifies the baseline that future starters must implement, the requested extension, observable behavior, and boundaries on scope. Starter code should be substantial, idiomatic, and prevalidated in each language. Compare extension runs from frozen starter revisions. An agent modifying a starter must preserve its existing public interfaces as well as satisfy this external acceptance contract; the black-box suite cannot enforce internal source compatibility on its own.
+Each problem specifies the baseline implemented by the starters, the requested extension, observable behavior, and boundaries on scope. Compare extension runs from frozen starter revisions. An agent modifying a starter must preserve its existing public interfaces as well as satisfy this external acceptance contract; the black-box suite cannot enforce internal source compatibility on its own.
 
 ## Separate language runs
 
@@ -19,17 +19,18 @@ Run Prism and the comparison language in fresh, separate agent sessions. Each se
 Freeze the common specification, fixtures, and experimental settings before either run. Apply the same predeclared budget policy and score the submitted artifacts afterward. A shared suite means evaluator reuse across independent runs, not simultaneous access to both implementations. The process runner below does not provision or enforce this agent isolation.
 
 The committed `heldout/` directory and its Git history belong to the evaluator.
-Create each agent's public input with an allowlisted export, then add only its
-assigned starter and language tooling:
+Create each agent's public input with an allowlisted export selecting one task
+and one language, then supply its language tooling:
 
 ```sh
-python3 evals/change-pilots/export_public.py --task query-null --output /path/outside/this/repository/query-public
+python3 evals/change-pilots/export_public.py --task query-null --language prism --output /path/outside/this/repository/query-prism
 ```
 
 The output directory must be new and outside this evaluator repository. It contains
-only the selected task's public description/cases, runner, usage instructions, and
-a hash manifest. It excludes the private corpus, coverage notes, reports, other
-tasks, and Git metadata. Run the export in an environment where the implementation
+only the selected task's public description/cases, runner, usage instructions,
+one language's `starter/` sources, and a hash manifest. Omit `--language` for a
+tests-only bundle. It excludes other implementations, the private corpus,
+coverage notes, reports, other tasks, and Git metadata. Run the export in an environment where the implementation
 agent cannot read this source checkout; copying alone does not restrict access.
 
 ## Run the suite
@@ -47,21 +48,22 @@ python3 evals/change-pilots/run.py list --task query-null --phase extension
 python3 -m unittest discover -s evals/change-pilots/tests -v
 ```
 
-Once starting implementations and their process entry points exist:
+Build Prism once before testing. The Python and TypeScript launchers run source
+directly (see starter READMEs for runtime requirements):
 
 ```sh
-# Example paths below are placeholders for future implementations.
+./evals/change-pilots/starters/query-null/prism/build.sh
 python3 evals/change-pilots/run.py run --task query-null --phase baseline \
-  --command './path/to/prism-query-runner' --report evals/change-pilots/reports/prism-baseline.json
+  --command './evals/change-pilots/starters/query-null/prism/run.sh' --report evals/change-pilots/reports/prism-baseline.json
 
-python3 evals/change-pilots/run.py run --task query-null \
-  --command 'python3 path/to/python_query_runner.py' --report evals/change-pilots/reports/python-complete.json
+python3 evals/change-pilots/run.py run --task query-null --phase baseline \
+  --command './evals/change-pilots/starters/query-null/python/run.sh'
 
-python3 evals/change-pilots/run.py run --task workflow-recovery \
-  --command './path/to/workflow-runner' --timeout 30
+python3 evals/change-pilots/run.py run --task ledger-refunds --phase baseline \
+  --command './evals/change-pilots/starters/ledger-refunds/typescript/run.sh'
 
-python3 evals/change-pilots/run.py run --task ledger-refunds \
-  --command 'node path/to/compiled-ledger-runner.js'
+# Verify all nine starters, including that positive extension work is still missing.
+python3 evals/change-pilots/starters/check.py --build --verify-incomplete
 ```
 
 The command is split into arguments using `shlex`, then executed **without a shell**. Paths containing spaces need quotes inside the command string. Compile once before the run; use a small launcher script if needed. `--cwd` sets the implementation's working directory; otherwise it inherits the current directory. Task selection is repeatable; omitting it selects all three tasks and requires one executable that dispatches on the request's `task`. A single-task export must use `--task` and does not need other tasks' files. `--case CASE_ID` selects exact IDs within the task/phase selection and is repeatable. An invalid or empty selection is an error, never a pass.
@@ -133,7 +135,7 @@ Each task's `cases.json` has `schema_version: 1`, its task identifier, and a `ca
 | `input` | Task-specific object, wrapped by the harness in the wire request |
 | `expect` | Entire expected wire response |
 
-Multiple operations in one fixture share logical state; different fixtures do not. Observations in the middle of a sequence test historical and intermediate behavior, rejected-operation atomicity, and interactions after failure—not only the final state. A future starter must pass all baseline cases. A completed modification must pass **both** phases using the same executable.
+Multiple operations in one fixture share logical state; different fixtures do not. Observations in the middle of a sequence test historical and intermediate behavior, rejected-operation atomicity, and interactions after failure—not only the final state. Every starter must pass all baseline cases. A completed modification must pass **both** phases using the same executable. The existing phase partition is the starter acceptance set; cases have not been moved or weakened to accommodate implementations.
 
 Results are reported separately for each task and phase. Full acceptance requires every selected case to pass; case pass rates are useful diagnostics, not an unbiased cross-task difficulty score. Feature groups should receive deliberate weights if partial credit is used later. A compound case can check several requirements, so a failure count is not a defect count. Store the repository revision, starter revision, toolchain versions, agent/model settings, prompts, and resource budgets alongside each experiment's report; the runner records the command, cwd, timeout, and per-case results.
 

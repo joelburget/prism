@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task": "ledger-refunds",
+  "language": "prism",
+  "entrypoint": "run.sh",
+  "build": "build.sh",
+  "files": [
+    ".gitignore",
+    "README.md",
+    "build.sh",
+    "main.pr",
+    "prism.toml",
+    "run.sh"
+  ]
+}

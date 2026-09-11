@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task": "ledger-refunds",
+  "language": "typescript",
+  "entrypoint": "run.sh",
+  "build": null,
+  "files": [
+    ".gitignore",
+    "README.md",
+    "ledger.ts",
+    "package-lock.json",
+    "package.json",
+    "run.sh",
+    "tsconfig.json"
+  ]
+}

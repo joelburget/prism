@@ -9,9 +9,10 @@ import shutil
 import tempfile
 
 from run import ROOT, TASKS, load_cases
+from starter_support import LANGUAGES, load_starter
 
 
-def export_public(task: str, destination: Path, root: Path = ROOT) -> Path:
+def export_public(task: str, destination: Path, root: Path = ROOT, language: str | None = None) -> Path:
     if task not in TASKS:
         raise ValueError(f"unknown task: {task}")
     destination = destination.absolute()
@@ -27,11 +28,24 @@ def export_public(task: str, destination: Path, root: Path = ROOT) -> Path:
     files = {"run.py": (root / "run.py").read_bytes(),
              f"{task}/PROBLEM.md": (root / task / "PROBLEM.md").read_bytes(),
              f"{task}/cases.json": (root / task / "cases.json").read_bytes()}
+    executable = set()
+    starter = load_starter(task, language, root) if language is not None else None
+    if starter:
+        for name, path in starter.source_files():
+            files[f"starter/{name}"] = path.read_bytes()
+            if path.stat().st_mode & 0o111:
+                executable.add(f"starter/{name}")
+        starter_intro = f"This bundle includes only the {language} baseline starter in `starter/`."
+        starter_commands = ((f"./starter/{starter.build}\n" if starter.build else "") +
+                            f"python3 run.py run --task {task} --phase baseline --command './starter/{starter.entrypoint}'")
+    else:
+        starter_intro = "Starters are packaged separately; supply only the assigned language's starter."
+        starter_commands = f"python3 run.py run --task {task} --phase baseline --command './path/to/implementation'"
     files["README.md"] = f"""# Public change pilot: {task}
 
 Read [{task}/PROBLEM.md]({task}/PROBLEM.md) for the baseline contract and requested
-modification. This bundle contains public tests and their process runner. Supply
-only the assigned language's starter in this run; starters are packaged separately.
+modification. This bundle contains public tests and their process runner.
+{starter_intro}
 Use a fresh agent session, with no access to another language's code or run artifacts.
 
 The parent README referenced by the problem is this file. Agent filesystem/network
@@ -46,7 +60,7 @@ From this directory:
 ```sh
 python3 run.py validate --task {task}
 python3 run.py list --task {task}
-python3 run.py run --task {task} --phase baseline --command './path/to/implementation'
+{starter_commands}
 python3 run.py run --task {task} --command './path/to/implementation' --report report.json
 ```
 
@@ -65,11 +79,14 @@ for runner configuration/infrastructure errors. A completed change must pass bot
 baseline and extension cases. Public test iteration and agent-authored tests are
 allowed. Additional evaluator tests use the same published semantics.
 
-`MANIFEST.json` fingerprints the public files in this export. No starter, evaluator
-corpus, evaluator reports, or Git metadata is included in this bundle.
+`MANIFEST.json` fingerprints the public files and any included starter sources.
+No other starter, evaluator corpus, evaluator reports, or Git metadata is included.
 """.encode("utf-8")
     manifest = {"schema_version": 1, "task": task,
                 "files": {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())}}
+    if starter:
+        manifest["language"] = language
+        manifest["starter_sha256"] = starter.digest()
     files["MANIFEST.json"] = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=".pilot-export-", dir=destination.parent))
@@ -78,6 +95,8 @@ corpus, evaluator reports, or Git metadata is included in this bundle.
             path = temporary / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
+            if name in executable:
+                path.chmod(0o755)
         # Do not merge into a preexisting folder that may contain private material.
         destination.mkdir()
         for path in temporary.iterdir():
@@ -91,9 +110,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", required=True, choices=TASKS)
     parser.add_argument("--output", type=Path, required=True, help="new directory outside the evaluator repository")
+    parser.add_argument("--language", choices=LANGUAGES, help="include only this language's baseline starter")
     args = parser.parse_args(argv)
     try:
-        destination = export_public(args.task, args.output)
+        destination = export_public(args.task, args.output, language=args.language)
     except (OSError, ValueError) as exc:
         parser.exit(2, f"Export failed: {exc}\n")
     print(f"Exported public {args.task} bundle to {destination}")

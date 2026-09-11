@@ -13,8 +13,10 @@ catch. Those are reasoned coverage hypotheses, not claims of measured mutation k
 
 `MANIFEST.json` records counts and hashes for both corpora, the public problem
 descriptions, and the runner. Treat those inputs as frozen for an experiment.
-There is no completed task implementation here, so these cases have not yet been
-run against actual Prism or comparison-language submissions.
+Baseline starters are available in Prism, Python, and TypeScript. Evaluator-only
+baseline cases validate those starting programs. Completed extension submissions
+are not included, so extension cases have not yet been run against completed
+Prism or comparison-language submissions.
 
 ## Isolation and separate runs
 
@@ -24,8 +26,9 @@ this source checkout, a clone containing its history, these coverage notes, priv
 reports, or the conversations used to author/review these cases. Keep this commit
 and private cases out of repositories or services the measured agents can access.
 
-Use `../export_public.py` to create an allowlisted task bundle. Add only the assigned
-language's starter and tooling to that run. Put the bundle in an isolated evaluation
+Use `../export_public.py --task TASK --language LANGUAGE --output PATH` to create
+an allowlisted bundle containing one task and its assigned language's starter.
+Provide the appropriate language tooling. Put the bundle in an isolated evaluation
 environment without access to this evaluator checkout or the other language's run.
 Fresh contexts are required: agents that authored these cases are not eligible to
 serve as independent implementation agents for the same held-out evaluation.
