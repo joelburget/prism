@@ -9,7 +9,10 @@ import statistics
 import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from run import runner
+try:
+    from ..run import runner
+except ImportError:
+    from run import runner
 
 
 def workload(size,updates=128,profile='point-updates'):

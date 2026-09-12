@@ -1,0 +1,104 @@
+import Json (..)
+import Data.Bytes (..)
+
+-- Restricted scaling control, not a candidate query implementation.
+let incremental : Bool = true
+
+fn field(value : Json, key : String) : Json =
+  match value of
+    JObj(fields) => find_field(fields, key)
+    _ => JNull
+
+fn find_field(fields : List((String, Json)), key : String) : Json =
+  match fields of
+    Nil => JNull
+    Cons((name, value), rest) => if str_eq(name, key) then value else find_field(rest, key)
+
+fn arr(value : Json) : List(Json) =
+  match value of
+    JArr(xs) => xs
+    _ => []
+
+fn num(value : Json) : Int =
+  match value of
+    JInt(n) => n
+    _ => 0
+
+fn txt(value : Json) : String =
+  match value of
+    JStr(s) => s
+    _ => ""
+
+fn at(xs : List(Json), index : Int) : Json =
+  match xs of
+    Nil => JNull
+    Cons(x, rest) => if index == 0 then x else at(rest, index - 1)
+
+fn table_rows(tables : List(Json), name : String) : List(Json) =
+  match tables of
+    Nil => []
+    Cons(t, rest) => if str_eq(txt(field(t, "name")), name) then arr(field(t, "rows")) else table_rows(rest, name)
+
+fn build_rows(rows : List(Json), id : Int, result : Map(Int, Int)) : Map(Int, Int) =
+  match rows of
+    Nil => result
+    Cons(row, rest) => build_rows(rest, id + 1, map_insert(id, num(at(arr(row), 1)), result))
+
+fn value_at(id : Int, values : Map(Int, Int)) : Int =
+  match map_lookup(id, values) of
+    Some(n) => n
+    None => 0
+
+fn build_index(pairs : List((Int, Int)), result : Map(Int, Int)) : Map(Int, Int) =
+  match pairs of
+    Nil => result
+    Cons((id, value), rest) => build_index(rest, map_insert(id - 1, value, result))
+
+fn join_sum(rows : List(Json), index : Map(Int, Int), total : Int) : Int =
+  match rows of
+    Nil => total
+    Cons(row, rest) => join_sum(rest, index, total + value_at(num(at(arr(row), 0)), index))
+
+fn recompute(rows : List(Json), values : Map(Int, Int)) : Int =
+  join_sum(rows, build_index(map_to_list(values), map_empty), 0)
+
+fn success(value : Json) : Json = JObj([("ok", JBool(true)), ("result", value)])
+
+fn apply_changes(changes : List(Json), values : Map(Int, Int), total : Int) : (Map(Int, Int), Int) =
+  match changes of
+    Nil => (values, total)
+    Cons(change, rest) =>
+      if str_eq(txt(field(change, "table")), "r") then
+        let id = num(field(change, "id"))
+        let value = num(at(arr(field(change, "row")), 1))
+        apply_changes(rest, map_insert(id, value, values), total + value - value_at(id, values))
+      else
+        apply_changes(rest, values, total)
+
+fn commands(ops : List(Json), rows : List(Json), values : Map(Int, Int), total : Int, revision : Int, replies : List(Json)) : List(Json) =
+  match ops of
+    Nil => reverse(replies)
+    Cons(op, rest) =>
+      let kind = txt(field(op, "op"))
+      if str_eq(kind, "create") then
+        let reply = success(JObj([("view", field(op, "view")), ("revision", JInt(revision))]))
+        commands(rest, rows, values, total, revision, Cons(reply, replies))
+      elif str_eq(kind, "apply") then
+        let (updated, new_total) = apply_changes(arr(field(op, "changes")), values, total)
+        let reply = success(JObj([("revision", JInt(revision + 1))]))
+        commands(rest, rows, updated, new_total, revision + 1, Cons(reply, replies))
+      else
+        let sum = if incremental then total else recompute(rows, values)
+        let reply = success(JObj([("revision", JInt(revision)), ("columns", JArr([JStr("n"), JStr("s")])), ("rows", JArr([JArr([JInt(length(rows)), JInt(sum)])]))]))
+        commands(rest, rows, values, total, revision, Cons(reply, replies))
+
+fn main() =
+  let request = match decode_lossy(read_line()) of
+    Ok(value) => value
+    Err(_) => JNull
+  let input = field(request, "input")
+  let tables = arr(field(input, "database"))
+  let rows = table_rows(tables, "l")
+  let values = build_rows(table_rows(tables, "r"), 1, map_empty)
+  let replies = commands(arr(field(input, "commands")), rows, values, recompute(rows, values), 0, [])
+  println(encode(success(JObj([("results", JArr(replies))]))))

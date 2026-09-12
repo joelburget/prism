@@ -7,8 +7,12 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from run import runner
-from export_public import source_files, digest
+try:
+    from ..run import runner
+    from ..export_public import source_files, digest
+except ImportError:
+    from run import runner
+    from export_public import source_files, digest
 sys.path.insert(0,str(ROOT.parent))
 from experiments.sandbox import DockerEvaluation, SubmissionBuildError, image_identity
 

@@ -1,0 +1,4 @@
+[package]
+name = "query_scaling_control"
+[bin]
+entry = "main.pr"
