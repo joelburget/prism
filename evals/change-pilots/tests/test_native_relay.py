@@ -179,6 +179,8 @@ class NativeConfigTest(unittest.TestCase):
         self.assertIn("tools.experimental_request_user_input.enabled=false", codex)
         self.assertTrue(any('tools={execute={approval_mode="approve"}}' in value for value in codex))
         self.assertIn('approval_policy="never"', codex)
+        self.assertIn('sandbox_mode="workspace-write"', codex)
+        self.assertNotIn('sandbox_mode="read-only"', codex)
         for model in ("", "--some-option", 'model"\nconfig=bad', None):
             with self.assertRaises(ValueError):
                 client_argv("codex", model)

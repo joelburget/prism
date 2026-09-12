@@ -14,21 +14,24 @@ import uuid
 
 from .native_probe import run_offline_probe
 from .native_session import subscription_status
-from .native_setup import DEFAULT_IMAGE, create_client, docker, inspect_boundary, verify_network
+from .native_setup import DEFAULT_IMAGE, create_client, docker, image_id, inspect_boundary, verify_network
+from .native_task_setup import DEFAULT_IMAGE as TASK_IMAGE
 
 
-def verify(provider, model_id, image=DEFAULT_IMAGE, effort=None):
+def verify(provider, model_id, image=DEFAULT_IMAGE, effort=None, task_image=TASK_IMAGE):
     volume = "prism-native-check-" + uuid.uuid4().hex
+    task_id = image_id(task_image)
     try:
         with create_client(provider, image, auth_volume=volume, offline=True) as client:
             identity = client.image_id
             offline_boundary = inspect_boundary(client)
-            inventory = run_offline_probe(client, model_id, effort=effort)
+            inventory = run_offline_probe(client, model_id, effort=effort, task_image=task_id)
         # Pin the same image even if a concurrent build changes the image tag.
         with create_client(provider, identity, auth_volume=volume) as client:
             boundary = inspect_boundary(client)
             network = verify_network(client)
         return {"provider": provider, "model_id": model_id, "effort": effort, "image_id": identity,
+                "task_image_id": task_id,
                 "offline_boundary": offline_boundary, "boundary": boundary,
                 "network": network, "inventory": inventory,
                 "isolation_and_routing_verified": all((offline_boundary["passed"],
@@ -58,12 +61,13 @@ def main():
     parser.add_argument("--model-id")
     parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh", "max"))
     parser.add_argument("--image", default=DEFAULT_IMAGE)
+    parser.add_argument("--task-image", default=TASK_IMAGE)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.command == "verify":
         if not args.model_id:
             parser.error("verify requires --model-id (tool inventory can depend on the model)")
-        report = verify(args.provider, args.model_id, args.image, args.effort)
+        report = verify(args.provider, args.model_id, args.image, args.effort, args.task_image)
     else:
         if args.command == "import-codex-login" and args.provider != "openai":
             parser.error("import-codex-login requires --provider openai")

@@ -19,17 +19,18 @@ import tempfile
 import time
 import uuid
 
-from .control import (COMPREHENSION, DEFAULT_IMAGE as TASK_IMAGE, HERE, TASKS, LANGUAGES,
+from .control import (COMPREHENSION, HERE, TASKS, LANGUAGES,
                       _image_id, export_public, file_hash, grade_submission,
                       inputs_fingerprint, json_bytes, load_starter, prompt_for,
                       select_models, source_patch, tree_fingerprint)
 from .native_config import client_argv
 from .native_session import run_client, subscription_status
 from .native_setup import DEFAULT_IMAGE as CLIENT_IMAGE, create_client, inspect_boundary
+from .native_task_setup import DEFAULT_IMAGE as TASK_IMAGE
 from .results import ResultStore
 from .sandbox import DockerSandbox, InvalidSubmissionError, SandboxFrozenError
 
-HARNESS = "subscription-native-v1"
+HARNESS = "subscription-native-v2"
 VERIFICATION = HERE / "NATIVE_VERIFICATION.json"
 SCORED_STOPS = {"completed", "native_wall_timeout", "native_turn_limit", "native_tool_limit", "native_output_limit"}
 
@@ -38,10 +39,21 @@ def effort_for(model):
     return model.get("reasoning") if model["provider"] == "openai" else model.get("effort")
 
 
-def checked_verification(path, image_id, models):
+def native_prompt_for(task, language):
+    return prompt_for(task, language) + """
+The execute tool runs in a writable task container: /work and /work/starter are writable.
+The apply_patch command is installed there. To edit files, invoke apply_patch with a patch
+on stdin through execute (a shell heredoc is supported). The native client's own filesystem
+is separate from the task container. All task inspection, edits, builds and tests use execute.
+"""
+
+
+def checked_verification(path, image_id, models, task_image_id=None):
     report = json.loads(Path(path).read_text())
     if report.get("image_id") != image_id:
         raise ValueError("native image does not match the verification report")
+    if task_image_id is not None and report.get("task_image_id") != task_image_id:
+        raise ValueError("task image does not match the native tool verification report")
     hashes = report.get("source_sha256", {})
     required = {"native_bridge.py", "native_config.py", "native_probe.py", "native_proxy.py",
                 "native_relay.py", "native_session.py", "native_setup.py"}
@@ -79,11 +91,11 @@ def make_plan(root, model_keys=None, tasks=("ledger-refunds",), languages=LANGUA
         raise ValueError("plan already exists; use a fresh results directory")
     models = select_models(model_keys)
     task_id, client_id = _image_id(task_image), _image_id(client_image)
-    report = checked_verification(verification, client_id, models)
+    report = checked_verification(verification, client_id, models, task_id)
     cells = [{"run_id": "run-" + uuid.uuid4().hex[:12], "task": task, "language": language,
               "model": model, "effort": effort_for(model), "repetition": repetition,
               "starter_sha256": load_starter(task, language).digest(),
-              "prompt": prompt_for(task, language)}
+              "prompt": native_prompt_for(task, language)}
              for task in tasks for language in languages for model in models
              for repetition in range(1, repetitions + 1)]
     random.Random(seed).shuffle(cells)
@@ -149,7 +161,7 @@ def _execute_locked(store, limit):
     verification = store.root / "NATIVE_VERIFICATION.json"
     if file_hash(verification) != plan["verification_sha256"]:
         raise ValueError("native verification changed after planning")
-    checked_verification(verification, plan["native_image_id"], [c["model"] for c in plan["runs"]])
+    checked_verification(verification, plan["native_image_id"], [c["model"] for c in plan["runs"]], plan["task_image_id"])
     for cell in plan["runs"]:
         directory = store.run_dir(cell["run_id"])
         if directory.exists():
@@ -161,6 +173,9 @@ def _execute_locked(store, limit):
     finished = 0
     stopped = None
     for cell in plan["runs"]:
+        if (store.root / "STOP_AFTER_CURRENT").exists():
+            return {"runs_finished": finished, "stopped_on_infrastructure_run": None,
+                    "paused_by_operator": True, "harness": HARNESS, "estimated_cost_usd": None}
         run_id, model = cell["run_id"], cell["model"]
         if store.run_dir(run_id).exists():
             continue
@@ -221,6 +236,7 @@ def _execute_locked(store, limit):
                         agent_result = run_client(client, argv, cell["prompt"], execute, record,
                             wall_seconds=plan["budgets"]["wall_timeout_seconds"],
                             max_calls=plan["budgets"]["max_tool_calls"])
+                        store.write_artifact(run_id, "native-result.json", json_bytes(agent_result))
                     if native_turn_limit and agent_result.get("stop_reason") == "native_client_error":
                         agent_result["stop_reason"] = "native_turn_limit"
                     sandbox.freeze()

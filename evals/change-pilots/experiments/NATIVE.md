@@ -12,6 +12,7 @@ From `evals/change-pilots`:
 
 ```sh
 python3 -m experiments.native_setup build
+python3 -m experiments.native_task_setup
 python3 -m experiments.native_check verify --provider openai \
   --model-id gpt-5.6-luna --effort medium --output reports/native-openai.json
 python3 -m experiments.native_check verify --provider anthropic \
@@ -34,6 +35,25 @@ Native CLI defaults control token limits; no shared token or dollar cap is claim
 No API keys or automatic paid fallback are used. Infrastructure failures stop the
 batch and stay separate from ability scores; finished cells are never retried.
 The legacy `native.py` preview remains disabled; use the `native_batch` entrypoint.
+To pause after the active rollout, create `STOP_AFTER_CURRENT` in the results
+directory; remove it before resuming. Native completion records are saved before
+grading so interrupted grading preserves the agent's output and usage.
+
+Protocol `subscription-native-v2` fixes a mismatch discovered during the first
+calibration attempt: Codex's client permissions said `read-only`, and its native
+instructions required an `apply_patch` command absent from the task image. A model
+therefore stopped without edits. The four attempted v1 cells remain retained in
+their original results directory and are excluded from the corrected comparison.
+Problem descriptions, starters, acceptance cases and rollout limits did not change.
+V2 uses `workspace-write` in Codex's configuration while retaining the whole-client
+Docker boundary, and supplies the genuine pinned Codex patch helper plus npm's
+existing `npx` entrypoint in every language's task image. The native task prompt
+explicitly describes the writable remote workspace and available editor.
+
+The task image includes the public Codex binary because its `apply_patch` invocation
+selects the patch parser. It has no authentication/configuration files, network or
+host mounts. Both inputs are pinned by immutable image ID; its build context
+contains only `NativeTaskDockerfile`. Language runtimes and Prism compiler are unchanged.
 
 Verification uses a disposable blank authentication volume and a fake provider
 inside a network-disabled container. It captures the actual CLI tool inventory,
