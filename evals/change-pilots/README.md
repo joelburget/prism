@@ -13,7 +13,8 @@ This directory contains problem descriptions, public acceptance fixtures, an add
 The [experiment controller](experiments/README.md) adds repeated API agent runs,
 isolated Docker execution, quantitative records and a model-blind human review UI.
 See the [eight-model cost scenarios](experiments/COST_ESTIMATE.md) before scheduling
-paid runs. Subscription-native CLI execution is still a preparation-only path.
+paid runs. [Subscription-native setup](experiments/NATIVE.md) provides isolated
+clients and routing checks; the batch scheduler currently uses the API path.
 
 Each problem specifies the baseline implemented by the starters, the requested extension, observable behavior, and boundaries on scope. Compare extension runs from frozen starter revisions. An agent modifying a starter must preserve its existing public interfaces as well as satisfy this external acceptance contract; the black-box suite cannot enforce internal source compatibility on its own.
 

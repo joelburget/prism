@@ -3,7 +3,7 @@
 Verified on 2026-09-11. **No authenticated model inference or paid API requests
 were made.** These checks validate infrastructure, not model performance.
 
-- Public maintenance suite: 103 tests discovered, 99 passed and four opt-in Docker
+- Public maintenance suite: 145 tests discovered, 141 passed and four opt-in Docker
   tests skipped in the default invocation. The four Docker tests were separately
   run successfully against the built image.
 - Evaluator-only maintenance suite: nine tests passed. The frozen corpus/spec/runner
@@ -37,12 +37,25 @@ Its pinned compiler source is Prism v0.18.0 commit
 Node 25.2.1, Prism 0.18.0 and TypeScript 5.9.3. Rebuilding with mutable base/apt
 repositories may produce a different image; the experiment records its actual ID.
 
-Installed native clients reported Codex 0.154.0 and Claude Code 2.1.257.
-Separate read-only authentication checks reported ChatGPT login and claude.ai Max
-login respectively. These checks did not establish all eight model entitlements,
-remaining subscription quota, or a usable isolated native execution route.
+Native image: `sha256:9a294e07d162da1c01a8ba3ddcfed8e617c45b748d19eb9c7b672c6d51da9dd6`,
+containing Codex 0.154.0 and Claude Code 2.1.257. Both provider containers passed
+20 Docker configuration checks each; OpenAI passed 11 and Anthropic 13 network
+checks. All eight model configurations passed real-CLI offline inventory and
+MCP canary execution through the separate task container. Codex exposes execute
+and three empty resource helpers; Claude exposes execute only. Medium effort was
+preserved for every model except Haiku, which has no configured effort.
+
+The public native-check command also passed end to end for Luna. Tests cover relay
+framing and IDs, builtin-tool leakage in both ordinary and Responses Lite requests,
+authentication status redaction, broken relays, blocked stdin deadlines and output
+limits. See [machine-readable verification evidence](NATIVE_VERIFICATION.json) and
+[reproduction/login instructions](NATIVE.md).
+
+The isolated Codex container recognizes ChatGPT authentication after the documented
+headless cache copy. Isolated Claude requires a fresh subscription login; the host
+Mac keychain was not exported. No live model access or remaining quota was checked.
 
 Still to validate through calibration: live provider schemas/model availability,
 real tool-use behavior, effective model settings, empirical cost/time distributions,
 and whether the selected budgets yield useful task difficulty. Subscription-native
-execution remains disabled pending its own client isolation and routing validation.
+batch execution remains disabled pending live calibration and scheduler integration.

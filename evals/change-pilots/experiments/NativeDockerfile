@@ -1,0 +1,21 @@
+# Build with native_setup.py build: its context contains only allowlisted native helpers.
+FROM prism-change-pilots:0.18.0-py3.14.7-node25.2.1
+USER 0:0
+RUN npm install --global --registry=https://registry.npmjs.org \
+      @openai/codex@0.154.0 @anthropic-ai/claude-code@2.1.257 \
+ && npm cache clean --force \
+ && mkdir -p /opt/native /opt/pilot /home/native/.codex /home/native/.claude /home/native/.config /work /session \
+ && chown -R 1000:1000 /home/native /work /session
+COPY native_proxy.py /opt/native/native_proxy.py
+COPY native_relay.py native_config.py native_probe.py /opt/pilot/
+RUN python3 -c 'import sys; sys.path.insert(0,"/opt/pilot"); from native_config import build_codex_catalog; build_codex_catalog()'
+ENV HOME=/home/native CODEX_HOME=/home/native/.codex \
+    CLAUDE_CONFIG_DIR=/home/native/.claude \
+    DISABLE_AUTOUPDATER=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+    ENABLE_CLAUDEAI_MCP_SERVERS=false CLAUDE_CODE_DISABLE_ARTIFACT=1 \
+    DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1 DO_NOT_TRACK=1
+USER 1000:1000
+WORKDIR /work
+RUN codex --version && claude --version
+ENTRYPOINT []
+CMD ["sleep", "infinity"]

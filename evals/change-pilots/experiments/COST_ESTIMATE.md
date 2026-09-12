@@ -64,10 +64,12 @@ usage must be checked; no unlimited/free-throughput assumption is used here.
 [Codex authentication](https://learn.chatgpt.com/docs/auth) and
 [Claude Code subscription usage](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan).
 
-Both installed clients reported subscription login during setup. Native client
-isolation and tool routing are still unverified, so the shipped native adapter
-only provides preparation/diagnostics and does not launch inference. Native runs
-will be a separate experiment because their harnesses differ from the shared API loop.
+Both installed host clients reported subscription login during setup. The isolated
+Codex client now recognizes ChatGPT login; isolated Claude requires its own login.
+[Native setup](NATIVE.md) supplies whole-client containers and real offline routing
+checks. The batch scheduler remains API-only pending live native calibration and
+integration. Native runs will be a separate experiment because their harnesses
+differ from the shared API loop.
 
 ## Reproduce or update
 

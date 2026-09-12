@@ -15,7 +15,7 @@ class NativeTest(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=AssertionError("Must not launch a model")):
             result = run_native({"provider": "openai", "model_id": "fixture-model", "isolation_verified": True},
                                 "task", lambda *a: self.fail("Must not execute"), events.append)
-        self.assertEqual(result["stop_reason"], "native_isolation_unverified")
+        self.assertEqual(result["stop_reason"], "native_batch_not_integrated")
         self.assertEqual(result["inference_requests"], 0)
         self.assertIsNone(result["estimated_cost_usd"])
         self.assertEqual(events[0]["event"], "native_blocked")

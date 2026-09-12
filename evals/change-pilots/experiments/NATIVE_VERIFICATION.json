@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-09-12T02:12:28.372016+00:00",
+  "image_id": "sha256:9a294e07d162da1c01a8ba3ddcfed8e617c45b748d19eb9c7b672c6d51da9dd6",
+  "real_inference_requests": 0,
+  "offline_fixture_authentication": "empty temporary homes and volumes; no real credentials",
+  "boundary_checks": [
+    {
+      "provider": "openai",
+      "container": {
+        "passed": true,
+        "checks": {
+          "image_identity": true,
+          "nonroot": true,
+          "unprivileged": true,
+          "capabilities_dropped": true,
+          "no_new_privileges": true,
+          "read_only_root": true,
+          "no_host_namespaces": true,
+          "no_host_binds": true,
+          "only_auth_volume": true,
+          "no_devices": true,
+          "no_published_ports": true,
+          "only_expected_network": true,
+          "dns_forwarding_disabled": true,
+          "internal_network": true,
+          "isolated_gateway": true,
+          "proxy_two_networks": true,
+          "proxy_no_auth_mounts": true,
+          "proxy_image_identity": true,
+          "proxy_hardened": true,
+          "auth_volume_no_driver_options": true
+        },
+        "image_id": "sha256:9a294e07d162da1c01a8ba3ddcfed8e617c45b748d19eb9c7b672c6d51da9dd6"
+      },
+      "network": {
+        "passed": true,
+        "checks": {
+          "github_blocked": true,
+          "ip_literal_blocked": true,
+          "http_blocked": true,
+          "port_80_blocked": true,
+          "suffix_attack_blocked": true,
+          "cross_provider_blocked": true,
+          "direct_egress_blocked": true,
+          "external_dns_blocked": true,
+          "tls_api.openai.com": true,
+          "tls_auth.openai.com": true,
+          "tls_chatgpt.com": true
+        },
+        "auth_requests": 0,
+        "inference_requests": 0
+      }
+    },
+    {
+      "provider": "anthropic",
+      "container": {
+        "passed": true,
+        "checks": {
+          "image_identity": true,
+          "nonroot": true,
+          "unprivileged": true,
+          "capabilities_dropped": true,
+          "no_new_privileges": true,
+          "read_only_root": true,
+          "no_host_namespaces": true,
+          "no_host_binds": true,
+          "only_auth_volume": true,
+          "no_devices": true,
+          "no_published_ports": true,
+          "only_expected_network": true,
+          "dns_forwarding_disabled": true,
+          "internal_network": true,
+          "isolated_gateway": true,
+          "proxy_two_networks": true,
+          "proxy_no_auth_mounts": true,
+          "proxy_image_identity": true,
+          "proxy_hardened": true,
+          "auth_volume_no_driver_options": true
+        },
+        "image_id": "sha256:9a294e07d162da1c01a8ba3ddcfed8e617c45b748d19eb9c7b672c6d51da9dd6"
+      },
+      "network": {
+        "passed": true,
+        "checks": {
+          "github_blocked": true,
+          "ip_literal_blocked": true,
+          "http_blocked": true,
+          "port_80_blocked": true,
+          "suffix_attack_blocked": true,
+          "cross_provider_blocked": true,
+          "direct_egress_blocked": true,
+          "external_dns_blocked": true,
+          "tls_api.anthropic.com": true,
+          "tls_claude.ai": true,
+          "tls_claude.com": true,
+          "tls_console.anthropic.com": true,
+          "tls_platform.claude.com": true
+        },
+        "auth_requests": 0,
+        "inference_requests": 0
+      }
+    }
+  ],
+  "model_checks": [
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-luna",
+      "effort": "medium",
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "responses"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-terra",
+      "effort": "medium",
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "responses"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-sol",
+      "effort": "medium",
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "responses"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-6-astra",
+      "effort": "medium",
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "responses"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-haiku-4-5-20251001",
+      "effort": null,
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "messages"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-sonnet-5",
+      "effort": "medium",
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "messages"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-opus-5",
+      "effort": "medium",
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "messages"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-fable-5-1",
+      "effort": "medium",
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "protocol": [
+        "messages"
+      ],
+      "mcp_protocol": "2024-11-05",
+      "network_mode": "none",
+      "verified": true
+    }
+  ],
+  "isolated_subscription_status": {
+    "openai": "ChatGPT login recognized; no live inference",
+    "anthropic": "fresh subscription login required"
+  },
+  "not_verified": [
+    "live model entitlements and fallback behavior",
+    "remaining subscription quota and billing behavior",
+    "native batch scheduler integration"
+  ],
+  "source_sha256": {
+    "native.py": "af893264373d4edd2ff52f6f197e0a21caf097a4696509dac599970b0d12a0f1",
+    "native_bridge.py": "5fabe0a2838c408cd62296bfd229e4beec3a15c27aa415f986167d85a71abe03",
+    "native_check.py": "cfb04f6e353bac35b346e7e4fe70681dafbc110d56578247867aaadf576137ff",
+    "native_config.py": "a6497c3f7edad57ac05e1827a4b7b91afeefdc350cba5828264c2d37f3e2bee3",
+    "native_probe.py": "f91761f44160c120e7b4642e8c8369af7bbb64c5d2e6174509068812b608cf8c",
+    "native_proxy.py": "ecf2d330d7ec2ea53305a7f1dcfb28a79e4eb7ac778d2b784dfdd11c423efe9f",
+    "native_relay.py": "60602248b947812becdb286b28a1bcb4b1551b57c6ade9f7bef7aea4d8e20cbf",
+    "native_session.py": "930a55b28cdd6a4fa41125e970f1e4676d6243ee5c338a465ded70cce5b3cd30",
+    "native_setup.py": "b4dcc51bc7311cca122ae0eee7f1996247b1dd2545a297075c8ff9ee01795a57"
+  }
+}
