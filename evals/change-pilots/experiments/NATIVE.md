@@ -120,3 +120,32 @@ separate performance screening, and review instructions. Model/language results
 are grouped by checkpoint in the result index; the chain controller additionally
 reports conditional and unconditional success. It does not repair predecessors,
 transfer private grades, resume native conversations, or switch to API billing.
+
+### Recovering the NUL-command classification failure
+
+Literal NUL bytes are legal in JSON strings but cannot be passed in process
+arguments. The execute bridge now returns a recoverable tool error before invoking
+the sandbox. The rejected attempt still consumes one tool call. Unexpected callback
+errors remain infrastructure failures; timeout and source-capture policies are
+unchanged.
+
+A completed native session that was incorrectly stopped by this specific error can
+be reconciled without another model call:
+
+```sh
+PYTHONPATH=evals/change-pilots python3 -m experiments.reconcile \
+  --previous /path/to/stopped-results --output /path/to/new-continuation \
+  --run INTERRUPTED_RUN_ID
+PYTHONPATH=evals/change-pilots python3 -m experiments.chained_batch run \
+  --results /path/to/new-continuation
+```
+
+Reconciliation requires trace evidence of the NUL failure followed by recovered
+tool execution, normal client completion, unchanged frozen source, and unchanged
+task/scoring inputs. It copies earlier records verbatim, grades only the interrupted
+submission's frozen source, and retains its original result alongside a correction
+receipt. The new plan preserves run assignments, prompts, ordering, runtime images,
+budgets and performance calibration. It identifies inherited records and the
+original plan; subsequent stages use the corrected bridge. The original results
+root is preserved. This command does not retry unfinished model sessions or repair
+submitted programs.

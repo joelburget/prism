@@ -11,6 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from experiments.native_bridge import ExecuteBridge
 from experiments.native_task_setup import DEFAULT_IMAGE, prepare_context
 from experiments.sandbox import DockerEvaluation, DockerSandbox
 from export_public import export_public
@@ -54,6 +55,22 @@ class NativeTaskIntegrationTests(unittest.TestCase):
                 result = sandbox.execute("npx --version && test ! -e /var/run/docker.sock && test ! -e /home/native && test ! -e /Users/joel && test ! -e /evaluator && test ! -e /tmp/home/.codex/auth.json")
                 self.assertEqual(result["exit_code"], 0, result)
                 self.assertEqual(sandbox.execute("npm --version")["stdout"], result["stdout"])
+
+    def test_nul_rejected_and_corrected_command_runs_in_same_container(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with DockerSandbox(self.image, Path(temporary)) as sandbox:
+                events = []
+                bridge = ExecuteBridge(sandbox.execute, events.append)
+                bridge.handle({"jsonrpc": "2.0", "id": 0, "method": "initialize"})
+                def call(i, command):
+                    return bridge.handle({"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {
+                        "name": "execute", "arguments": {"command": command, "timeout_seconds": 30}}})["result"]
+                self.assertTrue(call(1, "printf 'a\0b'")["isError"])
+                result = call(2, "printf corrected > canary.txt && cat canary.txt")
+                self.assertFalse(result["isError"])
+                self.assertEqual(json.loads(result["content"][0]["text"])["stdout"], "corrected")
+                self.assertFalse(sandbox.frozen)
+                self.assertEqual(bridge.calls, 2)
 
     def test_three_ledger_starter_public_baselines(self):
         cases = [case for case in load_cases(tasks=["ledger-refunds"]) if case.phase == "baseline"]
