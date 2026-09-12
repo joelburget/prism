@@ -176,6 +176,8 @@ class ResultStore:
         view = {"run_id": run_id, "task": metadata.get("task"), "language": metadata.get("language"),
                 "finished": result_path.is_file(), "reviewed": review_path.is_file(),
                 "comprehension_prompt": metadata.get("comprehension_prompt", "Explain the changed behavior and one edge case the implementation handles.")}
+        if "checkpoint" in metadata:
+            view["checkpoint"] = metadata["checkpoint"]
         if not blind:
             view.update(metadata=metadata, result=_read(result_path) if result_path.is_file() else None,
                         review=_read(review_path) if review_path.is_file() else None)
@@ -205,10 +207,16 @@ class ResultStore:
                     if path.is_file() and not path.is_symlink():
                         files.append({"view": label, "file": path.relative_to(directory).as_posix()})
         specification = self.artifact_path(run_id, "problem.md")
+        previous = self.artifact_path(run_id, "previous-problem.md")
         if view is None:
-            return {"has_spec": specification.is_file(), "files": files}
+            context = {"has_spec": specification.is_file(), "files": files}
+            if previous.is_file():
+                context["has_previous_spec"] = True
+            return context
         if view == "spec" and filename is None and specification.is_file():
             path = specification
+        elif view == "previous_spec" and filename is None and previous.is_file():
+            path = previous
         elif {"view": view, "file": filename} in files:
             folder = "baseline" if view == "before" else "source"
             path = self.artifact_path(run_id, f"{folder}/{filename}")
@@ -238,7 +246,7 @@ class ResultStore:
         with self._lock, closing(sqlite3.connect(self.index_path)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("DROP TABLE IF EXISTS runs")
-            db.execute("CREATE TABLE runs (run_id TEXT PRIMARY KEY, task TEXT, language TEXT, model TEXT, harness TEXT, status TEXT, reviewed INTEGER, success INTEGER, public_pass INTEGER, heldout_pass INTEGER, elapsed_seconds REAL, estimated_cost_usd REAL, observed_cost_usd REAL, review_seconds REAL)")
+            db.execute("CREATE TABLE runs (run_id TEXT PRIMARY KEY, task TEXT, language TEXT, model TEXT, harness TEXT, status TEXT, reviewed INTEGER, success INTEGER, public_pass INTEGER, heldout_pass INTEGER, elapsed_seconds REAL, estimated_cost_usd REAL, observed_cost_usd REAL, review_seconds REAL, checkpoint INTEGER)")
             for directory in sorted(self.runs.iterdir()):
                 if not directory.is_dir() or directory.is_symlink() or not (directory / "metadata.json").is_file():
                     continue
@@ -254,14 +262,14 @@ class ResultStore:
                 def corpus_pass(name):
                     value = scores.get(name, {}).get("passed")
                     return int(value) if isinstance(value, bool) else None
-                db.execute("INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                db.execute("INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                            (directory.name, metadata.get("task"), metadata.get("language"),
                             _json(model) if isinstance(model, (dict, list)) else model,
                             metadata.get("harness", "unspecified"),
                             result.get("status", "finished" if result_path.is_file() else "running"),
                             int(review_path.is_file()), int(result["success"]) if isinstance(result.get("success"), bool) else None,
                             corpus_pass("public"), corpus_pass("heldout"), result.get("elapsed_seconds"),
-                            result.get("estimated_cost_usd"), result.get("observed_cost_usd"), review.get("active_elapsed_seconds")))
+                            result.get("estimated_cost_usd"), result.get("observed_cost_usd"), review.get("active_elapsed_seconds"), metadata.get("checkpoint")))
         self.index_path.chmod(0o600)
 
     def summary(self):
@@ -270,7 +278,7 @@ class ResultStore:
         with closing(sqlite3.connect(self.index_path)) as db:
             db.row_factory = sqlite3.Row
             rows = [dict(row) for row in db.execute("""
-                SELECT harness, model, task, language, COUNT(*) AS runs,
+                SELECT harness, model, task, language, checkpoint, COUNT(*) AS runs,
                     SUM(status = 'completed') AS completed,
                     SUM(status = 'infrastructure_error') AS infrastructure_errors,
                     SUM(status NOT IN ('completed', 'infrastructure_error')) AS other_status,
@@ -281,7 +289,7 @@ class ResultStore:
                     SUM(estimated_cost_usd) AS estimated_cost_usd,
                     SUM(observed_cost_usd) AS observed_cost_usd,
                     AVG(review_seconds) AS mean_review_seconds
-                FROM runs GROUP BY harness, model, task, language ORDER BY harness, model, task, language
+                FROM runs GROUP BY harness, model, task, language, checkpoint ORDER BY harness, model, task, language, checkpoint
             """)]
         for row in rows:
             row["success_rate_completed"] = row["successful"] / row["completed"] if row["completed"] else None

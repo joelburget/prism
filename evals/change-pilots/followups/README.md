@@ -51,7 +51,7 @@ public tests and the current budgets; we have not adopted its tests-hidden polic
 
 Keep the existing 30-minute / 100-tool-call policy per checkpoint; native-client
 turn caps and accounting caveats remain as documented in `../experiments/NATIVE.md`.
-No tighter budgets or model calls are introduced by this package. Native clients
+The scheduler retains these budgets and uses subscription clients with no API fallback. Native clients
 retain different system prompts and token accounting. Save settings per stage.
 
 Human review should record stage-one and stage-two times/decisions separately.
@@ -122,10 +122,30 @@ Compile Prism through its existing build.sh; other launchers run source as befor
 The report records source, image and evaluator manifest hashes, per-corpus/per-phase
 scores, and errors. Partial phase selections are explicitly labeled. Algorithmic
 qualification is separate from behavioral acceptance. Reports must be new and
-outside Git. The old native batch planner still schedules checkpoint-one tasks;
-**automatic two-stage native scheduling is not wired into it by this package**.
-The exporter and standalone grader are the preparation/grading interfaces for the
-follow-up controller. No new model rollouts have been run or scheduled here.
+outside Git. The [chained controller](../experiments/chained_batch.py) schedules
+both checkpoints automatically. Its default is **48 chains / 96 stages**: eight
+models, three languages, two tasks, one repetition. Chain order is randomized;
+the two stages in a chain run consecutively. Every stage has a fresh native session.
+Invalid source archives produce an explicit unattempted child, while ordinary
+incorrect submissions carry forward. Infrastructure failures halt the plan and
+are never automatically retried. `STOP_AFTER_CURRENT` pauses before the next stage.
+
+```sh
+PYTHONPATH=evals/change-pilots python3 -m experiments.chained_batch plan \
+  --results /path/to/new-results \
+  --performance-calibration /path/to/calibration.json
+PYTHONPATH=evals/change-pilots python3 -m experiments.chained_batch run \
+  --results /path/to/new-results
+PYTHONPATH=evals/change-pilots python3 -m experiments.chained_batch status \
+  --results /path/to/new-results
+```
+
+The plan freezes images, model settings, both prompts, predecessor assignments,
+source/corpus/controller fingerprints and the performance calibration. Review
+records include the checkpoint; second-stage review offers both specifications
+and the actual predecessor diff. Parent identity and grades remain evaluator-only.
+The controlled cohort still uses explicit selection/export rather than this chain
+scheduler. These are distinct experimental designs.
 
 ## Scaling and oracle limitations
 
@@ -143,11 +163,35 @@ This measures point updates and updates to an unrelated table at increasing tabl
 sizes, checking every answer. It retains warmup and repeated measurements, reports
 medians/growth, and includes initial construction/process startup. These costs may
 mask incremental maintenance costs, so use profiles and source review together.
-Performance acceptance is deliberately null until an efficient implementation and
-a recomputation control establish fair toolchain/machine-specific thresholds.
-It introduces no hidden time requirement or tighter agent budget. Run scaling
-separately from timed model runs to avoid resource contention. The process launcher
-must itself provide isolation when measuring untrusted code.
+The [isolated performance evaluator](evaluator/performance.py) also calibrates
+restricted-profile incremental and recomputation controls in all three languages.
+These controls compute answers from the supplied data but support only this
+aggregate/equality-join workload; they are not full query reference solutions.
+
+```sh
+PYTHONPATH=evals/change-pilots python3 -m followups.evaluator.performance calibrate \
+  --image YOUR_PINNED_TASK_IMAGE --output /path/to/calibration.json
+# After all timed native stages have finished:
+PYTHONPATH=evals/change-pilots python3 -m followups.evaluator.performance assess \
+  --results /path/to/new-results
+```
+
+The calibrated workload uses 9,999 rows per joined table and 999 update/read
+pairs, within the published limits. Each profile includes one retained warmup and
+three timed repetitions in fresh network-disabled containers. Measurements include
+Docker/process startup, input parsing and initial construction. A screening cutoff
+is the geometric mean between the slowest efficient and fastest recomputing sample,
+only when both ranges leave a 1.5× margin; otherwise it remains null. Incorrect
+control answers cannot establish a cutoff. Calibration receipts record source,
+image and host details, and are pinned before any measured model session.
+
+Screening results are saved separately from behavioral grades after the whole
+cohort finishes. They are evidence about these profiles, not a general performance
+qualification. Restricted controls can be faster than a general engine even when
+both are incremental; review source and timings together. No tighter agent budget
+or hidden functional requirement is introduced. Run performance measurements
+separately from timed model runs to avoid resource contention. The standalone
+`scaling.py` process launcher must provide isolation for untrusted code.
 
 The private workflow model is a small executable transition specification. The
 private query oracle recomputes selected valid SQL with SQLite; it is deliberately

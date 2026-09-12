@@ -182,87 +182,7 @@ def _execute_locked(store, limit):
         starter = load_starter(cell["task"], cell["language"])
         if starter.digest() != cell["starter_sha256"]:
             raise ValueError("starter changed since planning")
-        metadata = {**cell, "harness": HARNESS, "image_id": plan["task_image_id"],
-                    "native_image_id": plan["native_image_id"], "budgets": plan["budgets"],
-                    "plan_sha256": file_hash(store.root / "plan.json"),
-                    "comprehension_prompt": COMPREHENSION[cell["task"]],
-                    "automatic_fallback_requested": False, "api_fallback": False}
-        store.create_run(run_id, metadata)
-        print(f"Starting {run_id}: {cell['task']}/{cell['language']}/{model['key']}", flush=True)
-        started, agent_result, seen, tool_failed = time.monotonic(), {}, set(), []
-        native_turn_limit = []
-        tool_resource_limits = []
-        result = None
-        def record(event):
-            seen.update(observed_models(event))
-            payload = event.get("payload", {})
-            if isinstance(payload, dict) and payload.get("type") == "result" and payload.get("subtype") == "error_max_turns":
-                native_turn_limit.append(True)
-            store.append_event(run_id, event)
-        try:
-            with tempfile.TemporaryDirectory(prefix="prism-native-rollout-") as temporary:
-                bundle = export_public(cell["task"], Path(temporary) / "bundle", language=cell["language"])
-                store.write_artifact(run_id, "input-manifest.json", (bundle / "MANIFEST.json").read_bytes())
-                store.write_artifact(run_id, "problem.md", (bundle / cell["task"] / "PROBLEM.md").read_bytes())
-                for original in (bundle / "starter").rglob("*"):
-                    if original.is_file():
-                        store.write_artifact(run_id, "baseline/" + str(original.relative_to(bundle / "starter")), original.read_bytes())
-                with DockerSandbox(plan["task_image_id"], bundle) as sandbox:
-                    def execute(command, timeout_seconds):
-                        if seen - {model["model_id"]}:
-                            raise RuntimeError("native model identity mismatch")
-                        try:
-                            output = sandbox.execute(command, timeout_seconds)
-                            if output.get("timed_out") or output.get("output_limited"):
-                                tool_resource_limits.append("timeout" if output.get("timed_out") else "output_limit")
-                            return output
-                        except SandboxFrozenError:
-                            tool_resource_limits.append("task_frozen_after_resource_limit")
-                            raise
-                        except Exception:
-                            tool_failed.append(True)
-                            raise
-                    with create_client(model["provider"], plan["native_image_id"]) as client:
-                        boundary = inspect_boundary(client)
-                        if not boundary.get("passed"):
-                            raise RuntimeError("native boundary failed")
-                        auth = subscription_status(client)
-                        store.write_artifact(run_id, "native-environment.json", json_bytes({"boundary": boundary, "auth": auth}))
-                        if not auth.get("authenticated"):
-                            raise RuntimeError("native subscription authentication required")
-                        argv = client_argv(model["provider"], model["model_id"], cell["effort"],
-                                           max_turns=plan["budgets"]["claude_max_turns"])
-                        store.write_artifact(run_id, "native-argv.json", json_bytes(argv))
-                        agent_result = run_client(client, argv, cell["prompt"], execute, record,
-                            wall_seconds=plan["budgets"]["wall_timeout_seconds"],
-                            max_calls=plan["budgets"]["max_tool_calls"])
-                        store.write_artifact(run_id, "native-result.json", json_bytes(agent_result))
-                    if native_turn_limit and agent_result.get("stop_reason") == "native_client_error":
-                        agent_result["stop_reason"] = "native_turn_limit"
-                    sandbox.freeze()
-                    source = sandbox.snapshot(store.run_dir(run_id) / "source")
-                store.write_artifact(run_id, "source.patch", source_patch(bundle / "starter", source))
-                infrastructure = (agent_result.get("stop_reason") not in SCORED_STOPS
-                                  or bool(seen - {model["model_id"]}) or bool(tool_failed))
-                result = {**agent_result, "status": "infrastructure_error" if infrastructure else "completed",
-                          "success": None, "source_sha256": tree_fingerprint(source), "patch": "source.patch"}
-                if not infrastructure:
-                    scores = grade_submission(plan["task_image_id"], source, cell["task"], starter.build)
-                    result.update(scores=scores, success=all(report["passed"] for report in scores.values()))
-        except InvalidSubmissionError:
-            infrastructure = bool(agent_result.get("stop_reason") not in SCORED_STOPS or seen - {model["model_id"]} or tool_failed)
-            result = {**agent_result, "status": "infrastructure_error" if infrastructure else "completed",
-                      "success": None if infrastructure else False, "invalid_submission": True}
-        except Exception as exc:
-            result = {**agent_result, "status": "infrastructure_error", "success": None,
-                      "error_type": type(exc).__name__}
-            store.append_event(run_id, {"event": "infrastructure_error", "error_type": type(exc).__name__})
-        result.update(harness=HARNESS, total_elapsed_seconds=time.monotonic() - started,
-                      requested_model_id=model["model_id"], observed_model_ids=sorted(seen),
-                      tool_resource_limits=sorted(set(tool_resource_limits)),
-                      server_model_identity="unverified" if not seen else "mismatch" if seen - {model["model_id"]} else "reported_match",
-                      estimated_cost_usd=None, automatic_fallback_requested=False, api_fallback=False)
-        store.finish_run(run_id, result)
+        result = execute_cell(store, plan, cell, starter_build=starter.build)
         finished += 1
         print(f"Finished {run_id}: {result['status']}; {result.get('stop_reason', result.get('error_type'))}", flush=True)
         if result["status"] == "infrastructure_error":
@@ -272,6 +192,99 @@ def _execute_locked(store, limit):
             break
     return {"runs_finished": finished, "stopped_on_infrastructure_run": stopped, "harness": HARNESS,
             "accounting": "subscription; no API fallback", "estimated_cost_usd": None}
+
+
+def execute_cell(store, plan, cell, *, starter_build=None, prepare=None, grader=None,
+                 comprehension=None, harness=HARNESS):
+    """Execute one cell using verified client routing; callers validate their frozen plan.
+
+    Stage controllers may supply public-bundle preparation and evaluator-side grading.
+    Neither callback is available to the native client or submission container.
+    """
+    run_id, model = cell["run_id"], cell["model"]
+    metadata = {**cell, "harness": harness, "image_id": plan["task_image_id"],
+                "native_image_id": plan["native_image_id"], "budgets": plan["budgets"],
+                "plan_sha256": file_hash(store.root / "plan.json"),
+                "comprehension_prompt": comprehension or COMPREHENSION[cell["task"]],
+                "automatic_fallback_requested": False, "api_fallback": False}
+    store.create_run(run_id, metadata)
+    print(f"Starting {run_id}: {cell['task']}/{cell['language']}/{model['key']}", flush=True)
+    started, agent_result, seen, tool_failed = time.monotonic(), {}, set(), []
+    native_turn_limit = []
+    tool_resource_limits = []
+    result = None
+    def record(event):
+        seen.update(observed_models(event))
+        payload = event.get("payload", {})
+        if isinstance(payload, dict) and payload.get("type") == "result" and payload.get("subtype") == "error_max_turns":
+            native_turn_limit.append(True)
+        store.append_event(run_id, event)
+    try:
+        with tempfile.TemporaryDirectory(prefix="prism-native-rollout-") as temporary:
+            bundle = (prepare(Path(temporary) / "bundle") if prepare else
+                      export_public(cell["task"], Path(temporary) / "bundle", language=cell["language"]))
+            store.write_artifact(run_id, "input-manifest.json", (bundle / "MANIFEST.json").read_bytes())
+            store.write_artifact(run_id, "problem.md", (bundle / cell["task"] / "PROBLEM.md").read_bytes())
+            for original in (bundle / "starter").rglob("*"):
+                if original.is_file():
+                    store.write_artifact(run_id, "baseline/" + str(original.relative_to(bundle / "starter")), original.read_bytes())
+            with DockerSandbox(plan["task_image_id"], bundle) as sandbox:
+                def execute(command, timeout_seconds):
+                    if seen - {model["model_id"]}:
+                        raise RuntimeError("native model identity mismatch")
+                    try:
+                        output = sandbox.execute(command, timeout_seconds)
+                        if output.get("timed_out") or output.get("output_limited"):
+                            tool_resource_limits.append("timeout" if output.get("timed_out") else "output_limit")
+                        return output
+                    except SandboxFrozenError:
+                        tool_resource_limits.append("task_frozen_after_resource_limit")
+                        raise
+                    except Exception:
+                        tool_failed.append(True)
+                        raise
+                with create_client(model["provider"], plan["native_image_id"]) as client:
+                    boundary = inspect_boundary(client)
+                    if not boundary.get("passed"):
+                        raise RuntimeError("native boundary failed")
+                    auth = subscription_status(client)
+                    store.write_artifact(run_id, "native-environment.json", json_bytes({"boundary": boundary, "auth": auth}))
+                    if not auth.get("authenticated"):
+                        raise RuntimeError("native subscription authentication required")
+                    argv = client_argv(model["provider"], model["model_id"], cell["effort"],
+                                       max_turns=plan["budgets"]["claude_max_turns"])
+                    store.write_artifact(run_id, "native-argv.json", json_bytes(argv))
+                    agent_result = run_client(client, argv, cell["prompt"], execute, record,
+                        wall_seconds=plan["budgets"]["wall_timeout_seconds"],
+                        max_calls=plan["budgets"]["max_tool_calls"])
+                    store.write_artifact(run_id, "native-result.json", json_bytes(agent_result))
+                if native_turn_limit and agent_result.get("stop_reason") == "native_client_error":
+                    agent_result["stop_reason"] = "native_turn_limit"
+                sandbox.freeze()
+                source = sandbox.snapshot(store.run_dir(run_id) / "source")
+            store.write_artifact(run_id, "source.patch", source_patch(bundle / "starter", source))
+            infrastructure = (agent_result.get("stop_reason") not in SCORED_STOPS
+                              or bool(seen - {model["model_id"]}) or bool(tool_failed))
+            result = {**agent_result, "status": "infrastructure_error" if infrastructure else "completed",
+                      "success": None, "source_sha256": tree_fingerprint(source), "patch": "source.patch"}
+            if not infrastructure:
+                scores = (grader or grade_submission)(plan["task_image_id"], source, cell["task"], starter_build)
+                result.update(scores=scores, success=all(report["passed"] for report in scores.values()))
+    except InvalidSubmissionError:
+        infrastructure = bool(agent_result.get("stop_reason") not in SCORED_STOPS or seen - {model["model_id"]} or tool_failed)
+        result = {**agent_result, "status": "infrastructure_error" if infrastructure else "completed",
+                  "success": None if infrastructure else False, "invalid_submission": True}
+    except Exception as exc:
+        result = {**agent_result, "status": "infrastructure_error", "success": None,
+                  "error_type": type(exc).__name__}
+        store.append_event(run_id, {"event": "infrastructure_error", "error_type": type(exc).__name__})
+    result.update(harness=harness, total_elapsed_seconds=time.monotonic() - started,
+                  requested_model_id=model["model_id"], observed_model_ids=sorted(seen),
+                  tool_resource_limits=sorted(set(tool_resource_limits)),
+                  server_model_identity="unverified" if not seen else "mismatch" if seen - {model["model_id"]} else "reported_match",
+                  estimated_cost_usd=None, automatic_fallback_requested=False, api_fallback=False)
+    store.finish_run(run_id, result)
+    return result
 
 
 def main(argv=None):

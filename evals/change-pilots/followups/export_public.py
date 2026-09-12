@@ -9,7 +9,10 @@ import shutil
 import stat
 import tempfile
 
-from run import ROOT, runner
+try:
+    from .run import ROOT, runner
+except ImportError:
+    from run import ROOT, runner
 
 
 def digest(data): return hashlib.sha256(data).hexdigest()
@@ -29,7 +32,9 @@ def source_files(root):
                 if len(files)>=1000 or total>16*1024*1024: raise ValueError('source exceeds export bounds')
                 files[relative]=path.read_bytes()
                 if mode & 0o111: executable.add(relative)
-    if 'run.sh' not in executable: raise ValueError('source needs executable run.sh')
+    # Preserve a broken launcher's mode so the next checkpoint can repair it.
+    # A non-executable submission receives ordinary process failures when graded.
+    if 'run.sh' not in files: raise ValueError('source needs run.sh')
     fingerprint=digest(encoded({name:{'sha256':digest(data),'executable':name in executable} for name,data in sorted(files.items())}))
     return files,executable,fingerprint
 

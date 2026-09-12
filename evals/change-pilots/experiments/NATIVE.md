@@ -109,3 +109,14 @@ Offline success does not establish subscription entitlement, actual model identi
 or fallback behavior, remaining quota, or live accounting. Those need a small live
 calibration before scheduling the full matrix. Model errors must remain visible;
 silently replacing an unavailable model would invalidate the comparison.
+
+## Sequential change calibration
+
+`python3 -m experiments.chained_batch` reuses the same verified per-cell native
+execution for two query/workflow checkpoints. Its default plan contains 48 chains
+(96 stages), retaining the ledger calibration's per-stage budgets. See the
+[follow-up guide](../followups/README.md) for frozen planning, predecessor export,
+separate performance screening, and review instructions. Model/language results
+are grouped by checkpoint in the result index; the chain controller additionally
+reports conditional and unconditional success. It does not repair predecessors,
+transfer private grades, resume native conversations, or switch to API billing.
