@@ -140,6 +140,35 @@ class NativeBatchTests(unittest.TestCase):
             batch.execute_plan(self.root)
         self.assertEqual(self.agent.call_count, 1)
 
+    def test_nul_input_then_corrected_command_is_graded_without_poisoning_run(self):
+        from experiments.native_bridge import ExecuteBridge
+        plan = self.plan(1)
+        def agent(client, argv, prompt, execute, record, **limits):
+            bridge = ExecuteBridge(execute, record)
+            bridge.handle({"jsonrpc": "2.0", "id": 0, "method": "initialize"})
+            def call(i, command):
+                return bridge.handle({"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {
+                    "name": "execute", "arguments": {"command": command, "timeout_seconds": 30}}})
+            self.assertTrue(call(1, "printf 'a\0b'")["result"]["isError"])
+            self.assertFalse(call(2, r"printf 'a\0b'")["result"]["isError"])
+            return dict(self.agent_result)
+        self.agent.side_effect = agent
+        batch.execute_plan(self.root)
+        self.assertEqual(self.result(plan)["status"], "completed")
+        self.grader.assert_called_once()
+
+    def test_unexpected_callback_value_error_remains_infrastructure(self):
+        plan = self.plan(1)
+        def agent(client, argv, prompt, execute, record, **limits):
+            with self.assertRaises(ValueError):
+                execute("valid command", 30)
+            return dict(self.agent_result)
+        self.agent.side_effect = agent
+        with patch.object(batch.DockerSandbox, "execute", side_effect=ValueError("internal failure")):
+            batch.execute_plan(self.root)
+        self.assertEqual(self.result(plan)["status"], "infrastructure_error")
+        self.grader.assert_not_called()
+
     def test_auth_failure_does_not_start_model(self):
         plan = self.plan()
         self.auth.return_value = {"authenticated": False}

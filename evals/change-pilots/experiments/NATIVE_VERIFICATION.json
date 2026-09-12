@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "verified_at": "2026-09-12T14:07:25.375803+00:00",
+  "verified_at": "2026-09-12T16:34:37.876405+00:00",
   "image_id": "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a",
   "task_image_id": "sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39",
   "native_workspace_permission": "workspace-write",
@@ -266,7 +266,7 @@
   "task_tooling_checks": {
     "image_id": "sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39",
     "test_command": "PRISM_EVAL_DOCKER_TESTS=1 python3 -m unittest discover -s evals/change-pilots/tests -p test_native_task_tools.py",
-    "tests_passed": 3,
+    "tests_passed": 4,
     "genuine_codex_apply_patch_stdin_add_update_delete": true,
     "npx_available": true,
     "runtime_versions_unchanged": true,
@@ -276,7 +276,8 @@
       "prism",
       "python",
       "typescript"
-    ]
+    ],
+    "nul_command_rejected_without_freezing_task": true
   },
   "isolated_subscription_status": {
     "openai": "ChatGPT subscription login and live model access passed earlier preflight; current offline checks use no credentials",
@@ -289,7 +290,7 @@
   "source_sha256": {
     "native.py": "af893264373d4edd2ff52f6f197e0a21caf097a4696509dac599970b0d12a0f1",
     "native_batch.py": "b149e6a15938b358b26983e453ecfd4ee12c472175c03fcedcc25527c19e063b",
-    "native_bridge.py": "5fabe0a2838c408cd62296bfd229e4beec3a15c27aa415f986167d85a71abe03",
+    "native_bridge.py": "ff8fc9096d45f1093b02cb39be07439cc42bc8c6992d7ef71e3c3a29424f140d",
     "native_check.py": "5a85a5523f494d74b81e3c790ebf02ad3920067127a895436c258826b6c015ec",
     "native_config.py": "b3cdf8a28998daa8dc13eef4a1603efcb2d0978b49961bdfa7a58650bc96e0aa",
     "native_probe.py": "f91761f44160c120e7b4642e8c8369af7bbb64c5d2e6174509068812b608cf8c",
@@ -302,5 +303,6 @@
   "task_build_source_sha256": {
     "NativeTaskDockerfile": "dd6b460a1bf4e17dd79bb1a4b6676e789615d4358bc091c362e4ca720e557783"
   },
-  "prior_live_calibration": "24 ledger runs completed with these client/task image identities; routing rechecked offline after extracting shared per-cell execution for chained scheduling."
+  "prior_live_calibration": "24 ledger runs completed with these client/task image identities; routing rechecked offline after extracting shared per-cell execution for chained scheduling.",
+  "repair_verification": "NUL-command rejection and corrected-command recovery passed in the real task container; all eight model/effort routing probes passed offline. No model inference used for repair verification."
 }

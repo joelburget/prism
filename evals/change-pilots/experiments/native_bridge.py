@@ -76,6 +76,18 @@ class ExecuteBridge:
             timeout = min(timeout, self.tool_limit, remaining)
             self.record(redact({"event": "tool_call", "call_id": request_id,
                                 "command": args["command"], "timeout_seconds": timeout}))
+            # JSON strings can contain NUL; subprocess argv cannot. Reject it here,
+            # before the callback can classify Popen's ValueError as infrastructure.
+            # Do not catch arbitrary callback ValueErrors: those may be real bugs.
+            if "\0" in args["command"]:
+                self.record({"event": "tool_rejected", "call_id": request_id,
+                             "reason": "command_contains_nul"})
+                result = {
+                    "content": [{"type": "text", "text":
+                        "Invalid execute command: literal NUL bytes cannot be passed to a process. "
+                        "Use an escaped representation in the command text."}], "isError": True}
+                self.record({"event": "tool_result", "call_id": request_id, "result": result})
+                return {"jsonrpc": "2.0", "id": request_id, "result": result}
             try:
                 output = json.dumps(self.execute(args["command"], timeout), ensure_ascii=False)
                 if len(output) > self.output_limit:

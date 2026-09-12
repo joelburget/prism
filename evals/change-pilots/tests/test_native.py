@@ -86,6 +86,22 @@ class NativeTest(unittest.TestCase):
         self.assertIn("error", bridge.handle(self.call()))
         self.assertFalse(calls)
 
+    def test_nul_command_is_recoverable_without_calling_execution_callback(self):
+        bridge, calls, events = self.bridge()
+        result = bridge.handle(self.call(arguments={"command": "printf 'a\0b'", "timeout_seconds": 30}))
+        self.assertTrue(result["result"]["isError"])
+        self.assertIn("literal NUL", result["result"]["content"][0]["text"])
+        self.assertEqual(calls, [])
+        self.assertEqual(bridge.calls, 1)
+        self.assertEqual(events[1], {"event": "tool_rejected", "call_id": 1, "reason": "command_contains_nul"})
+        self.assertEqual([e["event"] for e in events], ["tool_call", "tool_rejected", "tool_result"])
+        # An escaped NUL in shell/program source is valid argv and may be retried
+        # with a new RPC ID. Never silently rewrite the submitted command.
+        command = r"printf 'a\0b'"
+        result = bridge.handle(self.call(2, arguments={"command": command, "timeout_seconds": 30}))
+        self.assertFalse(result["result"]["isError"])
+        self.assertEqual(calls, [(command, 30)])
+
     def test_output_is_bounded(self):
         bridge, _, _ = self.bridge(max_output_chars=5)
         output = bridge.handle(self.call())["result"]["content"][0]["text"]
