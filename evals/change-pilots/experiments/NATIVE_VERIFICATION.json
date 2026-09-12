@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "verified_at": "2026-09-12T16:34:37.876405+00:00",
+  "verified_at": "2026-09-12T21:05:55.264580+00:00",
   "image_id": "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a",
   "task_image_id": "sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39",
   "native_workspace_permission": "workspace-write",
@@ -296,7 +296,7 @@
     "native_probe.py": "f91761f44160c120e7b4642e8c8369af7bbb64c5d2e6174509068812b608cf8c",
     "native_proxy.py": "ecf2d330d7ec2ea53305a7f1dcfb28a79e4eb7ac778d2b784dfdd11c423efe9f",
     "native_relay.py": "60602248b947812becdb286b28a1bcb4b1551b57c6ade9f7bef7aea4d8e20cbf",
-    "native_session.py": "930a55b28cdd6a4fa41125e970f1e4676d6243ee5c338a465ded70cce5b3cd30",
+    "native_session.py": "6ffaf511e9b6763e7783029949a30140b8740bf70947f3718b31bfad8e49ae3c",
     "native_setup.py": "b4dcc51bc7311cca122ae0eee7f1996247b1dd2545a297075c8ff9ee01795a57",
     "native_task_setup.py": "7148ac2861a7a49df59e60ce192f727098e295942889a4d9d2c61b0d11df6df5"
   },
@@ -304,5 +304,5 @@
     "NativeTaskDockerfile": "dd6b460a1bf4e17dd79bb1a4b6676e789615d4358bc091c362e4ca720e557783"
   },
   "prior_live_calibration": "24 ledger runs completed with these client/task image identities; routing rechecked offline after extracting shared per-cell execution for chained scheduling.",
-  "repair_verification": "NUL-command rejection and corrected-command recovery passed in the real task container; all eight model/effort routing probes passed offline. No model inference used for repair verification."
+  "repair_verification": "Recovered Codex reconnect followed by terminal completion passes fixture tests; unknown errors, failed turns, unfinished turns, nonzero exits and relay errors remain failures. All eight model/effort routing probes and both provider boundaries passed fresh offline verification. No model inference used for repair verification. Prior real-container task-tool checks remain applicable to the unchanged task image and tooling."
 }

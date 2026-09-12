@@ -8,6 +8,7 @@ stdio, so the client cannot choose a host endpoint or another task container.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import threading
 import time
@@ -17,6 +18,33 @@ from .providers import redact
 
 MAX_LINE = 2 * 1024 * 1024
 MAX_TRACE = 32 * 1024 * 1024
+
+
+def codex_reconnect_notice(event):
+    """Recognize the pinned CLI's nonterminal stream-retry notification."""
+    message = event.get("message")
+    return (event.get("type") == "error" and isinstance(message, str)
+            and re.fullmatch(r"Reconnecting\.\.\. [1-9][0-9]*/[1-9][0-9]* \(stream disconnected before completion: .+\)",
+                             message, re.DOTALL) is not None)
+
+
+def codex_completed(events):
+    """A reconnect is recovered only by a subsequent successful terminal event.
+
+    Unknown error events, a failed turn, and errors after completion still fail.
+    Exit status and host/relay failures are checked separately by run_client.
+    """
+    completed_at = max((i for i, event in enumerate(events)
+                        if event.get("type") == "turn.completed"), default=-1)
+    if completed_at < 0:
+        return False
+    for i, event in enumerate(events):
+        kind = event.get("type")
+        if kind == "turn.failed" or (kind == "turn.started" and i > completed_at):
+            return False
+        if kind == "error" and (not codex_reconnect_notice(event) or i > completed_at):
+            return False
+    return True
 
 
 def subscription_status(client):
@@ -195,8 +223,7 @@ def run_client(client, argv, prompt, execute, record, *, wall_seconds=1800, max_
                                and event["item"].get("type") == "agent_message"), "")
         completed = bool(last) and not last.get("is_error")
         if client.provider == "openai":
-            completed = any(event.get("type") == "turn.completed" for event in events)
-            completed = completed and not any(event.get("type") in ("turn.failed", "error") for event in events)
+            completed = codex_completed(events)
         stop = failure[0] if failure else "completed" if process.returncode == 0 and completed else "native_client_error"
         return {"harness": "subscription-native", "stop_reason": stop,
                 "elapsed_seconds": time.monotonic() - started, "tool_calls": bridge.calls,

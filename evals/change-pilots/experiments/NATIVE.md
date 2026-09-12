@@ -149,3 +149,28 @@ budgets and performance calibration. It identifies inherited records and the
 original plan; subsequent stages use the corrected bridge. The original results
 root is preserved. This command does not retry unfinished model sessions or repair
 submitted programs.
+
+### Recovering a completed Codex reconnect
+
+Codex can emit a `Reconnecting... N/M (stream disconnected before completion: ...)`
+error event, recover within the same session, and finish with `turn.completed` and
+exit code zero. The harness accepts that narrow event sequence. Unknown errors,
+`turn.failed`, reconnects after completion, a new unfinished turn, nonzero exits,
+and relay failures remain infrastructure failures. No retries or budget changes
+are introduced by this classification fix.
+
+A previously misclassified frozen submission can be graded without inference:
+
+```sh
+PYTHONPATH=evals/change-pilots python3 -m experiments.reconcile \
+  --previous /path/to/stopped-results \
+  --output /path/to/new-continuation \
+  --run RUN_ID --reason codex-reconnect
+```
+
+This requires the recorded reconnect and subsequent terminal success, no tool or
+resource failure, and unchanged source. It preserves the original result and
+measurements, checks inherited records from previous continuations, and copies
+all other completed records unchanged. Only the client-classification and
+reconciliation code may differ; assignments, task inputs, budgets, runtime images,
+and calibration must match. Resume the new plan with the chained batch runner.
