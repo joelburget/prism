@@ -1,0 +1,14 @@
+# Build only through native_task_setup.py: it validates and tags immutable inputs
+# and sends this Dockerfile alone, without repository files or authentication.
+ARG NATIVE_IMAGE
+ARG TOOLCHAIN_IMAGE
+FROM ${NATIVE_IMAGE} AS native
+FROM ${TOOLCHAIN_IMAGE}
+USER root
+COPY --from=native /usr/local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-arm64/vendor/aarch64-unknown-linux-musl/bin/codex /opt/pilot/codex-patch
+# Codex dispatches to its genuine patch parser when argv[0] is apply_patch.
+# The public binary has no auth/config files; task containers have no network.
+RUN ln -s /opt/pilot/codex-patch /usr/local/bin/apply_patch \
+ && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+USER 1000:1000
+WORKDIR /work

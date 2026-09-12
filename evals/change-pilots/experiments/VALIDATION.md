@@ -38,7 +38,7 @@ Its pinned compiler source is Prism v0.18.0 commit
 Node 25.2.1, Prism 0.18.0 and TypeScript 5.9.3. Rebuilding with mutable base/apt
 repositories may produce a different image; the experiment records its actual ID.
 
-Native image: `sha256:9a294e07d162da1c01a8ba3ddcfed8e617c45b748d19eb9c7b672c6d51da9dd6`,
+Current native image: `sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a`,
 containing Codex 0.154.0 and Claude Code 2.1.257. Both provider containers passed
 20 Docker configuration checks each; OpenAI passed 11 and Anthropic 13 network
 checks. All eight model configurations passed real-CLI offline inventory and
@@ -71,3 +71,18 @@ real tool-use behavior, effective model settings, empirical cost/time distributi
 and whether the selected budgets yield useful task difficulty. Subscription-native
 batch execution now uses `experiments.native_batch`, with source/score/review capture,
 strict input and image checks, and no automatic retries or model fallback.
+
+## Calibration correction
+
+The first attempted batch exposed inaccurate Codex read-only instructions and a
+missing required patch helper. All four attempted v1 cells were retained and
+excluded from the corrected 24-run comparison. V2 changes only native tooling,
+permission descriptions and the matching task-environment instructions; the task,
+starters, tests and resource limits remain frozen.
+
+Derived task image `sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39`
+adds genuine `apply_patch` and existing npm's `npx`. Actual add/update/delete patches,
+unchanged language/compiler versions, and all 72 ledger public baseline checks
+passed. All eight offline native routes and both provider boundaries were rechecked
+against the corrected images. Batch tests cover operator pausing, completion capture
+before grading, task-image verification, and the explicit writable-workspace prompt.

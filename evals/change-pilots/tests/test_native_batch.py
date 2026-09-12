@@ -88,10 +88,23 @@ class NativeBatchTests(unittest.TestCase):
         self.assertEqual(len(plan["runs"]), 24)
         self.assertEqual(len({c["run_id"] for c in plan["runs"]}), 24)
         self.assertEqual({c["task"] for c in plan["runs"]}, {"ledger-refunds"})
-        self.assertEqual(plan["harness"], "subscription-native-v1")
+        self.assertEqual(plan["harness"], "subscription-native-v2")
         self.assertFalse(plan["accounting"]["api_fallback"])
         self.assertIsNone(plan["accounting"]["enforceable_dollar_cap"])
         self.agent.assert_not_called()
+
+    def test_prompt_describes_writable_remote_workspace_and_installed_editor(self):
+        prompt = batch.native_prompt_for("ledger-refunds", "typescript")
+        self.assertIn("/work and /work/starter are writable", prompt)
+        self.assertIn("apply_patch command is installed", prompt)
+
+    def test_operator_stop_marker_starts_no_new_cell(self):
+        self.plan()
+        (self.root / "STOP_AFTER_CURRENT").touch()
+        result = batch.execute_plan(self.root)
+        self.assertTrue(result["paused_by_operator"])
+        self.agent.assert_not_called()
+        self.assertEqual(list((self.root / "runs").iterdir()), [])
 
     def test_run_freezes_grades_preserves_review_artifacts_and_resumes(self):
         plan = self.plan()
@@ -101,7 +114,7 @@ class NativeBatchTests(unittest.TestCase):
         self.assertEqual(first["server_model_identity"], "unverified")
         self.assertIsNone(first["estimated_cost_usd"])
         directory = ResultStore(self.root).run_dir(plan["runs"][0]["run_id"])
-        for artifact in ("baseline/main.py", "source/main.py", "source.patch", "native-argv.json", "native-environment.json", "problem.md", "input-manifest.json"):
+        for artifact in ("baseline/main.py", "source/main.py", "source.patch", "native-argv.json", "native-environment.json", "native-result.json", "problem.md", "input-manifest.json"):
             self.assertTrue((directory / artifact).is_file(), artifact)
         self.assertTrue(self.instances[0].frozen)
         self.assertEqual(self.grader.call_args.args[1], directory / "source")
@@ -198,6 +211,8 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(result["image_id"], report["image_id"])
         with self.assertRaisesRegex(ValueError, "image"):
             batch.checked_verification(batch.VERIFICATION, "wrong-image", [])
+        with self.assertRaisesRegex(ValueError, "task image"):
+            batch.checked_verification(batch.VERIFICATION, report["image_id"], [], "wrong-task-image")
         with patch.object(batch, "file_hash", return_value="changed"):
             with self.assertRaisesRegex(ValueError, "source changed"):
                 batch.checked_verification(batch.VERIFICATION, report["image_id"], [])

@@ -78,7 +78,9 @@ def codex_config_overrides():
     values = [f"features.{feature}=false" for feature in CODEX_DISABLED_FEATURES]
     values.extend([
         "features.skip_host_skill_discovery=true",
-        'approval_policy="never"', 'sandbox_mode="read-only"',
+        # /work is writable in both containers. Read-only here would inject a
+        # false permission restriction into Codex's model-facing instructions.
+        'approval_policy="never"', 'sandbox_mode="workspace-write"',
         'web_search="disabled"', "agents.enabled=false",
         "tools.update_plan.enabled=false", "tools.experimental_request_user_input.enabled=false",
         "project_doc_max_bytes=0", "model_catalog_json=" + json.dumps(CODEX_CATALOG_PATH),
