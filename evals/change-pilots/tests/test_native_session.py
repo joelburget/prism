@@ -113,6 +113,27 @@ class NativeSessionTest(unittest.TestCase):
         self.assertEqual(report["final_text"], "codex done")
         self.assertEqual(report["usage"], {"output_tokens": 3})
 
+    def test_codex_reconnect_followed_by_completion_is_not_fatal(self):
+        reconnect = {"type": "error", "message":
+            "Reconnecting... 2/5 (stream disconnected before completion: WebSocket protocol error: Connection reset without closing handshake)"}
+        complete = {"type": "turn.completed", "usage": {"output_tokens": 3}}
+        report, events, *_ = self.run_fixture(Process(lines(reconnect, complete)), provider="openai")
+        self.assertEqual(report["stop_reason"], "completed")
+        self.assertEqual(report["usage"], {"output_tokens": 3})
+        self.assertTrue(any(e.get("payload") == reconnect for e in events))
+        # Preserve real failures: no completion, failed turn, unexpected error,
+        # error after completion, a newly started unfinished turn, or nonzero exit.
+        for stream in [(reconnect,), (reconnect, {"type": "turn.failed"}, complete),
+                       ({"type": "error", "message": "unauthorized"}, complete),
+                       (complete, reconnect), (complete, {"type": "turn.started"})]:
+            with self.subTest(stream=stream):
+                report, *_ = self.run_fixture(Process(lines(*stream)), provider="openai")
+                self.assertEqual(report["stop_reason"], "native_client_error")
+        report, *_ = self.run_fixture(Process(lines(reconnect, complete), returncode=1), provider="openai")
+        self.assertEqual(report["stop_reason"], "native_client_error")
+        report, *_ = self.run_fixture(Process(lines(reconnect, complete)), provider="openai", relay_error="broken relay")
+        self.assertEqual(report["stop_reason"], "native_relay_error")
+
     def test_returned_metadata_and_final_text_are_redacted(self):
         secret = "sk-offline-fixture-secret-value"
         report, events, *_ = self.run_fixture(Process(lines(

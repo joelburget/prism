@@ -86,6 +86,73 @@ class ReconciliationTests(unittest.TestCase):
             self.assertEqual(tree_fingerprint(self.output/'runs'/run), digest)
         self.assertFalse(json.loads((self.output/'runs'/ident/'result.json').read_text())['success'])
 
+    def second_interruption(self, legacy=False):
+        _, ident = self.interrupted(repetitions=2)
+        reconcile.continue_nul_error(self.root, self.output, ident)
+        if legacy:
+            path = self.output/'plan.json'
+            plan = json.loads(path.read_text())
+            del plan['continuation']['inherited_final_records_sha256']
+            path.chmod(0o600)
+            path.write_text(json.dumps(plan))
+        def agent(client, argv, prompt, execute, record, **limits):
+            for payload in [
+                {'type': 'error', 'message': 'Reconnecting... 2/5 (stream disconnected before completion: Connection reset)'},
+                {'type': 'turn.completed', 'usage': {'input_tokens': 5, 'output_tokens': 2}},
+            ]:
+                record({'event': 'native_event', 'payload': payload})
+            return {**self.agent_result, 'stop_reason': 'native_client_error', 'exit_code': 0}
+        self.agent.side_effect = agent
+        result = chain.execute_plan(self.output)
+        self.fingerprints.return_value = {'original': {
+            'experiments/native_bridge.py': 'after', 'experiments/reconcile.py': 'updated',
+            'experiments/native_session.py': 'reconnect-fix'}, 'followups': {'fixed': True}}
+        return result['stopped_on_infrastructure_run']
+
+    def test_reconnect_continues_previous_repair_without_model_retry(self):
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy):
+                # Each scenario needs its own isolated history.
+                case = ReconciliationTests()
+                case.setUp()
+                try:
+                    ident = case.second_interruption(legacy)
+                    digests = {p.name: tree_fingerprint(p) for p in (case.output/'runs').iterdir()}
+                    calls = case.agent.call_count
+                    destination = case.output.with_name('continuation-two')
+                    result = reconcile.continue_error(case.output, destination, ident, 'codex-reconnect')
+                    self.assertEqual(result['remaining_stages'], 0)
+                    self.assertEqual(case.agent.call_count, calls)
+                    corrected = json.loads((destination/'runs'/ident/'result.json').read_text())
+                    self.assertTrue(corrected['success'])
+                    self.assertEqual(corrected['stop_reason'], 'completed')
+                    for run, digest in digests.items():
+                        self.assertEqual(tree_fingerprint(case.output/'runs'/run), digest)
+                        if run != ident:
+                            self.assertEqual(tree_fingerprint(destination/'runs'/run), digest)
+                finally:
+                    case.doCleanups()
+
+    def test_unrecovered_reconnect_is_not_reclassified(self):
+        ident = self.second_interruption()
+        path = self.output/'runs'/ident/'events.jsonl'
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        rows = [r for r in rows if r.get('payload', {}).get('type') != 'turn.completed']
+        path.write_text(''.join(json.dumps(r)+'\n' for r in rows))
+        with self.assertRaisesRegex(ValueError, 'does not prove a recovered reconnect'):
+            reconcile.continue_error(self.output, self.output.with_name('two'), ident, 'codex-reconnect')
+
+    def test_inherited_measurement_tampering_rejected(self):
+        ident = self.second_interruption(legacy=True)
+        plan = json.loads((self.output/'plan.json').read_text())
+        path = self.output/'runs'/plan['continuation']['reconciled_run_id']/'result.json'
+        result = json.loads(path.read_text())
+        result['elapsed_seconds'] += 1
+        path.chmod(0o600)
+        path.write_text(json.dumps(result))
+        with self.assertRaisesRegex(ValueError, 'inherited measurement changed'):
+            reconcile.continue_error(self.output, self.output.with_name('two'), ident, 'codex-reconnect')
+
     def test_other_tool_error_is_not_reclassified(self):
         _, ident = self.interrupted()
         path = self.root/'runs'/ident/'events.jsonl'
