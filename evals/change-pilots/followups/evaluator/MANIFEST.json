@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "checkpoint": 2,
+  "files": {
+    "../experiments/sandbox.py": "0a067a8dc81de12ef82bc1d92cad98bd09e2b6a5f84f75bef7ca432b0798dcf6",
+    "README.md": "790238c68f0dafb60a6c5e74dd1787093308c7d61522008e99fc27a6724d626c",
+    "evaluator/README.md": "bf1e1e0ff75f05f2d6f8fad43c470ef157063af19f114242e14448494f19ebea",
+    "evaluator/freeze.py": "fde9fa939bc4a07e7637985e8449f261127da6306b4a537c4dadfd643792dd4f",
+    "evaluator/generate.py": "f57c427890c8d883bf9cd3bb4cad45a903b123172fbc3aca962adfc8969cdf6c",
+    "evaluator/grade.py": "9701dbf2a522c3b4b771612b48c038af6fb80e331eba549da3c1b671c9d81929",
+    "evaluator/heldout/query-null/COVERAGE.md": "00451c9840a037e43e4758d5f43f00dd15170bfead4a4b548dc12e4461e5a8b8",
+    "evaluator/heldout/query-null/cases.json": "1d528244be242db973788f2c8a61d329a107471dd91aea31a448c1a3232d955a",
+    "evaluator/heldout/workflow-recovery/COVERAGE.md": "9073242802c2e40c99faf6380bdf993e0f39f2c52167542f5da34f351c46f4f6",
+    "evaluator/heldout/workflow-recovery/cases.json": "969d9784ac63d71786e8e662c9b4be2f4eb8dc21d5000c967d6b710c65aa5011",
+    "evaluator/oracle_cli.py": "327122b8d6fa4a1d521c399dc99cde177546001c75b6cf511e4b26a3257fd99b",
+    "evaluator/query_model.py": "88bf5af7288c3462d994a903ceef4de7e968074685e8847fe6c5c2fcd57c78a4",
+    "evaluator/scaling.py": "6350e23075e84501b1288dd34895c78d12ad3ab58876323bd432e75748d8de36",
+    "evaluator/workflow_model.py": "7780d5e3fd116c7a6b92a894bc05343f627be23d6dea0011e80fdf6927b94853",
+    "export_public.py": "3ce928d954ce588c60372e45d6543c11acd93c0a73fd1715575e928b7d09c57f",
+    "query-null/PREVIOUS.md": "95cc159805694e67299aaaee253555a430b690c1e6699ed70fd5c30db4c8fac1",
+    "query-null/PROBLEM.md": "13835f6cba73f481924fb58a167492e2af07a9c8fe9a0f57500c4bf180332419",
+    "query-null/cases.json": "18d11b4effd076cb3c6cdea9786bba6bad0ff38ade4d4cfbb7b3efa2c622444b",
+    "run.py": "3f2fc2eb4adaa4bfb6b924601ab0bd4df0c113bc787d4eee581923af8709d24b",
+    "tests/test_export.py": "44f5f58a664ec036106b6ec04237b2d864d868fcf21ae7c24374bb7726ffb430",
+    "tests/test_followups.py": "948c97edaa9fe781bc2bf37b383f03c6624bdd7d92c7cd3f5cd75c781a1bcce4",
+    "tests/test_grade.py": "4fc5f2486dcb170948f64fa3f270bd816028b6619caeaa8afa323668a9908e90",
+    "workflow-recovery/PREVIOUS.md": "581a42cb8ed90d82c7a7bb6fb59447ddba90b0583e2f55c9c6b9f2e0c92dffd1",
+    "workflow-recovery/PROBLEM.md": "ee0f99a99e56899796fb9e9a48bc8d0133f3a15cc5897926d7c29950a0dde84a",
+    "workflow-recovery/cases.json": "eac103267f88f1b7dbb71bd35e85953a1e3f3ca8cb4b9435ec80457a4a7670a3",
+    "../run.py": "91d5e12059a2ba7997ad8f91273c912ca0c5761b1c76fd5c63f55c07d311dc56"
+  },
+  "corpora": {
+    "public": {
+      "count": 143,
+      "sha256": "e59a83cd65d0d15556a742eba3f4aee8ec112e2a3f007afae07041e3c8d05cd9"
+    },
+    "heldout": {
+      "count": 137,
+      "sha256": "1dd35f943cef85224112ab69aedded56f7a1d7a1562cb5f264c462dea7509696"
+    }
+  }
+}
