@@ -1,8 +1,9 @@
-"""Subscription-native feasibility checks. Live native execution is fail-closed.
+"""Subscription-native plan preview. Batch execution remains fail-closed.
 
 This is a different harness from the shared API loop: native clients supply
-their own system prompts, compaction, routing, and accounting. CLI flags alone
-have not established the required host/evaluator isolation. This module never
+their own system prompts, compaction, routing, and accounting. Use native_check
+for real container/inventory verification and native_session for bounded probes.
+The experiment scheduler has not yet integrated that route. This module never
 launches inference, reads OAuth files, or exports a token to an API client.
 
 Evidence checked 2026-09-11: installed codex 0.154.0 / claude 2.1.257 help;
@@ -22,11 +23,11 @@ SOURCES = ["https://developers.openai.com/codex/config-schema.json",
            "https://code.claude.com/docs/en/security"]
 REQUIRED_FLAGS = {
     "codex": ["--ignore-user-config", "--ignore-rules", "--ephemeral", "--skip-git-repo-check", "--json", "--strict-config"],
-    "claude": ["--tools", "--allowedTools", "--safe-mode", "--strict-mcp-config", "--no-session-persistence", "--disable-slash-commands"],
+    "claude": ["--tools", "--allowedTools", "--strict-mcp-config", "--no-session-persistence", "--disable-slash-commands"],
 }
 BLOCKERS = [
-    "No verified OS boundary confines the credential-bearing native CLI away from host files and evaluator-only data.",
-    "Effective native tool inventory and customization suppression have not been verified without model inference.",
+    "The batch scheduler does not yet consume native container/inventory verification or native session results; use experiments.native_check for current per-model evidence.",
+    "An isolated subscription login is required separately for each provider; host login status alone is insufficient.",
     "Subscription model availability, automatic fallback behavior, per-request output limits, and accounting need verification in the isolated client.",
 ]
 
@@ -80,7 +81,7 @@ def prepare_native(config):
                  "Installed Claude --bare requires API-key/apiKeyHelper authentication and bypasses subscription OAuth; do not use it for this route.",
                  "--safe-mode disables MCP customizations too; supplied execute MCP availability must be verified, not assumed.",
                  "Admin-managed policy can still apply under --safe-mode, including policy-configured hooks; --tools empty alone is insufficient isolation."])
-    return {"harness": "subscription-native", "status": "blocked_isolation_unverified", "ready": False,
+    return {"harness": "subscription-native", "status": "blocked_batch_not_integrated", "ready": False,
             "client": client, "model_id": config.get("model_id"), "required_cli_flags": REQUIRED_FLAGS[client],
             "requirements": requirements, "client_notes": notes, "blockers": list(BLOCKERS), "sources": list(SOURCES)}
 
@@ -88,7 +89,7 @@ def prepare_native(config):
 def run_native(config, prompt, execute, record):
     """Never turn an unverified preview into an authenticated model invocation."""
     plan = prepare_native(config)
-    result = {"harness": "subscription-native", "stop_reason": "native_isolation_unverified",
+    result = {"harness": "subscription-native", "stop_reason": "native_batch_not_integrated",
               "ready": False, "model_id": config.get("model_id"), "turns": 0, "tool_calls": 0,
               "inference_requests": 0, "elapsed_seconds": 0, "usage": {},
               "estimated_cost_usd": None, "subscription_usage": "not_run",

@@ -1,8 +1,8 @@
 """Offline-ready MCP protocol bridge to a caller-owned isolated execute callback.
 
 No subprocess, filesystem, credentials, HTTP endpoint, or container-selection
-surface is exposed here. Native launch remains disabled in native.py until its
-separate isolation boundary is verified. The callback must enforce command
+surface is exposed here. native_session connects official containerized clients;
+native.py keeps the unintegrated batch route disabled. The callback must enforce command
 timeouts and kill descendants (DockerSandbox.execute does so).
 """
 from __future__ import annotations

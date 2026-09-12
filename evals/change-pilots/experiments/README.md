@@ -14,10 +14,10 @@ that a particular API account can access the model.
 - The API path is implemented and tested with fake provider responses, real Docker
   tool execution, and real starter acceptance cases. Live API authentication,
   account access, model-specific behavior, and empirical rollout cost still need calibration.
-- The native subscription path is **not executable yet**. [native.py](native.py)
-  reports installed CLI capabilities and preparation requirements. Its runner stops
-  before inference. [native_bridge.py](native_bridge.py) implements the proposed
-  single-tool MCP bridge, but no native client is connected to it.
+- Native clients now have separate Docker containers and a working MCP bridge to
+  the task container. [Native setup](NATIVE.md) describes the reproducible offline
+  checks and subscription login. The batch scheduler still runs API experiments
+  only; native model access, quota and accounting need live calibration.
 - Runs are deliberately serial within an experiment. The controller uses a file
   lock, resumes by skipping finished runs, and never silently retries an interrupted
   or ambiguously billed request. There is no automatic concurrent scheduler yet.
@@ -180,11 +180,12 @@ in print mode. The native preparation code removes API credentials from its chil
 environment. Never repurpose subscription OAuth credentials for the custom API loop.
 [Claude authentication precedence](https://code.claude.com/docs/en/env-vars).
 
-The remaining native work is a separately authenticated client environment with no
-evaluator/host files, verified suppression of additional tools/customizations, and a
-working single-tool bridge to the execution container. Native CLI shell sandbox flags
-alone do not isolate the whole client. Installed Claude `--bare` forces API auth;
-`--safe-mode` also disables custom MCP. We have not bypassed those constraints.
+The native client container has no host binds, evaluator files or Docker socket.
+An exact provider-host CONNECT proxy restricts its network access; the task container
+has no network or credentials. Real CLI requests to an offline fake provider expose
+the effective tools and exercise the MCP bridge. See [setup and evidence](NATIVE.md).
+Installed Claude `--bare` forces API auth and `--safe-mode` also disables custom MCP;
+the isolated image uses explicit tool/customization controls instead.
 Native experiments must carry a distinct harness label because prompts, compaction,
 tool behavior, token accounting and provider routing can differ.
 
