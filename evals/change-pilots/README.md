@@ -12,6 +12,9 @@ This directory contains problem descriptions, public acceptance fixtures, an add
 
 The [experiment controller](experiments/README.md) adds repeated API agent runs,
 isolated Docker execution, quantitative records and a model-blind human review UI.
+The [second-checkpoint pilots](followups/README.md) add leased workflow workers and
+incremental query views as follow-up changes, with cumulative regression suites.
+
 See the [eight-model cost scenarios](experiments/COST_ESTIMATE.md) before scheduling
 paid runs. [Subscription-native setup](experiments/NATIVE.md) provides isolated
 clients, routing checks, and a separate batch runner for subscription experiments.

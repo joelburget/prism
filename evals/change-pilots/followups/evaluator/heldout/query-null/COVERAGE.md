@@ -1,0 +1,56 @@
+# Private checkpoint-two coverage
+
+All checkpoint-one held-out cases remain baseline regressions. New cases:
+
+- **cp2-null-join-transition-plain**: NULL-to-value and value-to-NULL changes affect padding, matches and multiplicities.
+- **cp2-null-join-transition-optimized**: NULL-to-value and value-to-NULL changes affect padding, matches and multiplicities.
+- **cp2-having-thresholds-plain**: HAVING membership changes as aggregates cross the threshold in either direction.
+- **cp2-having-thresholds-optimized**: HAVING membership changes as aggregates cross the threshold in either direction.
+- **cp2-null-group-and-all-null-plain**: NULL group keys merge; deleting its final non-NULL value leaves NULL aggregates.
+- **cp2-null-group-and-all-null-optimized**: NULL group keys merge; deleting its final non-NULL value leaves NULL aggregates.
+- **cp2-chained-outer-joins-plain**: Updating downstream matches and upstream keys retracts all affected join chains.
+- **cp2-chained-outer-joins-optimized**: Updating downstream matches and upstream keys retracts all affected join chains.
+- **cp2-on-versus-where-plain**: WHERE rejects unmatched padding whereas equivalent ON predicates preserve it.
+- **cp2-on-versus-where-optimized**: WHERE rejects unmatched padding whereas equivalent ON predicates preserve it.
+- **cp2-net-zero-batch-plain**: A net-zero batch advances revision without corrupting cached counts.
+- **cp2-net-zero-batch-optimized**: A net-zero batch advances revision without corrupting cached counts.
+- **cp2-batch-shape-precedence-plain**: All structural checks precede runtime row lookup, and failure is atomic.
+- **cp2-batch-shape-precedence-optimized**: All structural checks precede runtime row lookup, and failure is atomic.
+- **cp2-row-error-precedence-plain**: Row validation precedes duplicate or absent ID checks.
+- **cp2-row-error-precedence-optimized**: Row validation precedes duplicate or absent ID checks.
+- **cp2-rollback-used-id-set-plain**: Insert/delete before a failing change must roll back even the used-ID set.
+- **cp2-rollback-used-id-set-optimized**: Insert/delete before a failing change must roll back even the used-ID set.
+- **cp2-multiple-view-isolation-plain**: Several differently grouped and filtered views update independently over one batch.
+- **cp2-multiple-view-isolation-optimized**: Several differently grouped and filtered views update independently over one batch.
+- **cp2-inner-join-bag-plain**: Deleting a duplicate right row removes one contribution per matching left row.
+- **cp2-inner-join-bag-optimized**: Deleting a duplicate right row removes one contribution per matching left row.
+- **cp2-stable-tie-order-plain**: An update retains encounter position; insertion appends even with a smaller private ID.
+- **cp2-stable-tie-order-optimized**: An update retains encounter position; insertion appends even with a smaller private ID.
+- **cp2-text-extrema-plain**: Retracting a text minimum and maximum exposes the correct replacement.
+- **cp2-text-extrema-optimized**: Retracting a text minimum and maximum exposes the correct replacement.
+- **cp2-creation-after-mutations-plain**: New views build from current base rows and can share a name previously dropped.
+- **cp2-creation-after-mutations-optimized**: New views build from current base rows and can share a name previously dropped.
+- **cp2-view-error-isolation-plain**: Failed view creation/drop/read do not corrupt existing views or revision.
+- **cp2-view-error-isolation-optimized**: Failed view creation/drop/read do not corrupt existing views or revision.
+- **cp2-same-id-across-tables-plain**: Row-ID namespaces are per table; same IDs in one atomic batch are independent.
+- **cp2-same-id-across-tables-optimized**: Row-ID namespaces are per table; same IDs in one atomic batch are independent.
+- **cp2-coalesce-retraction-plain**: Per-row COALESCE and nullable arithmetic remain correct as rows change between NULL and values.
+- **cp2-coalesce-retraction-optimized**: Per-row COALESCE and nullable arithmetic remain correct as rows change between NULL and values.
+- **cp2-self-join-two-roles-plain**: One base-table change affects both aliases of a self join, including their cross term.
+- **cp2-self-join-two-roles-optimized**: One base-table change affects both aliases of a self join, including their cross term.
+- **cp2-boolean-null-filter-plain**: Boolean TRUE/FALSE/NULL updates change predicate membership under three-valued logic.
+- **cp2-boolean-null-filter-optimized**: Boolean TRUE/FALSE/NULL updates change predicate membership under three-valued logic.
+- **cp2-duplicate-extrema-plain**: Retracting one of two equal minima must retain the minimum until its last contribution disappears.
+- **cp2-duplicate-extrema-optimized**: Retracting one of two equal minima must retain the minimum until its last contribution disappears.
+- **cp2-generated-313-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-313-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-719-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-719-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-1229-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-1229-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-2027-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-2027-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-4001-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-4001-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-5003-plain**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
+- **cp2-generated-5003-optimized**: Seeded multi-table batches combine join-key movement, NULLs, bag multiplicity and aggregate retractions.
