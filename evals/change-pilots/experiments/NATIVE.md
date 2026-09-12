@@ -1,8 +1,8 @@
 # Isolated subscription clients
 
 The native route uses official Codex 0.154.0 and Claude Code 2.1.257, pinned in a
-Docker image. The experiment batch scheduler remains API-only. These tools verify
-the native environment and prepare authentication; they do not launch evals.
+Docker image. `native_check` verifies the environment and prepares authentication;
+`native_batch` runs independent programming evaluations through the subscriptions.
 
 [Recorded verification](NATIVE_VERIFICATION.json) covers all eight model
 configurations, both provider boundaries, and the exact image and source hashes.
@@ -18,7 +18,22 @@ python3 -m experiments.native_check verify --provider anthropic \
   --model-id claude-haiku-4-5-20251001 --output reports/native-anthropic.json
 python3 -m experiments.native_check status --provider openai
 python3 -m experiments.native_check login --provider anthropic
+
+# Eight models × three languages × ledger refunds × one repetition.
+python3 -m experiments.native_batch plan --results /path/outside/git/native-calibration
+python3 -m experiments.native_batch run --results /path/outside/git/native-calibration
+python3 -m experiments.native_batch status --results /path/outside/git/native-calibration
 ```
+
+The native batch plan freezes both image IDs, verified model/effort combinations,
+source and starter hashes, prompts, and randomized order. Runs are serial, use a
+fresh client and task container for each cell, and save the same source, grading,
+trace and blinded-review artifacts as the API runner. Default limits are 100 tool
+calls and 30 minutes per rollout, with an additional 100-turn limit for Claude.
+Native CLI defaults control token limits; no shared token or dollar cap is claimed.
+No API keys or automatic paid fallback are used. Infrastructure failures stop the
+batch and stay separate from ability scores; finished cells are never retried.
+The legacy `native.py` preview remains disabled; use the `native_batch` entrypoint.
 
 Verification uses a disposable blank authentication volume and a fake provider
 inside a network-disabled container. It captures the actual CLI tool inventory,

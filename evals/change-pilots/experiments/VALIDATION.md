@@ -1,7 +1,8 @@
 # Experiment infrastructure validation
 
-Verified on 2026-09-11. **No authenticated model inference or paid API requests
-were made.** These checks validate infrastructure, not model performance.
+Initial infrastructure checks on 2026-09-11 used no authenticated model inference.
+The subsequent live subscription preflight is described below. These checks
+validate infrastructure, not model performance.
 
 - Public maintenance suite: 145 tests discovered, 141 passed and four opt-in Docker
   tests skipped in the default invocation. The four Docker tests were separately
@@ -52,10 +53,21 @@ limits. See [machine-readable verification evidence](NATIVE_VERIFICATION.json) a
 [reproduction/login instructions](NATIVE.md).
 
 The isolated Codex container recognizes ChatGPT authentication after the documented
-headless cache copy. Isolated Claude requires a fresh subscription login; the host
-Mac keychain was not exported. No live model access or remaining quota was checked.
+headless cache copy. The user subsequently authenticated the isolated Claude
+container with Max; the host Mac keychain was not exported.
+
+## Live subscription preflight
+
+All eight selected models completed a small live probe: one execute-tool canary
+in a separate task container, followed by `DONE`. These probes used the official
+subscription clients, with no API keys or fallback route. They are separate from
+the 24 scored calibration cells and used no task solutions or acceptance fixtures.
+Claude's assistant metadata reported the requested model IDs. Codex accepted each
+explicit model selection but did not expose independent server model identity in
+its event stream. Remaining quota and actual subscription invoices were not checked.
 
 Still to validate through calibration: live provider schemas/model availability,
 real tool-use behavior, effective model settings, empirical cost/time distributions,
 and whether the selected budgets yield useful task difficulty. Subscription-native
-batch execution remains disabled pending live calibration and scheduler integration.
+batch execution now uses `experiments.native_batch`, with source/score/review capture,
+strict input and image checks, and no automatic retries or model fallback.

@@ -65,11 +65,11 @@ usage must be checked; no unlimited/free-throughput assumption is used here.
 [Claude Code subscription usage](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan).
 
 Both installed host clients reported subscription login during setup. The isolated
-Codex client now recognizes ChatGPT login; isolated Claude requires its own login.
+Codex client recognizes ChatGPT login; isolated Claude now recognizes Max login.
 [Native setup](NATIVE.md) supplies whole-client containers and real offline routing
-checks. The batch scheduler remains API-only pending live native calibration and
-integration. Native runs will be a separate experiment because their harnesses
-differ from the shared API loop.
+checks. The native batch scheduler records its own subscription experiment, because its harness
+differs from the shared API loop. Native CLI dollar estimates are API-equivalent
+figures, not subscription invoices.
 
 ## Reproduce or update
 

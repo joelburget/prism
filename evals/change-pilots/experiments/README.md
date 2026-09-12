@@ -16,8 +16,10 @@ that a particular API account can access the model.
   account access, model-specific behavior, and empirical rollout cost still need calibration.
 - Native clients now have separate Docker containers and a working MCP bridge to
   the task container. [Native setup](NATIVE.md) describes the reproducible offline
-  checks and subscription login. The batch scheduler still runs API experiments
-  only; native model access, quota and accounting need live calibration.
+  checks and subscription login. `experiments.native_batch` runs frozen subscription
+  experiments with the same grading and review artifacts, under a separate harness
+  label. Remaining subscription quota and actual charges are not inferred from
+  the CLI's API-equivalent dollar estimates.
 - Runs are deliberately serial within an experiment. The controller uses a file
   lock, resumes by skipping finished runs, and never silently retries an interrupted
   or ambiguously billed request. There is no automatic concurrent scheduler yet.
