@@ -1,16 +1,18 @@
 {
-  "run_id": "run-b3636c69ae7b",
-  "checkpoint": 1,
+  "run_id": "run-9fbc0016fd79",
+  "checkpoint": 2,
   "model": "sonnet",
   "model_id": "claude-sonnet-5",
   "task": "query-null",
   "language": "python",
   "source_available": true,
-  "source_sha256": "cb2b3f76d4837c7f8d76a3c6f2d608d9d6ffe1008cf07d6ffcf69655e47fab77",
-  "passed": true,
-  "seconds": 422.4376122499816,
-  "tool_calls": 33,
-  "flags": [],
-  "result_sha256": "15dc2becc86fdd12434b0b1953d8094d10458d3cbcaf3a04472b5adf99beb1cf",
+  "source_sha256": "4860e197fe8edd17805037378b5f5ed20c34e97a5d29ece956dfddaf00f96df3",
+  "passed": false,
+  "seconds": 1800.7313759999815,
+  "tool_calls": 26,
+  "flags": [
+    "native_wall_timeout"
+  ],
+  "result_sha256": "7b4395c0714bb80a579a7d2d70eb11bc160d2a4cc53a408c0705444ea328cdad",
   "archive_note": "Exact frozen source"
 }

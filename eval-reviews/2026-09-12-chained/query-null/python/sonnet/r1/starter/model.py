@@ -45,13 +45,10 @@ class Plan:
     aggregate: bool
 
 
-def validate(request):
-    require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
-    data = request.get('input')
-    fields(data, {'database', 'queries'})
-    require(isinstance(data['database'], list) and isinstance(data['queries'], list))
+def validate_database(tables):
+    require(isinstance(tables, list))
     database = {}
-    for t in data['database']:
+    for t in tables:
         fields(t, {'name', 'columns', 'rows'})
         require(identifier(t['name']) and t['name'] not in database)
         require(isinstance(t['columns'], list) and len(t['columns']) > 0 and isinstance(t['rows'], list))
@@ -68,10 +65,24 @@ def validate(request):
                 else:
                     require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
-    for q in data['queries']:
-        fields(q, {'sql', 'optimize'})
-        require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
-    return database, data['queries']
+    return database
+
+
+def validate(request):
+    require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
+    data = request.get('input')
+    require(isinstance(data, dict))
+    keys = set(data)
+    require(keys == {'database', 'queries'} or keys == {'database', 'commands'})
+    database = validate_database(data['database'])
+    if 'queries' in keys:
+        require(isinstance(data['queries'], list))
+        for q in data['queries']:
+            fields(q, {'sql', 'optimize'})
+            require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
+        return 'queries', database, data['queries']
+    require(isinstance(data['commands'], list))
+    return 'commands', database, data['commands']
 
 
 def fields(value, expected):

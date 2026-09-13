@@ -9,9 +9,11 @@
     "README.md",
     "binder.py",
     "engine.py",
+    "incview.py",
     "main.py",
     "model.py",
     "parser.py",
-    "run.sh"
+    "run.sh",
+    "viewdb.py"
   ]
 }
