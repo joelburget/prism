@@ -10,6 +10,8 @@ export interface Table {
   name: string;
   columns: Column[];
   rows: Value[][];
+  rowIds: number[];
+  usedIds: Set<number>;
 }
 export interface InputQuery {
   sql: string;
@@ -71,21 +73,13 @@ function fields(
       names.every((k) => Object.hasOwn(x, k)),
   );
 }
-export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
-  object(request);
-  requireThat(request.protocol_version === 1 && request.task === "query-null");
-  const data = request.input;
-  fields(data, ["database", "queries"]);
-  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+function validateDatabase(items: unknown): Map<string, Table> {
+  requireThat(Array.isArray(items));
   const database = new Map<string, Table>();
-  for (const item of data.database as unknown[]) {
+  for (const item of items as unknown[]) {
     fields(item, ["name", "columns", "rows"]);
     requireThat(identifier(item.name) && !database.has(item.name));
-    requireThat(
-      Array.isArray(item.columns) &&
-        item.columns.length > 0 &&
-        Array.isArray(item.rows),
-    );
+    requireThat(Array.isArray(item.columns) && item.columns.length > 0 && Array.isArray(item.rows));
     const names = new Set<string>();
     const columns: Column[] = [];
     for (const c of item.columns as unknown[]) {
@@ -96,27 +90,53 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       names.add(c.name);
       columns.push({ name: c.name, type: c.type, nullable: c.nullable });
     }
+    const rows: Value[][] = [];
     for (const row of item.rows as unknown[]) {
       requireThat(Array.isArray(row) && row.length === columns.length);
-      row.forEach((v: unknown, i: number) =>
-        requireThat(
-          v === null ? columns[i].nullable : columns[i].type === "int"
-            ? typeof v === "number" && Number.isInteger(v) && Number.isSafeInteger(v)
-            : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
-        ),
-      );
+      row.forEach((v: unknown, i: number) => requireThat(
+        v === null ? columns[i].nullable : columns[i].type === "int"
+          ? typeof v === "number" && Number.isInteger(v) && Number.isSafeInteger(v)
+          : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
+      ));
+      rows.push(row as Value[]);
     }
-    database.set(item.name, {
-      name: item.name,
-      columns,
-      rows: item.rows as Value[][],
-    });
+    const rowIds = rows.map((_, i) => i + 1);
+    database.set(item.name as string, { name: item.name as string, columns, rows, rowIds, usedIds: new Set(rowIds) });
   }
-  const queries: InputQuery[] = [];
-  for (const q of data.queries as unknown[]) {
-    fields(q, ["sql", "optimize"]);
-    requireThat(typeof q.sql === "string" && typeof q.optimize === "boolean");
-    queries.push({ sql: q.sql, optimize: q.optimize });
+  return database;
+}
+
+export type Request =
+  | { database: Map<string, Table>; queries: InputQuery[] }
+  | { database: Map<string, Table>; commands: unknown[] };
+
+export function validate(request: unknown): Request {
+  object(request);
+  requireThat(request.protocol_version === 1 && request.task === "query-null");
+  const data = request.input;
+  requireThat(data !== null && typeof data === "object");
+  const input = data as Record<string, unknown>;
+  const database = validateDatabase(input.database);
+  requireThat(Array.isArray(input.queries) || Array.isArray(input.commands));
+  requireThat(!(Array.isArray(input.queries) && Array.isArray(input.commands)));
+  if (Array.isArray(input.queries)) {
+    fields(input, ["database", "queries"]);
+    const queries: InputQuery[] = [];
+    for (const q of input.queries as unknown[]) {
+      fields(q, ["sql", "optimize"]);
+      requireThat(typeof q.sql === "string" && typeof q.optimize === "boolean");
+      queries.push({ sql: q.sql, optimize: q.optimize });
+    }
+    return { database, queries };
   }
-  return [database, queries];
+  fields(input, ["database", "commands"]);
+  requireThat((input.commands as unknown[]).length <= 2000);
+  return { database, commands: input.commands as unknown[] };
+}
+
+export function cloneDatabase(source: Map<string, Table>): Map<string, Table> {
+  return new Map([...source].map(([name, t]) => [name, {
+    ...t, columns: t.columns.map(c => ({ ...c })), rows: t.rows.map(r => [...r]),
+    rowIds: [...t.rowIds], usedIds: new Set(t.usedIds),
+  }]));
 }
