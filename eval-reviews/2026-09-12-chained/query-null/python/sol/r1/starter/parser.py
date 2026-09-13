@@ -39,9 +39,16 @@ class Parser:
 
     def expr(self, minimum=1):
         t = self.pop()
-        if t in ('NULL', 'COALESCE'):
-            raise DomainError('UNSUPPORTED_FEATURE')
-        if t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
+        if t == 'NULL': left = Expr('lit', None, type='null')
+        elif t == 'COALESCE':
+            self.need('(')
+            args = [self.expr()]
+            self.need(',')
+            args.append(self.expr())
+            while self.take(','): args.append(self.expr())
+            self.need(')')
+            left = Expr('COALESCE', args=args)
+        elif t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
         elif t == '(':
             left = self.expr()
             self.need(')')
@@ -61,14 +68,22 @@ class Parser:
             require(identifier(t), 'PARSE_ERROR')
             left = Expr('col', (t, self.name()) if self.take('.') else ('', t))
         compared = False
-        while PRECEDENCE.get(self.peek(), 0) >= minimum:
+        while True:
+            if self.peek() == 'IS' and 4 >= minimum:
+                require(not compared, 'PARSE_ERROR')
+                self.pop()
+                negated = self.take('NOT')
+                self.need('NULL')
+                left = Expr('IS_NOT_NULL' if negated else 'IS_NULL', args=[left])
+                compared = True
+                continue
+            if PRECEDENCE.get(self.peek(), 0) < minimum: break
             op = self.pop()
             p = PRECEDENCE[op]
             require(not (p == 4 and compared), 'PARSE_ERROR')
             right = self.expr(p + 1)
             left = Expr(op, args=[left, right])
             if p == 4: compared = True
-        if self.peek() == 'IS': raise DomainError('UNSUPPORTED_FEATURE')
         return left
 
     def source(self):
@@ -87,12 +102,13 @@ class Parser:
         self.need('FROM')
         q.sources.append(self.source())
         while self.peek() in ('INNER', 'JOIN', 'LEFT'):
-            if self.take('LEFT'): raise DomainError('UNSUPPORTED_FEATURE')
-            self.take('INNER')
+            kind = 'left' if self.take('LEFT') else 'inner'
+            if kind == 'left': self.take('OUTER')
+            else: self.take('INNER')
             self.need('JOIN')
             q.sources.append(self.source())
             self.need('ON')
-            q.joins.append(self.expr())
+            q.joins.append((kind, self.expr()))
         if self.take('WHERE'): q.where = self.expr()
         if self.take('GROUP'):
             self.need('BY')
@@ -106,8 +122,12 @@ class Parser:
                 alias = self.name()
                 desc = self.take('DESC')
                 if not desc: self.take('ASC')
-                if self.peek() == 'NULLS': raise DomainError('UNSUPPORTED_FEATURE')
-                q.order.append((alias, desc))
+                nulls = None
+                if self.take('NULLS'):
+                    if self.take('FIRST'): nulls = 'first'
+                    elif self.take('LAST'): nulls = 'last'
+                    else: raise DomainError('PARSE_ERROR')
+                q.order.append((alias, desc, nulls))
                 if not self.take(','): break
         if self.take('LIMIT'):
             q.limit = self.natural()

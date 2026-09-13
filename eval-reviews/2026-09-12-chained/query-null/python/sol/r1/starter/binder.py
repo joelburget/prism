@@ -18,7 +18,7 @@ def bind(q, database):
         t = database[name]
         tables.append(t)
         columns.extend((alias, c['name'], c['type'], si) for c in t['columns'])
-        if si: check(q.joins[si - 1], columns, False, False, True)
+        if si: check(q.joins[si - 1][1], columns, False, False, True)
     for e in q.groups: check(e, columns, False)
     keys = [e.index for e in q.groups]
     require(len(set(keys)) == len(keys), 'INVALID_AGGREGATION')
@@ -30,10 +30,8 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
+    q.order = [(aliases.index(a) if a in aliases else -1, d, n) for a, d, n in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
     return Plan(q, tables, [[] for _ in tables], aggregate)
 
 
@@ -51,22 +49,33 @@ def check(e, columns, allow, inside=False, predicate=False):
         require(len(matches) == 1, 'AMBIGUOUS_COLUMN')
         e.index, c = matches[0]
         e.type, e.source = c[2], c[3]
-    elif e.op != 'lit':
+        e.types = {e.type}
+    elif e.op == 'lit':
+        e.types = {'int', 'text', 'bool'} if e.type == 'null' else {e.type}
+    else:
         agg = e.op in AGGREGATES
         require(not agg or (allow and not inside), 'INVALID_AGGREGATION')
         for a in e.args: check(a, columns, allow, inside or agg)
-        ts = [a.type for a in e.args]
-        if e.op == 'COUNT': e.type = 'int'
+        possibilities = [a.types for a in e.args]
+        if e.op == 'COUNT': e.types = {'int'}
         elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
-            e.type = 'int'
+            require(all('int' in types for types in possibilities), 'TYPE_ERROR')
+            e.types = {'int'}
         elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
-            e.type = ts[0]
+            e.types = possibilities[0] & {'int', 'text'}
+            require(bool(e.types), 'TYPE_ERROR')
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
-            e.type = 'bool'
+            require(all('bool' in types for types in possibilities), 'TYPE_ERROR')
+            e.types = {'bool'}
+        elif e.op in ('IS_NULL', 'IS_NOT_NULL'):
+            e.types = {'bool'}
+        elif e.op == 'COALESCE':
+            e.types = set.intersection(*possibilities)
+            require(bool(e.types), 'TYPE_ERROR')
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
-            e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+            compatible = set.intersection(*possibilities)
+            if e.op not in ('=', '<>'): compatible &= {'int', 'text'}
+            require(bool(compatible), 'TYPE_ERROR')
+            e.types = {'bool'}
+        e.type = next(iter(e.types)) if len(e.types) == 1 else 'null'
+    require(not predicate or 'bool' in e.types, 'TYPE_ERROR')

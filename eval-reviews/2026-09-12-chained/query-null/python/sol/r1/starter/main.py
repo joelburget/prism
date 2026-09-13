@@ -9,7 +9,13 @@ from engine import optimize, execute
 
 def main():
     try:
-        request = json.loads(sys.stdin.read())
+        def unique_object(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value: raise DomainError('INVALID_INPUT')
+                value[key] = item
+            return value
+        request = json.loads(sys.stdin.read(), object_pairs_hook=unique_object)
         database, queries = validate(request)
         results = []
         for query in queries:
