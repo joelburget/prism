@@ -17,7 +17,8 @@ def bind(q, database):
         require(name in database, 'UNKNOWN_TABLE')
         t = database[name]
         tables.append(t)
-        columns.extend((alias, c['name'], c['type'], si) for c in t['columns'])
+        padded = si > 0 and q.join_kinds[si - 1] == 'LEFT'
+        columns.extend((alias, c['name'], c['type'], si, c['nullable'] or padded) for c in t['columns'])
         if si: check(q.joins[si - 1], columns, False, False, True)
     for e in q.groups: check(e, columns, False)
     keys = [e.index for e in q.groups]
@@ -30,10 +31,8 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
+    q.order = [(aliases.index(a) if a in aliases else -1, d, n) for a, d, n in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
     return Plan(q, tables, [[] for _ in tables], aggregate)
 
 
@@ -41,6 +40,18 @@ def grouped(e, keys):
     if e.op in AGGREGATES: return
     require(e.op != 'col' or e.index in keys, 'INVALID_AGGREGATION')
     for a in e.args: grouped(a, keys)
+
+
+ALL_TYPES = {'int', 'text', 'bool'}
+
+
+def constrain(e, types):
+    """Unify polymorphic NULLs, including those inside COALESCE and MIN/MAX."""
+    e.types &= types
+    require(bool(e.types), 'TYPE_ERROR')
+    e.type = next(iter(e.types)) if len(e.types) == 1 else 'null'
+    if e.op in ('COALESCE', 'MIN', 'MAX'):
+        for a in e.args: constrain(a, e.types)
 
 
 def check(e, columns, allow, inside=False, predicate=False):
@@ -51,22 +62,35 @@ def check(e, columns, allow, inside=False, predicate=False):
         require(len(matches) == 1, 'AMBIGUOUS_COLUMN')
         e.index, c = matches[0]
         e.type, e.source = c[2], c[3]
-    elif e.op != 'lit':
+        e.types, e.nullable = {e.type}, c[4]
+    elif e.op == 'lit':
+        e.types = ALL_TYPES.copy() if e.value is None else {e.type}
+        e.nullable = e.value is None
+    else:
         agg = e.op in AGGREGATES
         require(not agg or (allow and not inside), 'INVALID_AGGREGATION')
         for a in e.args: check(a, columns, allow, inside or agg)
-        ts = [a.type for a in e.args]
-        if e.op == 'COUNT': e.type = 'int'
+        e.nullable = any(a.nullable for a in e.args)
+        if e.op == 'COUNT':
+            e.types, e.nullable = {'int'}, False
         elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
-            e.type = 'int'
-        elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
-            e.type = ts[0]
+            for a in e.args: constrain(a, {'int'})
+            e.types = {'int'}
+            if e.op == 'SUM': e.nullable = True
+        elif e.op in ('MIN', 'MAX', 'COALESCE'):
+            common = ALL_TYPES.copy() if e.op == 'COALESCE' else {'int', 'text'}
+            for a in e.args: common &= a.types
+            for a in e.args: constrain(a, common)
+            e.types = common
+            e.nullable = all(a.nullable for a in e.args) if e.op == 'COALESCE' else True
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
-            e.type = 'bool'
+            for a in e.args: constrain(a, {'bool'})
+            e.types = {'bool'}
+        elif e.op in ('IS NULL', 'IS NOT NULL'):
+            e.types, e.nullable = {'bool'}, False
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
-            e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+            common = e.args[0].types & e.args[1].types
+            if e.op not in ('=', '<>'): common &= {'int', 'text'}
+            for a in e.args: constrain(a, common)
+            e.types = {'bool'}
+    constrain(e, {'bool'} if predicate else ALL_TYPES)

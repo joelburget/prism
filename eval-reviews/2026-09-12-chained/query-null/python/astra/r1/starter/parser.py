@@ -3,7 +3,7 @@ import re
 from model import Expr, Query, DomainError, RESERVED, identifier, require
 
 TOKEN = re.compile(r"\s+|'(?:[^']|'')*'|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<>|<=|>=|[(),.;+*=<>-]")
-PRECEDENCE = {'OR': 1, 'AND': 2, '=': 4, '<>': 4, '<': 4, '>': 4, '<=': 4, '>=': 4, '+': 5, '-': 5, '*': 6}
+PRECEDENCE = {'OR': 1, 'AND': 2, '=': 4, '<>': 4, '<': 4, '>': 4, '<=': 4, '>=': 4, 'IS': 4, '+': 5, '-': 5, '*': 6}
 AGGREGATES = {'COUNT', 'SUM', 'MIN', 'MAX'}
 
 class Parser:
@@ -39,9 +39,16 @@ class Parser:
 
     def expr(self, minimum=1):
         t = self.pop()
-        if t in ('NULL', 'COALESCE'):
-            raise DomainError('UNSUPPORTED_FEATURE')
-        if t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
+        if t == 'NULL': left = Expr('lit', None, type='null', nullable=True)
+        elif t == 'COALESCE':
+            self.need('(')
+            args = [self.expr()]
+            self.need(',')
+            args.append(self.expr())
+            while self.take(','): args.append(self.expr())
+            self.need(')')
+            left = Expr('COALESCE', args=args)
+        elif t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
         elif t == '(':
             left = self.expr()
             self.need(')')
@@ -65,10 +72,14 @@ class Parser:
             op = self.pop()
             p = PRECEDENCE[op]
             require(not (p == 4 and compared), 'PARSE_ERROR')
-            right = self.expr(p + 1)
-            left = Expr(op, args=[left, right])
+            if op == 'IS':
+                negate = self.take('NOT')
+                self.need('NULL')
+                left = Expr('IS NOT NULL' if negate else 'IS NULL', args=[left])
+            else:
+                right = self.expr(p + 1)
+                left = Expr(op, args=[left, right])
             if p == 4: compared = True
-        if self.peek() == 'IS': raise DomainError('UNSUPPORTED_FEATURE')
         return left
 
     def source(self):
@@ -87,12 +98,14 @@ class Parser:
         self.need('FROM')
         q.sources.append(self.source())
         while self.peek() in ('INNER', 'JOIN', 'LEFT'):
-            if self.take('LEFT'): raise DomainError('UNSUPPORTED_FEATURE')
-            self.take('INNER')
+            kind = 'LEFT' if self.take('LEFT') else 'INNER'
+            if kind == 'LEFT': self.take('OUTER')
+            else: self.take('INNER')
             self.need('JOIN')
             q.sources.append(self.source())
             self.need('ON')
             q.joins.append(self.expr())
+            q.join_kinds.append(kind)
         if self.take('WHERE'): q.where = self.expr()
         if self.take('GROUP'):
             self.need('BY')
@@ -106,8 +119,11 @@ class Parser:
                 alias = self.name()
                 desc = self.take('DESC')
                 if not desc: self.take('ASC')
-                if self.peek() == 'NULLS': raise DomainError('UNSUPPORTED_FEATURE')
-                q.order.append((alias, desc))
+                nulls_first = desc
+                if self.take('NULLS'):
+                    nulls_first = self.take('FIRST')
+                    if not nulls_first: self.need('LAST')
+                q.order.append((alias, desc, nulls_first))
                 if not self.take(','): break
         if self.take('LIMIT'):
             q.limit = self.natural()

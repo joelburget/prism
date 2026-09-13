@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 import json
 import sys
-from model import DomainError, validate
+from model import DomainError, require, validate
 from parser import Parser
 from binder import bind
 from engine import optimize, execute
 
 
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        require(key not in result)
+        result[key] = value
+    return result
+
+
 def main():
     try:
-        request = json.loads(sys.stdin.read())
+        request = json.loads(sys.stdin.read(), object_pairs_hook=unique_object)
         database, queries = validate(request)
         results = []
         for query in queries:
