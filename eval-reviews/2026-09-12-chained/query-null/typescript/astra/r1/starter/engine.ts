@@ -2,7 +2,8 @@
 import { aggregates } from "./model.ts";
 import type { Expr, Plan, Value } from "./model.ts";
 import { walk } from "./binder.ts";
-export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
+export function evaluate(e: Expr, row: Value[], group: Value[][] = [], cached?: Map<Expr, Value>): Value {
+  if (cached?.has(e)) return cached.get(e)!;
   if (e.op === "lit") return e.value as Value;
   if (e.op === "col") return row[e.index!];
   if (aggregates.has(e.op)) {
@@ -18,16 +19,16 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
   }
   if (e.op === "COALESCE") {
     for (const arg of e.args) {
-      const value = evaluate(arg, row, group);
+      const value = evaluate(arg, row, group, cached);
       if (value !== null) return value;
     }
     return null;
   }
-  const a = evaluate(e.args[0], row, group);
+  const a = evaluate(e.args[0], row, group, cached);
   if (e.op === "IS NULL") return a === null;
   if (e.op === "IS NOT NULL") return a !== null;
   if (e.op === "NOT") return a === null ? null : !a;
-  const b = evaluate(e.args[1], row, group);
+  const b = evaluate(e.args[1], row, group, cached);
   if (e.op === "AND")
     return a === false || b === false ? false : a === null || b === null ? null : true;
   if (e.op === "OR")
@@ -130,6 +131,12 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
   let projected = units
     .filter(([r, g]) => !q.having || evaluate(q.having, r, g) === true)
     .map(([r, g]) => q.select.map(([e]) => evaluate(e, r, g)));
+  return finish(plan, projected);
+}
+
+/** Shared final bag projection, stable sorting and window semantics. */
+export function finish(plan: Plan, projected: Value[][]): { columns: string[]; rows: Value[][] } {
+  const q = plan.query;
   if (q.distinct) {
     const seen = new Set<string>();
     projected = projected.filter((r) => {
