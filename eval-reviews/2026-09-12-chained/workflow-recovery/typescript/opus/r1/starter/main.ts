@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { DomainError, parseWorkflow, Simulator } from "./workflow.ts";
+import { DomainError, evaluateRequest } from "./workflow.ts";
 
 let response: unknown;
 try {
@@ -16,10 +16,7 @@ try {
       return value;
     },
   ) as { input?: unknown };
-  response = {
-    ok: true,
-    result: new Simulator(parseWorkflow(request?.input)).run(),
-  };
+  response = { ok: true, result: evaluateRequest(request?.input) };
 } catch (error) {
   if (error instanceof DomainError)
     response = { ok: false, error: { code: error.code } };

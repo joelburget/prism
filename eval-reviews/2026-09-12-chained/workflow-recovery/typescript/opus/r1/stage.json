@@ -1,16 +1,16 @@
 {
-  "run_id": "run-080101cd1e42",
-  "checkpoint": 1,
+  "run_id": "run-a001aca163cf",
+  "checkpoint": 2,
   "model": "opus",
   "model_id": "claude-opus-5",
   "task": "workflow-recovery",
   "language": "typescript",
   "source_available": true,
-  "source_sha256": "a3a6ee44c12fd3697a3e9af99a516185f248b61f7daf9339ea6bf72eecec4f62",
+  "source_sha256": "e17fdcbd36a0bf2733a579342b249472065779683caa5e2c0742ef8f17f812b7",
   "passed": true,
-  "seconds": 187.95079154102132,
-  "tool_calls": 18,
+  "seconds": 459.7631920829881,
+  "tool_calls": 22,
   "flags": [],
-  "result_sha256": "02896bb87bef8fcde93ce9a37548be902db3f0ea818875afd0c111526acf785f",
+  "result_sha256": "7b1b390922574b5125be4bb911813cd6e16f9eec650aa764fbff3a2de6355127",
   "archive_note": "Exact frozen source"
 }
