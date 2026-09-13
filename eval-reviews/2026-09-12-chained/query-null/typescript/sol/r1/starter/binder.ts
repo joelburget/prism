@@ -7,6 +7,17 @@ interface BoundColumn {
   type: ScalarType;
   source: number;
 }
+const allTypes: ScalarType[] = ["int", "text", "bool"];
+function possible(e: Expr): ScalarType[] {
+  return e.possible ?? (e.type ? [e.type] : allTypes);
+}
+function setTypes(e: Expr, types: ScalarType[]): void {
+  e.possible = types;
+  e.type = types.length === 1 ? types[0] : undefined;
+}
+function common(args: Expr[], allowed = allTypes): ScalarType[] {
+  return allowed.filter((t) => args.every((a) => possible(a).includes(t)));
+}
 export function* walk(e: Expr): Generator<Expr> {
   yield e;
   for (const a of e.args) yield* walk(a);
@@ -30,37 +41,40 @@ function check(
     const { c, i } = matches[0];
     e.index = i;
     e.type = c.type;
+    e.possible = [c.type];
     e.source = c.source;
-  } else if (e.op !== "lit") {
+  } else if (e.op === "lit") {
+    e.possible = e.type ? [e.type] : allTypes;
+  } else {
     const agg = aggregates.has(e.op);
     need(!agg || (allow && !inside), "INVALID_AGGREGATION");
     for (const a of e.args) check(a, columns, allow, inside || agg);
-    const ts = e.args.map((a) => a.type);
-    if (e.op === "COUNT") e.type = "int";
+    if (e.op === "COUNT") setTypes(e, ["int"]);
     else if (["SUM", "+", "-", "*"].includes(e.op)) {
-      need(
-        ts.every((t) => t === "int"),
-        "TYPE_ERROR",
-      );
-      e.type = "int";
+      need(e.args.every((a) => possible(a).includes("int")), "TYPE_ERROR");
+      setTypes(e, ["int"]);
     } else if (["MIN", "MAX"].includes(e.op)) {
-      need(ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
-      e.type = ts[0];
+      const types = common(e.args, ["int", "text"]);
+      need(types.length, "TYPE_ERROR");
+      setTypes(e, types);
+    } else if (e.op === "COALESCE") {
+      const types = common(e.args);
+      need(types.length, "TYPE_ERROR");
+      setTypes(e, types);
+    } else if (e.op === "IS NULL" || e.op === "IS NOT NULL") {
+      setTypes(e, ["bool"]);
     } else if (["NOT", "AND", "OR"].includes(e.op)) {
-      need(
-        ts.every((t) => t === "bool"),
-        "TYPE_ERROR",
-      );
-      e.type = "bool";
+      need(e.args.every((a) => possible(a).includes("bool")), "TYPE_ERROR");
+      setTypes(e, ["bool"]);
     } else {
-      need(
-        ts[0] === ts[1] && (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
-        "TYPE_ERROR",
-      );
-      e.type = "bool";
+      const allowed: ScalarType[] = ["=", "<>"].includes(e.op)
+        ? allTypes
+        : ["int", "text"];
+      need(common(e.args, allowed).length, "TYPE_ERROR");
+      setTypes(e, ["bool"]);
     }
   }
-  need(!predicate || e.type === "bool", "TYPE_ERROR");
+  need(!predicate || possible(e).includes("bool"), "TYPE_ERROR");
 }
 function grouped(e: Expr, keys: Set<number>): void {
   if (aggregates.has(e.op)) return;
@@ -81,7 +95,7 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     need(t, "UNKNOWN_TABLE");
     tables.push(t);
     columns.push(...t.columns.map((c) => ({ ...c, qualifier, source })));
-    if (source) check(q.joins[source - 1], columns, false, false, true);
+    if (source) check(q.joins[source - 1].on, columns, false, false, true);
   });
   q.groups.forEach((e) => check(e, columns, false));
   const keys = new Set(q.groups.map((e) => e.index!));
@@ -95,15 +109,10 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     q.groups.length > 0 || nodes.some((e) => aggregates.has(e.op));
   need(!q.having || aggregate, "INVALID_AGGREGATION");
   if (aggregate) roots.forEach((e) => grouped(e, keys));
-  need(
-    q.groups.length > 0 ||
-      !nodes.some((e) => ["SUM", "MIN", "MAX"].includes(e.op)),
-    "UNSUPPORTED_FEATURE",
-  );
-  q.order = q.order.map(([a, d]) => {
+  q.order = q.order.map(([a, d, n]) => {
     const i = aliases.indexOf(a as string);
     need(i >= 0, "UNKNOWN_COLUMN");
-    return [i, d];
+    return [i, d, n];
   });
   return { query: q, tables, filters: tables.map(() => []), aggregate };
 }
