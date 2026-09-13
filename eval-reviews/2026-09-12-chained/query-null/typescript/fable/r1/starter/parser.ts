@@ -1,12 +1,7 @@
 /** Tokenizer and precedence parser. Database names are resolved in the binder. */
-import {
-  aggregates,
-  reserved,
-  identifier,
-  requireThat as need,
-  DomainError,
-} from "./model.ts";
+import { aggregates, reserved, identifier, requireThat as need } from "./model.ts";
 import type { Expr, Query } from "./model.ts";
+/** Binary operator precedence. IS [NOT] NULL is a postfix operator at level 4. */
 const precedence: Record<string, number> = {
   OR: 1,
   AND: 2,
@@ -20,6 +15,8 @@ const precedence: Record<string, number> = {
   "-": 5,
   "*": 6,
 };
+const COMPARISON = 4;
+const NOT_OPERAND = 3;
 export class Parser {
   tokens: string[] = [];
   cursor = 0;
@@ -70,49 +67,72 @@ export class Parser {
     const t = this.name();
     return [t, this.take("AS") ? this.name() : t];
   }
-  expr(minimum = 1): Expr {
+  primary(): Expr {
     const t = this.pop();
-    let e: Expr;
-    if (t === "NULL" || t === "COALESCE")
-      throw new DomainError("UNSUPPORTED_FEATURE");
-    if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
-    else if (t === "(") {
-      e = this.expr();
+    if (t === "NOT") return { op: "NOT", args: [this.expr(NOT_OPERAND)] };
+    if (t === "(") {
+      const e = this.expr();
       this.expect(")");
-    } else if (t === "-")
-      e = { op: "lit", value: -this.natural(), type: "int", args: [] };
-    else if (/^[0-9]+$/.test(t))
-      e = { op: "lit", value: Number(t), type: "int", args: [] };
-    else if (t.startsWith("'"))
-      e = {
+      return e;
+    }
+    if (t === "-")
+      return { op: "lit", value: -this.natural(), type: "int", args: [] };
+    if (/^[0-9]+$/.test(t))
+      return { op: "lit", value: Number(t), type: "int", args: [] };
+    if (t.startsWith("'"))
+      return {
         op: "lit",
         value: t.slice(1, -1).replaceAll("''", "'"),
         type: "text",
         args: [],
       };
-    else if (t === "TRUE" || t === "FALSE")
-      e = { op: "lit", value: t === "TRUE", type: "bool", args: [] };
-    else if (aggregates.has(t)) {
+    if (t === "TRUE" || t === "FALSE")
+      return { op: "lit", value: t === "TRUE", type: "bool", args: [] };
+    // An untyped NULL literal: no type until its context demands one.
+    if (t === "NULL") return { op: "lit", value: null, args: [] };
+    if (t === "COALESCE") {
       this.expect("(");
-      e = { op: t, args: t === "COUNT" && this.take("*") ? [] : [this.expr()] };
+      const args = [this.expr()];
+      while (this.take(",")) args.push(this.expr());
       this.expect(")");
-    } else {
-      need(identifier(t), "PARSE_ERROR");
-      e = {
-        op: "col",
-        value: this.take(".") ? [t, this.name()] : ["", t],
-        args: [],
+      need(args.length >= 2, "PARSE_ERROR");
+      return { op: "COALESCE", args };
+    }
+    if (aggregates.has(t)) {
+      this.expect("(");
+      const e: Expr = {
+        op: t,
+        args: t === "COUNT" && this.take("*") ? [] : [this.expr()],
       };
+      this.expect(")");
+      return e;
     }
+    need(identifier(t), "PARSE_ERROR");
+    return {
+      op: "col",
+      value: this.take(".") ? [t, this.name()] : ["", t],
+      args: [],
+    };
+  }
+  expr(minimum = 1): Expr {
+    let e = this.primary();
     let compared = false;
-    while ((precedence[this.peek()] ?? 0) >= minimum) {
-      const op = this.pop(),
-        p = precedence[op];
-      need(!(p === 4 && compared), "PARSE_ERROR");
-      e = { op, args: [e, this.expr(p + 1)] };
-      if (p === 4) compared = true;
+    for (;;) {
+      const t = this.peek();
+      const p = t === "IS" ? COMPARISON : (precedence[t] ?? 0);
+      if (p < minimum) break;
+      this.pop();
+      if (p === COMPARISON) {
+        // Comparisons and IS [NOT] NULL share a level and do not chain.
+        need(!compared, "PARSE_ERROR");
+        compared = true;
+      }
+      if (t === "IS") {
+        const negated = this.take("NOT");
+        this.expect("NULL");
+        e = { op: negated ? "IS NOT NULL" : "IS NULL", args: [e] };
+      } else e = { op: t, args: [e, this.expr(p + 1)] };
     }
-    if (this.peek() === "IS") throw new DomainError("UNSUPPORTED_FEATURE");
     return e;
   }
   parse(): Query {
@@ -120,6 +140,7 @@ export class Parser {
       select: [],
       sources: [],
       joins: [],
+      outer: [],
       groups: [],
       order: [],
       distinct: false,
@@ -135,12 +156,14 @@ export class Parser {
     this.expect("FROM");
     q.sources.push(this.source());
     while (["INNER", "JOIN", "LEFT"].includes(this.peek())) {
-      if (this.take("LEFT")) throw new DomainError("UNSUPPORTED_FEATURE");
-      this.take("INNER");
+      const outer = this.take("LEFT");
+      if (outer) this.take("OUTER");
+      else this.take("INNER");
       this.expect("JOIN");
       q.sources.push(this.source());
       this.expect("ON");
       q.joins.push(this.expr());
+      q.outer.push(outer);
     }
     if (this.take("WHERE")) q.where = this.expr();
     if (this.take("GROUP")) {
@@ -156,9 +179,13 @@ export class Parser {
         const a = this.name(),
           desc = this.take("DESC");
         if (!desc) this.take("ASC");
-        if (this.peek() === "NULLS")
-          throw new DomainError("UNSUPPORTED_FEATURE");
-        q.order.push([a, desc]);
+        // NULLs default to LAST when ascending and FIRST when descending.
+        let nullsFirst = desc;
+        if (this.take("NULLS")) {
+          nullsFirst = this.take("FIRST");
+          if (!nullsFirst) this.expect("LAST");
+        }
+        q.order.push([a, desc, nullsFirst]);
       } while (this.take(","));
     }
     if (this.take("LIMIT")) {

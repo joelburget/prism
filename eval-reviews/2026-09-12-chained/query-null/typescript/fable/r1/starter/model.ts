@@ -1,5 +1,5 @@
 /** Syntax tree, typed logical plan, and protocol validation. */
-export type Value = number | string | boolean;
+export type Value = number | string | boolean | null;
 export type ScalarType = "int" | "text" | "bool";
 export interface Column {
   name: string;
@@ -15,22 +15,35 @@ export interface InputQuery {
   sql: string;
   optimize: boolean;
 }
+/**
+ * Bound expression node. `type` is undefined only for an untyped NULL literal
+ * (or an expression whose only inputs are untyped NULLs); such a node takes the
+ * type demanded by its context. `nullable` is a conservative static bound: false
+ * means the expression can never evaluate to NULL in the context it was bound
+ * in (declared nullability, outer-join padding, and aggregate emptiness are all
+ * accounted for); true means it might.
+ */
 export interface Expr {
   op: string;
   value?: Value | [string, string];
   args: Expr[];
   type?: ScalarType;
+  nullable?: boolean;
   index?: number;
   source?: number;
 }
+/** ORDER BY item: output alias (index after binding), DESC flag, NULLS FIRST flag. */
+export type OrderItem = [string | number, boolean, boolean];
 export interface Query {
   select: [Expr, string][];
   sources: [string, string][];
   joins: Expr[];
+  /** outer[i] is true when joins[i] is a LEFT OUTER JOIN (pads sources[i + 1]). */
+  outer: boolean[];
   where?: Expr;
   groups: Expr[];
   having?: Expr;
-  order: [string | number, boolean][];
+  order: OrderItem[];
   distinct: boolean;
   limit?: number;
   offset: number;
@@ -71,6 +84,10 @@ function fields(
       names.every((k) => Object.hasOwn(x, k)),
   );
 }
+function typed(v: unknown, type: ScalarType): boolean {
+  if (type === "int") return typeof v === "number" && Number.isInteger(v);
+  return typeof v === (type === "text" ? "string" : "boolean");
+}
 export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
   object(request);
   requireThat(request.protocol_version === 1 && request.task === "query-null");
@@ -93,18 +110,13 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       requireThat(identifier(c.name) && !names.has(c.name));
       requireThat(c.type === "int" || c.type === "text" || c.type === "bool");
       requireThat(typeof c.nullable === "boolean");
-      requireThat(!c.nullable, "UNSUPPORTED_FEATURE");
       names.add(c.name);
-      columns.push({ name: c.name, type: c.type, nullable: false });
+      columns.push({ name: c.name, type: c.type, nullable: c.nullable });
     }
     for (const row of item.rows as unknown[]) {
       requireThat(Array.isArray(row) && row.length === columns.length);
       row.forEach((v: unknown, i: number) =>
-        requireThat(
-          columns[i].type === "int"
-            ? typeof v === "number" && Number.isInteger(v)
-            : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
-        ),
+        requireThat(v === null ? columns[i].nullable : typed(v, columns[i].type)),
       );
     }
     database.set(item.name, {

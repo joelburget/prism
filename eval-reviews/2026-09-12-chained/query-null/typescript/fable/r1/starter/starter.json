@@ -8,6 +8,7 @@
     ".gitignore",
     "README.md",
     "binder.ts",
+    "engine.test.ts",
     "engine.ts",
     "main.ts",
     "model.ts",
