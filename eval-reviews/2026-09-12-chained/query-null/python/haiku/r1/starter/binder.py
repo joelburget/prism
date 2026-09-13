@@ -17,7 +17,7 @@ def bind(q, database):
         require(name in database, 'UNKNOWN_TABLE')
         t = database[name]
         tables.append(t)
-        columns.extend((alias, c['name'], c['type'], si) for c in t['columns'])
+        columns.extend((alias, c['name'], c['type'], si, c.get('nullable', False)) for c in t['columns'])
         if si: check(q.joins[si - 1], columns, False, False, True)
     for e in q.groups: check(e, columns, False)
     keys = [e.index for e in q.groups]
@@ -30,11 +30,18 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
-    return Plan(q, tables, [[] for _ in tables], aggregate)
+    q.order = [(aliases.index(a) if a in aliases else -1, d, n) for a, d, n in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
+    plan = Plan(q, tables, [[] for _ in tables], aggregate)
+    
+    # Track which columns are made nullable by LEFT JOINs
+    nullability = [[] for _ in tables]
+    for si in range(1, len(tables)):
+        if si - 1 < len(q.join_types) and q.join_types[si - 1]:  # LEFT JOIN
+            nullability[si] = list(range(len(tables[si]['columns'])))
+    plan.nullability = nullability
+    
+    return plan
 
 
 def grouped(e, keys):
@@ -51,22 +58,57 @@ def check(e, columns, allow, inside=False, predicate=False):
         require(len(matches) == 1, 'AMBIGUOUS_COLUMN')
         e.index, c = matches[0]
         e.type, e.source = c[2], c[3]
+        e.nullable = c[4]
+    elif e.op == 'lit':
+        if e.value is None:
+            e.type = ''
+            e.nullable = True
+        elif e.type == '':
+            e.nullable = False
+    elif e.op == 'IS NULL' or e.op == 'IS NOT NULL':
+        check(e.args[0], columns, allow, inside)
+        e.type = 'bool'
+        e.nullable = False
+    elif e.op == 'COALESCE':
+        arg_types = []
+        all_nullable = True
+        for a in e.args:
+            check(a, columns, allow, inside or False)
+            if a.type != '':
+                arg_types.append(a.type)
+            if not a.nullable:
+                all_nullable = False
+        require(len(set(arg_types)) <= 1, 'TYPE_ERROR')
+        if arg_types:
+            e.type = arg_types[0]
+        else:
+            e.type = ''
+        e.nullable = all_nullable
     elif e.op != 'lit':
         agg = e.op in AGGREGATES
         require(not agg or (allow and not inside), 'INVALID_AGGREGATION')
         for a in e.args: check(a, columns, allow, inside or agg)
         ts = [a.type for a in e.args]
-        if e.op == 'COUNT': e.type = 'int'
-        elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
+        if e.op == 'COUNT': 
             e.type = 'int'
+            e.nullable = False
+        elif e.op in ('SUM', '+', '-', '*'):
+            require(all(t in ('int', '') for t in ts), 'TYPE_ERROR')
+            e.type = 'int'
+            e.nullable = any(a.nullable for a in e.args)
         elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
-            e.type = ts[0]
+            require(all(t in ('int', 'text', '') for t in ts), 'TYPE_ERROR')
+            e.type = next((t for t in ts if t != ''), '')
+            e.nullable = any(a.nullable for a in e.args)
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
+            require(all(t in ('bool', '') for t in ts), 'TYPE_ERROR')
             e.type = 'bool'
+            if e.op == 'NOT':
+                e.nullable = e.args[0].nullable
+            else:
+                e.nullable = any(a.nullable for a in e.args)
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
+            require(all(t == '' or ts[0] == '' or t == ts[0] for t in ts[1:]) and (all(t != 'bool' for t in ts) or e.op in ('=', '<>')), 'TYPE_ERROR')
             e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+            e.nullable = any(a.nullable for a in e.args)
+    require(not predicate or e.type in ('bool', ''), 'TYPE_ERROR')

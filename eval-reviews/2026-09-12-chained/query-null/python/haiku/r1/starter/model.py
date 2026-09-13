@@ -22,6 +22,7 @@ class Expr:
     type: str = ''
     index: int = -1
     source: int = -1
+    nullable: bool = False
 
 @dataclass
 class Query:
@@ -32,6 +33,7 @@ class Query:
     groups: list = field(default_factory=list)
     having: Expr | None = None
     order: list = field(default_factory=list)
+    join_types: list = field(default_factory=list)
     distinct: bool = False
     limit: int | None = None
     offset: int = 0
@@ -42,6 +44,7 @@ class Plan:
     tables: list
     filters: list
     aggregate: bool
+    nullability: list = field(default_factory=list)
 
 
 def validate(request):
@@ -59,11 +62,13 @@ def validate(request):
             fields(c, {'name', 'type', 'nullable'})
             require(identifier(c['name']) and c['name'] not in names and c['type'] in ('int', 'text', 'bool') and type(c['nullable']) is bool)
             names.add(c['name'])
-            require(not c['nullable'], 'UNSUPPORTED_FEATURE')
         for row in t['rows']:
             require(isinstance(row, list) and len(row) == len(t['columns']))
             for v, c in zip(row, t['columns']):
-                require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                if v is None:
+                    require(c['nullable'], 'INVALID_INPUT')
+                else:
+                    require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})
