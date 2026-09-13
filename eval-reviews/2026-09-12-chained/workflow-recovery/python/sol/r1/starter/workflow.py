@@ -47,6 +47,8 @@ class Command:
     run: str | None = None
     by: int = 0
     crash_at: str | None = None
+    worker: str | None = None
+    ticket: int | None = None
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,8 @@ class Workflow:
     commands: tuple[Command, ...]
     max_attempts: int
     retry_delay: int
+    workers: tuple[str, ...] | None = None
+    lease_duration: int = 5
 
 
 def parse_step(raw: Any) -> StepDefinition:
@@ -86,6 +90,31 @@ def parse_command(raw: Any) -> Command:
     return Command(op)
 
 
+def parse_leased_command(raw: Any) -> Command:
+    require(type(raw) is dict and type(raw.get("op")) is str)
+    op = raw["op"]
+    if op in ("start", "cancel"):
+        object_fields(raw, {"op", "run"})
+        return Command(op, run=identifier(raw["run"]))
+    if op == "advance":
+        object_fields(raw, {"op", "by"})
+        return Command(op, by=integer(raw["by"], 0, TIME_LIMIT))
+    if op == "observe":
+        object_fields(raw, {"op"})
+        return Command(op)
+    if op in ("crash", "restart", "claim"):
+        object_fields(raw, {"op", "worker"})
+        return Command(op, worker=identifier(raw["worker"]))
+    if op in ("renew", "call"):
+        object_fields(raw, {"op", "worker", "ticket"})
+        return Command(op, worker=identifier(raw["worker"]),
+                       ticket=integer(raw["ticket"], 1, TIME_LIMIT))
+    if op == "deliver":
+        object_fields(raw, {"op", "ticket"})
+        return Command(op, ticket=integer(raw["ticket"], 1, TIME_LIMIT))
+    raise DomainError("INVALID_INPUT")
+
+
 def validate_graph(steps: tuple[StepDefinition, ...]) -> None:
     ids = {step.id for step in steps}
     require(len(ids) == len(steps), "DUPLICATE_STEP")
@@ -101,13 +130,26 @@ def validate_graph(steps: tuple[StepDefinition, ...]) -> None:
 
 
 def parse_workflow(raw: Any) -> Workflow:
-    obj = object_fields(raw, {"steps", "commands"}, {"max_attempts", "retry_delay"})
+    require(type(raw) is dict)
+    leased = "workers" in raw
+    optional = {"max_attempts", "retry_delay", "lease_duration"} if leased else {"max_attempts", "retry_delay"}
+    required = {"steps", "commands", "workers"} if leased else {"steps", "commands"}
+    obj = object_fields(raw, required, optional)
     require(type(obj["steps"]) is list and bool(obj["steps"]))
     require(type(obj["commands"]) is list)
+    if leased:
+        require(len(obj["commands"]) <= 2_000)
     steps = tuple(parse_step(step) for step in obj["steps"])
-    commands = tuple(parse_command(command) for command in obj["commands"])
+    commands = tuple((parse_leased_command if leased else parse_command)(command)
+                     for command in obj["commands"])
+    workers = None
+    if leased:
+        require(type(obj["workers"]) is list and 0 < len(obj["workers"]) <= 100)
+        workers = tuple(identifier(worker) for worker in obj["workers"])
+        require(len(workers) == len(set(workers)))
     workflow = Workflow(steps, commands, integer(obj.get("max_attempts", 3), 1, 10),
-                        integer(obj.get("retry_delay", 2), 1, 1_000_000))
+                        integer(obj.get("retry_delay", 2), 1, 1_000_000), workers,
+                        integer(obj.get("lease_duration", 5), 1, 1_000_000))
     validate_graph(steps)  # All static validation precedes command execution.
     return workflow
 
@@ -295,3 +337,272 @@ class Simulator:
         final["effects"] = [{"key": list(effect.key), "amount": effect.amount}
                              for effect in self.service.effects]
         return {"observations": self.observations, "final": final}
+
+
+# Checkpoint two deliberately has a separate state model.  Keeping it separate
+# also makes the no-workers protocol a byte-for-byte compatible code path.
+@dataclass
+class WorkerState:
+    id: str
+    up: bool = True
+
+
+@dataclass
+class Lease:
+    worker: str
+    ticket: int
+    expires: int
+
+
+@dataclass
+class LeasedStepState:
+    id: str
+    status: str = "pending"
+    attempts: int = 0
+    ready_at: int = 0
+    lease: Lease | None = None
+
+
+@dataclass
+class LeasedRunState:
+    id: str
+    steps: list[LeasedStepState]
+    status: str = "active"
+    cancel_requested: bool = False
+
+
+@dataclass
+class TicketRecord:
+    number: int
+    worker: str
+    run: LeasedRunState
+    step: LeasedStepState
+    definition: StepDefinition
+    lease: Lease
+    kind: str
+    response: str | None = None
+    delivered: bool = False
+
+
+class LeasedSimulator:
+    def __init__(self, workflow: Workflow):
+        self.workflow = workflow
+        self.now = 0
+        self.workers = [WorkerState(name) for name in workflow.workers or ()]
+        self.runs: list[LeasedRunState] = []
+        self.tickets: dict[int, TicketRecord] = {}
+        self.next_ticket = 1
+        self.calls: list[dict] = []
+        self.effects: list[Effect] = []
+        self.failure_calls: dict[tuple[str, str], int] = {}
+
+    def find_worker(self, worker_id: str) -> WorkerState:
+        for worker in self.workers:
+            if worker.id == worker_id:
+                return worker
+        raise DomainError("UNKNOWN_WORKER")
+
+    def available_worker(self, worker_id: str) -> WorkerState:
+        worker = self.find_worker(worker_id)
+        require(worker.up, "WORKER_DOWN")
+        return worker
+
+    def find_run(self, run_id: str) -> LeasedRunState:
+        for run in self.runs:
+            if run.id == run_id:
+                return run
+        raise DomainError("UNKNOWN_RUN")
+
+    def owned_ticket(self, worker_id: str, number: int) -> TicketRecord:
+        self.available_worker(worker_id)
+        require(number in self.tickets, "UNKNOWN_TICKET")
+        ticket = self.tickets[number]
+        require(ticket.worker == worker_id, "WRONG_WORKER")
+        return ticket
+
+    def is_current_live(self, ticket: TicketRecord) -> bool:
+        return ticket.step.lease is ticket.lease and self.now < ticket.lease.expires
+
+    def select_claim(self) -> tuple[LeasedRunState, LeasedStepState, StepDefinition] | None:
+        for run in self.runs:
+            for state, definition in zip(run.steps, self.workflow.steps):
+                if (state.status == "running" and state.lease is not None
+                        and self.now >= state.lease.expires):
+                    return run, state, definition
+        for run in self.runs:
+            if run.status != "active":
+                continue
+            succeeded = {step.id for step in run.steps if step.status == "succeeded"}
+            for state, definition in zip(run.steps, self.workflow.steps):
+                if (state.status == "pending" and state.ready_at <= self.now
+                        and all(dep in succeeded for dep in definition.needs)):
+                    return run, state, definition
+        return None
+
+    def claim(self, worker_id: str) -> dict:
+        self.available_worker(worker_id)
+        if any(step.lease is not None and step.lease.worker == worker_id
+               and self.now < step.lease.expires
+               for run in self.runs for step in run.steps):
+            raise DomainError("WORKER_BUSY")
+        action = self.select_claim()
+        if action is None:
+            return {"ticket": None}
+        require(self.now + self.workflow.lease_duration <= TIME_LIMIT, "TIME_OVERFLOW")
+        require(self.next_ticket <= TIME_LIMIT, "TIME_OVERFLOW")
+        run, state, definition = action
+        number = self.next_ticket
+        lease = Lease(worker_id, number, self.now + self.workflow.lease_duration)
+        kind = "execute" if run.status == "active" else "lookup"
+        if state.status == "pending":
+            state.status = "running"
+            state.attempts += 1
+        state.lease = lease
+        self.tickets[number] = TicketRecord(number, worker_id, run, state,
+                                            definition, lease, kind)
+        self.next_ticket += 1
+        return {"ticket": number}
+
+    def renew(self, worker_id: str, number: int) -> dict:
+        ticket = self.owned_ticket(worker_id, number)
+        if not self.is_current_live(ticket):
+            return {"renewed": False}
+        require(self.now + self.workflow.lease_duration <= TIME_LIMIT, "TIME_OVERFLOW")
+        ticket.lease.expires = self.now + self.workflow.lease_duration
+        return {"renewed": True}
+
+    def service_call(self, ticket: TicketRecord) -> str:
+        key = (ticket.run.id, ticket.step.id)
+        if ticket.kind == "lookup":
+            outcome = "found" if any(effect.key == key for effect in self.effects) else "missing"
+        elif any(effect.key == key for effect in self.effects):
+            outcome = "replayed"
+        elif self.failure_calls.get(key, 0) < ticket.definition.failures:
+            self.failure_calls[key] = self.failure_calls.get(key, 0) + 1
+            outcome = "transient"
+        else:
+            self.effects.append(Effect(key, ticket.definition.amount))
+            outcome = "applied"
+        self.calls.append({"worker": ticket.worker, "ticket": ticket.number,
+                           "kind": ticket.kind, "key": list(key),
+                           "attempt": ticket.step.attempts, "outcome": outcome})
+        return outcome
+
+    def call(self, worker_id: str, number: int) -> dict:
+        ticket = self.owned_ticket(worker_id, number)
+        if not self.is_current_live(ticket):
+            return {"outcome": "stale"}
+        if ticket.response is None:
+            ticket.response = self.service_call(ticket)
+        return {"kind": ticket.kind, "outcome": ticket.response}
+
+    def finish_reconciliation(self, run: LeasedRunState) -> None:
+        if any(step.status == "running" for step in run.steps):
+            return
+        run.status = "cancelled" if run.status == "cancelling" else "failed"
+
+    def deliver(self, number: int) -> dict:
+        require(number in self.tickets, "UNKNOWN_TICKET")
+        ticket = self.tickets[number]
+        owner = self.find_worker(ticket.worker)
+        if (ticket.delivered or ticket.response is None or not owner.up
+                or not self.is_current_live(ticket)):
+            return {"committed": False}
+        ticket.delivered = True
+        ticket.step.lease = None
+        state, run, outcome = ticket.step, ticket.run, ticket.response
+        if ticket.kind == "lookup":
+            if run.status == "cancelling":
+                state.status = "succeeded" if outcome == "found" else "cancelled"
+            else:
+                state.status = "succeeded" if outcome == "found" else "blocked"
+            self.finish_reconciliation(run)
+        elif outcome in ("applied", "replayed"):
+            state.status = "succeeded"
+            if all(step.status == "succeeded" for step in run.steps):
+                run.status = "succeeded"
+        elif state.attempts < self.workflow.max_attempts:
+            require(self.now + self.workflow.retry_delay <= TIME_LIMIT, "TIME_OVERFLOW")
+            state.status = "pending"
+            state.ready_at = self.now + self.workflow.retry_delay
+        else:
+            state.status = "failed"
+            for other in run.steps:
+                if other.status == "pending":
+                    other.status = "blocked"
+            running = [other for other in run.steps if other.status == "running"]
+            if running:
+                run.status = "failing"
+                for other in running:
+                    if other.lease is not None:
+                        other.lease.expires = self.now
+            else:
+                run.status = "failed"
+        return {"committed": True}
+
+    def cancel(self, run_id: str) -> None:
+        run = self.find_run(run_id)
+        if run.status in ("succeeded", "failed", "cancelled", "failing", "cancelling"):
+            return
+        run.cancel_requested = True
+        for step in run.steps:
+            if step.status == "pending":
+                step.status = "cancelled"
+            elif step.status == "running" and step.lease is not None:
+                step.lease.expires = self.now
+        run.status = "cancelling" if any(step.status == "running" for step in run.steps) else "cancelled"
+
+    def snapshot(self) -> dict:
+        return {"now": self.now,
+                "workers": [{"id": worker.id, "up": worker.up} for worker in self.workers],
+                "runs": [{"id": run.id, "status": run.status,
+                          "cancel_requested": run.cancel_requested,
+                          "steps": [{"id": step.id, "status": step.status,
+                                     "attempts": step.attempts, "ready_at": step.ready_at,
+                                     "lease": None if step.lease is None else {
+                                         "worker": step.lease.worker,
+                                         "ticket": step.lease.ticket,
+                                         "expires": step.lease.expires}}
+                                    for step in run.steps]} for run in self.runs]}
+
+    def apply(self, command: Command) -> Any:
+        if command.op == "start":
+            require(all(run.id != command.run for run in self.runs), "DUPLICATE_RUN")
+            self.runs.append(LeasedRunState(command.run, [
+                LeasedStepState(step.id, ready_at=self.now) for step in self.workflow.steps]))
+            return None
+        if command.op == "advance":
+            require(self.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW")
+            self.now += command.by
+            return None
+        if command.op == "observe":
+            return self.snapshot()
+        if command.op == "crash":
+            worker = self.available_worker(command.worker)
+            worker.up = False
+            return None
+        if command.op == "restart":
+            worker = self.find_worker(command.worker)
+            require(not worker.up, "WORKER_UP")
+            worker.up = True
+            return None
+        if command.op == "claim":
+            return self.claim(command.worker)
+        if command.op == "renew":
+            return self.renew(command.worker, command.ticket)
+        if command.op == "call":
+            return self.call(command.worker, command.ticket)
+        if command.op == "deliver":
+            return self.deliver(command.ticket)
+        if command.op == "cancel":
+            self.cancel(command.run)
+            return None
+        raise DomainError("INVALID_INPUT")
+
+    def run(self) -> dict:
+        results = [self.apply(command) for command in self.workflow.commands]
+        final = self.snapshot()
+        final["calls"] = [dict(call) for call in self.calls]
+        final["effects"] = [{"key": list(effect.key), "amount": effect.amount}
+                            for effect in self.effects]
+        return {"results": results, "final": final}

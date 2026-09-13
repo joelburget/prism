@@ -14,4 +14,7 @@ From the public corpus root, validate with:
 python3 run.py run --task workflow-recovery --command '/absolute/path/to/this/starter/run.sh' --timeout 30
 ```
 
-The implementation covers both the baseline and recovery extension contracts.
+The implementation covers the original durable-recovery protocol and checkpoint
+two's opt-in `workers` mode. The latter models worker leases, globally fenced
+tickets, split claim/call/deliver transport, renewal and worker availability,
+plus cancellation and failure reconciliation by audited lookups.

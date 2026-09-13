@@ -1,7 +1,8 @@
 """One-request JSON adapter; each request owns a fresh simulator."""
 import json
 import sys
-from workflow import DomainError, Simulator, object_fields, parse_workflow, require
+from workflow import (DomainError, LeasedSimulator, Simulator, object_fields,
+                      parse_workflow, require)
 
 
 def unique_object(pairs: list[tuple[str, object]]) -> dict:
@@ -19,7 +20,9 @@ def main() -> None:
         object_fields(request, {"protocol_version", "task", "input"})
         require(type(request["protocol_version"]) is int and request["protocol_version"] == 1)
         require(request["task"] == "workflow-recovery")
-        result = Simulator(parse_workflow(request["input"])).run()
+        workflow = parse_workflow(request["input"])
+        simulator = LeasedSimulator(workflow) if workflow.workers is not None else Simulator(workflow)
+        result = simulator.run()
         response = {"ok": True, "result": result}
     except DomainError as error:
         response = {"ok": False, "error": {"code": error.code}}
