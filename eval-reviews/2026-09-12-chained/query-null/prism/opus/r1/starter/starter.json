@@ -13,6 +13,7 @@
     "README.md",
     "build.sh",
     "main.pr",
-    "run.sh"
+    "run.sh",
+    "tests.py"
   ]
 }

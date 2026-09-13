@@ -13,7 +13,13 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(length(matches) > 0, "UNKNOWN_COLUMN")
     demand(length(matches) == 1, "AMBIGUOUS_COLUMN")
     let c = at(matches, 0)
-    Expr { ..e, index = c.index, source = c.source, kind = c.kind }
+    Expr {
+      ..e,
+      index = c.index,
+      source = c.source,
+      kind = c.kind,
+      nullable = c.nullable
+    }
   elif e.op == "lit" then
     e
   else
@@ -25,26 +31,46 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
       if e.op == "COUNT" then
         "int"
       elif elem(e.op, ["SUM", "+", "-", "*"]) then
-        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
+        demand(all(\(t) -> compatible(t, "int"), ts), "TYPE_ERROR")
         "int"
       elif elem(e.op, ["MIN", "MAX"]) then
-        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
+        demand(elem(at(ts, 0), ["int", "text", "null"]), "TYPE_ERROR")
         at(ts, 0)
       elif elem(e.op, ["NOT", "AND", "OR"]) then
-        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
+        demand(all(\(t) -> compatible(t, "bool"), ts), "TYPE_ERROR")
         "bool"
+      elif elem(e.op, ["ISNULL", "ISNOTNULL"]) then
+        "bool"
+      elif e.op == "COALESCE" then
+        let known = filter(\(t) -> t /= "null", ts)
+        if length(known) == 0 then
+          "null"
+        else
+          demand(all(\(t) -> t == at(known, 0), known), "TYPE_ERROR")
+          at(known, 0)
       else
         demand(
-            at(ts, 0) == at(ts, 1)
-              && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
+            compatible(at(ts, 0), at(ts, 1))
+              && (not(elem("bool", ts)) || elem(e.op, ["=", "<>"])),
             "TYPE_ERROR",
           )
         "bool"
-    Expr { ..e, args = args, kind = kind }
+    Expr { ..e, args = args, kind = kind, nullable = nullability(e.op, args) }
+
+-- Conservative static nullability; only used to license optimizer rewrites.
+fn nullability(op : String, args : List(Expr)) : Bool =
+  if elem(op, ["ISNULL", "ISNOTNULL", "COUNT"]) then
+    false
+  elif elem(op, ["SUM", "MIN", "MAX"]) then
+    true
+  elif op == "COALESCE" then
+    all(\(a) -> a.nullable, args)
+  else
+    any(\(a) -> a.nullable, args)
 
 fn predicate(e : Expr, columns : List(Column), allow : Bool) : Expr =
   let b = check(e, columns, allow, false)
-  demand(b.kind == "bool", "TYPE_ERROR")
+  demand(compatible(b.kind, "bool"), "TYPE_ERROR")
   b
 
 pub fn tree_any(p : (Expr) -> Bool, e : Expr) : Bool =
@@ -72,8 +98,9 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
     let t = at(tables, i)
     let offset = length(columns)
     let qualifier = snd(at(q.sources, i))
+    let padded = i > 0 && at(q.outer, i - 1)
     let cs = map(
-        \(k) -> Column { ..at(t.columns, k), index = offset + k, source = i, qualifier = qualifier },
+        \(k) -> Column { ..at(t.columns, k), index = offset + k, source = i, qualifier = qualifier, nullable = at(t.columns, k).nullable || padded },
         range(0, length(t.columns)),
       )
     columns := append(columns, cs)
@@ -93,17 +120,7 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
   if aggregate then
     for e in sof(roots) do
       grouped(e, keys)
-  demand(
-      length(groups) > 0
-        || not(
-            any(
-                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
-                roots,
-              ),
-          ),
-      "UNSUPPORTED_FEATURE",
-    )
-  let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
+  let order = map(\(o) -> order_entry(aliases, o), q.order)
   let bq =
     Query {
       ..q,
@@ -131,3 +148,16 @@ fn alias_index(names : List(String), n : String, i : Int) : Int =
         i
       else
         alias_index(rest, n, i + 1)
+
+-- NULLS default to LAST ascending and FIRST descending; an explicit clause wins.
+fn order_entry(
+  aliases : List(String),
+  o : (String, Bool, Int)
+) : (Int, Bool, Bool) =
+  match o of
+    (n, desc, nulls) =>
+      (
+        alias_index(aliases, n, 0),
+        desc,
+        if nulls == 0 then desc else nulls == 1,
+      )
