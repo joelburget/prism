@@ -7,8 +7,11 @@
   "files": [
     ".gitignore",
     "README.md",
+    "leased.py",
     "main.py",
     "run.sh",
+    "test_leased.py",
+    "test_workflow.py",
     "workflow.py"
   ]
 }

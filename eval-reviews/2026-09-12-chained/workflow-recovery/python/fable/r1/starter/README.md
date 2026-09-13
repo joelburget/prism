@@ -17,3 +17,15 @@ python3 run.py run --task workflow-recovery --phase baseline --command '/absolut
 ```
 
 All public baseline and extension cases pass (drop `--phase baseline` to run both).
+
+## Checkpoint two: leased workers
+
+Requests with a `workers` field use `leased.py`, which implements the leased-worker
+mode: `claim`/`renew`/`call`/`deliver` split the old tick into acquisition, an
+audited mock call with a saved transport message, and a fenced commit. Commits
+require the ticket to be the step's current live lease with its owner up, so a stale
+owner cannot overwrite a replacement. Cancellation and retry exhaustion expire live
+leases immediately; the resulting `cancelling`/`failing` runs recover through audited
+lookups only. `main.py` dispatches on the presence of `workers`; requests without it
+take the unchanged checkpoint-one path in `workflow.py`. `test_leased.py` holds unit
+checks for the new interleavings.
