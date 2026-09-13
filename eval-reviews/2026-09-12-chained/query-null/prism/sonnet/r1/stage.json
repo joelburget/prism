@@ -1,0 +1,19 @@
+{
+  "run_id": "run-60f2e13eb24c",
+  "checkpoint": 1,
+  "model": "sonnet",
+  "model_id": "claude-sonnet-5",
+  "task": "query-null",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "40af35d5cf74e11592eee8b05ac48b8d6f73a318bf48c0b8f9d3cab0ed252ca9",
+  "passed": false,
+  "seconds": 1065.4171502919635,
+  "tool_calls": 100,
+  "flags": [
+    "task_frozen_after_resource_limit",
+    "timeout"
+  ],
+  "result_sha256": "29f50b46263b3a6ac94c15840a8b20b690c9181ce41bb575db62e5c475c38d6c",
+  "archive_note": "Exact frozen source"
+}

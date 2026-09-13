@@ -110,7 +110,7 @@ fn precedence(op : String) : Int =
     1
   elif op == "AND" then
     2
-  elif elem(op, ["=", "<>", "<", ">", "<=", ">="]) then
+  elif elem(op, ["=", "<>", "<", ">", "<=", ">=", "IS"]) then
     4
   elif elem(op, ["+", "-"]) then
     5
@@ -119,10 +119,13 @@ fn precedence(op : String) : Int =
   else
     0
 
+fn coalesce_args() : List(Expr) =
+  let e = expression(1)
+  Cons(e, if accept(",") then coalesce_args() else [])
+
 fn expression(minimum : Int) : Expr =
   let t = pop()
   let w = t.word
-  demand(not(elem(w, ["NULL", "COALESCE"])), "UNSUPPORTED_FEATURE")
   let e =
     if w == "NOT" then
       node(w, [expression(3)])
@@ -136,6 +139,14 @@ fn expression(minimum : Int) : Expr =
       literal(t.value)
     elif elem(w, ["TRUE", "FALSE"]) then
       literal(JBool(w == "TRUE"))
+    elif w == "NULL" then
+      literal(JNull)
+    elif w == "COALESCE" then
+      expect("(")
+      let args = coalesce_args()
+      expect(")")
+      demand(length(args) >= 2, "PARSE_ERROR")
+      node("COALESCE", args)
     elif agg(w) then
       expect("(")
       let args =
@@ -155,15 +166,19 @@ fn expression(minimum : Int) : Expr =
 
 fn binary(left : Expr, minimum : Int, compared : Bool) : Expr =
   let op = peek()
-  demand(op /= "IS", "UNSUPPORTED_FEATURE")
   let p = precedence(op)
   if p < minimum then
     left
   else
     demand(not(p == 4 && compared), "PARSE_ERROR")
     let ignored = pop()
-    let right = expression(p + 1)
-    binary(node(op, [left, right]), minimum, compared || p == 4)
+    if op == "IS" then
+      let neg = accept("NOT")
+      expect("NULL")
+      binary(node(if neg then "IS_NOT_NULL" else "IS_NULL", [left]), minimum, true)
+    else
+      let right = expression(p + 1)
+      binary(node(op, [left, right]), minimum, compared || p == 4)
 
 fn selections() : List((Expr, String)) =
   let e = expression(1)
@@ -175,36 +190,55 @@ fn group_keys() : List(Expr) =
   let e = reference()
   Cons(e, if accept(",") then group_keys() else [])
 
-fn order_keys() : List((String, Bool)) =
+fn order_keys() : List((String, Bool, Bool)) =
   let n = name()
   let desc = accept("DESC")
   if not(desc) then
     let ignored = accept("ASC")
     ()
-  demand(peek() /= "NULLS", "UNSUPPORTED_FEATURE")
-  Cons((n, desc), if accept(",") then order_keys() else [])
+  let nulls_first =
+    if accept("NULLS") then
+      if accept("FIRST") then
+        true
+      else
+        expect("LAST")
+        false
+    else
+      desc
+  Cons(
+      (n, desc, nulls_first),
+      if accept(",") then order_keys() else [],
+    )
 
 fn join_sources(
   ss : List((String, String)),
-  js : List(Expr)
-) : (List((String, String)), List(Expr)) =
-  demand(peek() /= "LEFT", "UNSUPPORTED_FEATURE")
-  if elem(peek(), ["INNER", "JOIN"]) then
+  js : List(Expr),
+  jt : List(Bool)
+) : (List((String, String)), List(Expr), List(Bool)) =
+  if peek() == "LEFT" then
+    let ignored = pop()
+    let ignored2 = accept("OUTER")
+    expect("JOIN")
+    let s = source()
+    expect("ON")
+    let e = expression(1)
+    join_sources(append(ss, [s]), append(js, [e]), append(jt, [true]))
+  elif elem(peek(), ["INNER", "JOIN"]) then
     let ignored = accept("INNER")
     expect("JOIN")
     let s = source()
     expect("ON")
     let e = expression(1)
-    join_sources(append(ss, [s]), append(js, [e]))
+    join_sources(append(ss, [s]), append(js, [e]), append(jt, [false]))
   else
-    (ss, js)
+    (ss, js, jt)
 
 fn query() : Query =
   expect("SELECT")
   let distinct = accept("DISTINCT")
   let sels = selections()
   expect("FROM")
-  let (ss, js) = join_sources([source()], [])
+  let (ss, js, jt) = join_sources([source()], [], [])
   let pred =
     if accept("WHERE") then
       expression(1)
@@ -244,6 +278,7 @@ fn query() : Query =
     select = sels,
     sources = ss,
     joins = js,
+    join_types = jt,
     predicate = pred,
     groups = groups,
     having = hav,
