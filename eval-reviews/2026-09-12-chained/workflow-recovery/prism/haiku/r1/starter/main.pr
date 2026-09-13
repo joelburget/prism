@@ -9,7 +9,7 @@ import Runner (simulate)
 import Output (response_json)
 
 fn handle_request(line : String) : Result(Simulator, String) =
-  let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
+  let request = map_err(\(x) -> "INVALID_INPUT", decode_lossy(line))?
   match request of
     JObj(fields) =>
       let workflow = parse_workflow(get_field(fields, "input"))?

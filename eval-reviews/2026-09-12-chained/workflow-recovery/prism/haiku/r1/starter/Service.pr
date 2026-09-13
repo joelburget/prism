@@ -4,12 +4,36 @@ import Data.String (..)
 import Data.Result (..)
 import Domain (..)
 
-pub fn new_service() : MockService = MockService { calls = [], effects = [] }
+pub fn new_service() : MockService = MockService { calls = [], effects = [], effect_cache = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
-  }
+fn count_transient_failures(calls : List(ServiceCall), key : ActionKey) : Int =
+  length(filter(\(call) -> call.key.run_id == key.run_id && call.key.step_id == key.step_id 
+                && call.kind == Execute && call.outcome == Transient, calls))
+
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : Result((MockService, CallOutcome), String) =
+  match find(\(pair) -> fst(pair).run_id == key.run_id && fst(pair).step_id == key.step_id, service.effect_cache) of
+    Some(_) =>
+      let call = ServiceCall { key = key, attempt = attempt, kind = Execute, outcome = Replayed }
+      Ok((MockService { ..service, calls = append(service.calls, [call]) }, Replayed))
+    None =>
+      let transient_count = count_transient_failures(service.calls, key)
+      if transient_count < failures then
+        let call = ServiceCall { key = key, attempt = attempt, kind = Execute, outcome = Transient }
+        Ok((MockService { ..service, calls = append(service.calls, [call]) }, Transient))
+      else
+        let call = ServiceCall { key = key, attempt = attempt, kind = Execute, outcome = Applied }
+        let updated = MockService {
+          ..service,
+          calls = append(service.calls, [call]),
+          effects = append(service.effects, [Effect { key = key, amount = amount }]),
+          effect_cache = append(service.effect_cache, [(key, true)])
+        }
+        Ok((updated, Applied))
+
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : Result((MockService, CallOutcome), String) =
+  let has_effect = match find(\(pair) -> fst(pair).run_id == key.run_id && fst(pair).step_id == key.step_id, service.effect_cache) of
+    Some(pair) => snd(pair)
+    None => false
+  let outcome = if has_effect then Found else Missing
+  let call = ServiceCall { key = key, attempt = attempt, kind = Lookup, outcome = outcome }
+  Ok((MockService { ..service, calls = append(service.calls, [call]) }, outcome))
