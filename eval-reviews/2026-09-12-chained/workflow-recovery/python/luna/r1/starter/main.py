@@ -1,13 +1,15 @@
 """One-request JSON adapter; each request owns a fresh simulator."""
 import json
 import sys
-from workflow import DomainError, Simulator, parse_workflow
+from workflow import DomainError, Simulator, LeasedSimulator, parse_workflow
 
 
 def main() -> None:
     try:
         request = json.load(sys.stdin)
-        result = Simulator(parse_workflow(request["input"])).run()
+        workflow = parse_workflow(request["input"])
+        result = (LeasedSimulator(workflow).run() if workflow.workers is not None
+                  else Simulator(workflow).run())
         response = {"ok": True, "result": result}
     except DomainError as error:
         response = {"ok": False, "error": {"code": error.code}}

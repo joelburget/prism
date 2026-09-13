@@ -1,16 +1,16 @@
 {
-  "run_id": "run-4b8fa7369e91",
-  "checkpoint": 1,
+  "run_id": "run-065e892f55f2",
+  "checkpoint": 2,
   "model": "luna",
   "model_id": "gpt-5.6-luna",
   "task": "workflow-recovery",
   "language": "python",
   "source_available": true,
-  "source_sha256": "b6864b9888b1d0f24d31dea21698027de85a8e4ff74d8321fb201ed54d983258",
-  "passed": true,
-  "seconds": 118.59226116701029,
-  "tool_calls": 11,
+  "source_sha256": "05fbc4e36dd9cb12eec4e2b25e8b4a862de77dc5afb3025f962480cf47966255",
+  "passed": false,
+  "seconds": 179.76508966699475,
+  "tool_calls": 15,
   "flags": [],
-  "result_sha256": "03c6037e99f29dbb3eee13725fa28ab9f26c16473c24ca2475550d580da3e3a2",
+  "result_sha256": "3f5ed554248b17273da99719299819e3bf9264cc88595ae566158b892cb504a4",
   "archive_note": "Exact frozen source"
 }
