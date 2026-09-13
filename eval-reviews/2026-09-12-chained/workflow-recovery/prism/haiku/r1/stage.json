@@ -1,16 +1,18 @@
 {
-  "run_id": "run-67125c106fda",
-  "checkpoint": 1,
+  "run_id": "run-855a758ae219",
+  "checkpoint": 2,
   "model": "haiku",
   "model_id": "claude-haiku-4-5-20251001",
   "task": "workflow-recovery",
   "language": "prism",
-  "source_available": true,
-  "source_sha256": "eb6dc535cf47089603714321c485f73bdebeeb8fe1b6ccd78bc77a41e477e98c",
+  "source_available": false,
+  "source_sha256": null,
   "passed": false,
-  "seconds": 575.8718145830208,
-  "tool_calls": 63,
-  "flags": [],
-  "result_sha256": "89e34ffba945ea4f70aba613f3c3f2bedf1b167325af020ce6bf6725098499e6",
-  "archive_note": "Exact frozen source"
+  "seconds": 458.54748316598125,
+  "tool_calls": 83,
+  "flags": [
+    "invalid_submission"
+  ],
+  "result_sha256": "3d3d657d8a0a14c24c88f4a0bf69373b2f52c7a33cc7e0fd685469a5569449cc",
+  "archive_note": "Final archive unavailable. starter/ is the preceding baseline, NOT this stage\u2019s submission."
 }
