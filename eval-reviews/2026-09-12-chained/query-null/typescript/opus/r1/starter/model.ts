@@ -26,6 +26,8 @@ export interface Expr {
   source?: number;
   /** Conservative static answer to "can this ever evaluate to NULL?". */
   nullable?: boolean;
+  /** Slot of an incrementally maintained aggregate, assigned per view. */
+  slot?: number;
 }
 export interface Join {
   on: Expr;
@@ -60,6 +62,15 @@ export class DomainError extends Error {}
 export function requireThat(ok: unknown, code = "INVALID_INPUT"): asserts ok {
   if (!ok) throw new DomainError(code);
 }
+/** A checkpoint-two request carries either the old `queries` or new `commands`. */
+export interface Request {
+  database: Map<string, Table>;
+  queries?: InputQuery[];
+  commands?: unknown[];
+}
+/** Table names in change records are plain names: reserved words reach lookup. */
+export const tableName = /^[a-z_][a-z0-9_]*$/;
+export const viewName = /^[a-z][a-z0-9-]{0,39}$/;
 export const reserved = new Set(
   "SELECT DISTINCT AS FROM INNER JOIN LEFT OUTER ON WHERE GROUP BY HAVING ORDER ASC DESC NULLS FIRST LAST LIMIT OFFSET AND OR NOT IS NULL TRUE FALSE COALESCE COUNT SUM MIN MAX".split(
     " ",
@@ -73,25 +84,30 @@ export function identifier(x: unknown): x is string {
     !reserved.has(x.toUpperCase())
   );
 }
-function object(x: unknown): asserts x is Record<string, unknown> {
+export function object(x: unknown): asserts x is Record<string, unknown> {
   requireThat(x !== null && typeof x === "object" && !Array.isArray(x));
 }
-function fields(
+export function fields(
   x: unknown,
   names: string[],
+  code = "INVALID_INPUT",
 ): asserts x is Record<string, unknown> {
-  object(x);
+  requireThat(x !== null && typeof x === "object" && !Array.isArray(x), code);
   requireThat(
-    Object.keys(x).length === names.length &&
-      names.every((k) => Object.hasOwn(x, k)),
+    Object.keys(x as object).length === names.length &&
+      names.every((k) => Object.hasOwn(x as object, k)),
+    code,
   );
 }
-export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
+export function validate(request: unknown): Request {
   object(request);
   requireThat(request.protocol_version === 1 && request.task === "query-null");
   const data = request.input;
-  fields(data, ["database", "queries"]);
-  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+  object(data);
+  /** Exactly one of the two input forms; mixing or omitting either is invalid. */
+  const batched = Object.hasOwn(data, "commands");
+  fields(data, ["database", batched ? "commands" : "queries"]);
+  requireThat(Array.isArray(data.database));
   const database = new Map<string, Table>();
   for (const item of data.database as unknown[]) {
     fields(item, ["name", "columns", "rows"]);
@@ -129,11 +145,18 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       rows: item.rows as Value[][],
     });
   }
+  if (batched) {
+    requireThat(Array.isArray(data.commands));
+    const commands = data.commands as unknown[];
+    requireThat(commands.length <= 2000);
+    return { database, commands };
+  }
+  requireThat(Array.isArray(data.queries));
   const queries: InputQuery[] = [];
   for (const q of data.queries as unknown[]) {
     fields(q, ["sql", "optimize"]);
     requireThat(typeof q.sql === "string" && typeof q.optimize === "boolean");
     queries.push({ sql: q.sql, optimize: q.optimize });
   }
-  return [database, queries];
+  return { database, queries };
 }

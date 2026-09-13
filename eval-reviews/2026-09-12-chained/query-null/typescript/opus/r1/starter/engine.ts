@@ -1,15 +1,26 @@
 /** Stable relational operators and real constant-fold / scan-filter rewrites. */
 import { aggregates } from "./model.ts";
-import type { Expr, Plan, Value } from "./model.ts";
+import type { Expr, Plan, Sort, Value } from "./model.ts";
 import { walk } from "./binder.ts";
 /** Orders two non-null values of the same type; false sorts before true. */
-function rank(a: Value, b: Value): number {
+export function rank(a: Value, b: Value): number {
   return a === b ? 0 : (a as number) < (b as number) ? -1 : 1;
 }
-export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
+/**
+ * `slots` carries aggregate results that were maintained incrementally; when it
+ * is absent the aggregate is folded over `group` exactly as the one-shot engine
+ * has always done.
+ */
+export function evaluate(
+  e: Expr,
+  row: Value[],
+  group: Value[][] = [],
+  slots?: Value[],
+): Value {
   if (e.op === "lit") return e.value as Value;
   if (e.op === "col") return row[e.index!];
   if (aggregates.has(e.op)) {
+    if (slots && e.slot !== undefined) return slots[e.slot];
     if (e.op === "COUNT" && !e.args.length) return group.length;
     const vs = group
       .map((r) => evaluate(e.args[0], r))
@@ -24,16 +35,16 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
   }
   if (e.op === "COALESCE") {
     for (const a of e.args) {
-      const v = evaluate(a, row, group);
+      const v = evaluate(a, row, group, slots);
       if (v !== null) return v;
     }
     return null;
   }
-  const a = evaluate(e.args[0], row, group);
+  const a = evaluate(e.args[0], row, group, slots);
   if (e.op === "isnull") return a === null;
   if (e.op === "isnotnull") return a !== null;
   if (e.op === "NOT") return a === null ? null : !a;
-  const b = evaluate(e.args[1], row, group);
+  const b = evaluate(e.args[1], row, group, slots);
   /** AND/OR are the only operators that can absorb an UNKNOWN operand. */
   if (e.op === "AND")
     return a === false || b === false ? false : a === null || b === null ? null : true;
@@ -64,8 +75,26 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
   }
 }
 /** Only TRUE passes a predicate; FALSE and UNKNOWN are both rejected. */
-function holds(e: Expr, row: Value[], group: Value[][] = []): boolean {
-  return evaluate(e, row, group) === true;
+export function holds(
+  e: Expr,
+  row: Value[],
+  group: Value[][] = [],
+  slots?: Value[],
+): boolean {
+  return evaluate(e, row, group, slots) === true;
+}
+/** Shared ORDER BY comparator; ties are left to the caller's encounter order. */
+export function compare(order: Sort[], a: Value[], b: Value[]): number {
+  for (const { key, desc, nullsFirst } of order) {
+    const i = key as number;
+    if (a[i] === null || b[i] === null) {
+      if (a[i] === b[i]) continue;
+      return (a[i] === null ? -1 : 1) * (nullsFirst ? 1 : -1);
+    }
+    const c = rank(a[i], b[i]);
+    if (c) return desc ? -c : c;
+  }
+  return 0;
 }
 function alike(a: Expr, b: Expr): boolean {
   return (
@@ -201,18 +230,7 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
       return true;
     });
   }
-  projected.sort((a, b) => {
-    for (const { key, desc, nullsFirst } of q.order) {
-      const i = key as number;
-      if (a[i] === null || b[i] === null) {
-        if (a[i] === b[i]) continue;
-        return (a[i] === null ? -1 : 1) * (nullsFirst ? 1 : -1);
-      }
-      const c = rank(a[i], b[i]);
-      if (c) return desc ? -c : c;
-    }
-    return 0;
-  });
+  projected.sort((a, b) => compare(q.order, a, b));
   return {
     columns: q.select.map(([, a]) => a),
     rows: projected.slice(

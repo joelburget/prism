@@ -3,9 +3,10 @@ import { DomainError, validate, requireThat } from "./model.ts";
 import { Parser } from "./parser.ts";
 import { bind } from "./binder.ts";
 import { optimize, execute } from "./engine.ts";
+import { Store } from "./store.ts";
 let response: unknown;
 try {
-  const [database, queries] = validate(
+  const request = validate(
     JSON.parse(
       readFileSync(0, "utf8"),
       (_key: string, value: unknown, context?: { source?: string }) => {
@@ -17,10 +18,12 @@ try {
       },
     ) as unknown,
   );
-  const results = queries.map((q) => {
-    const plan = bind(new Parser(q.sql).parse(), database);
-    return execute(q.optimize ? optimize(plan) : plan);
-  });
+  const results = request.queries
+    ? request.queries.map((q) => {
+        const plan = bind(new Parser(q.sql).parse(), request.database);
+        return execute(q.optimize ? optimize(plan) : plan);
+      })
+    : new Store(request.database).run(request.commands!);
   response = { ok: true, result: { results } };
 } catch (e) {
   if (!(e instanceof DomainError) && !(e instanceof SyntaxError)) throw e;

@@ -1,9 +1,13 @@
-/** White-box checks that the optimizer rewrites, and stays semantically neutral. */
+/**
+ * White-box checks that the optimizer rewrites, stays semantically neutral, and
+ * that incrementally maintained views agree with a fresh query over the same rows.
+ */
 import { validate } from "./model.ts";
-import type { Expr, Plan, Value } from "./model.ts";
+import type { Expr, Plan, Table, Value } from "./model.ts";
 import { Parser } from "./parser.ts";
 import { bind } from "./binder.ts";
 import { optimize, execute } from "./engine.ts";
+import { Store } from "./store.ts";
 const database = [
   {
     name: "t",
@@ -34,7 +38,7 @@ const database = [
     ],
   },
 ];
-const [tables] = validate({
+const { database: tables } = validate({
   protocol_version: 1,
   task: "query-null",
   input: { database, queries: [] },
@@ -138,5 +142,105 @@ for (const sql of queries) {
   const b = JSON.stringify(execute(plan(sql, true)));
   ok(a === b, `optimizer preserves results: ${sql}`);
 }
+/* Maintained views must equal a one-shot query over the live rows after every batch. */
+function snapshot(store: Store): Map<string, Table> {
+  const data = [...store.bases.entries()].map(([name, b]) => ({
+    name,
+    columns: b.table.columns,
+    rows: [...b.rows.values()]
+      .sort((x, y) => x.seq - y.seq)
+      .map((r) => r.values),
+  }));
+  return validate({
+    protocol_version: 1,
+    task: "query-null",
+    input: { database: data, queries: [] },
+  }).database;
+}
+function maintains(sql: string, rewrite: boolean, batches: unknown[][]): void {
+  const store = new Store(tables);
+  store.run([{ op: "create", view: "v", sql, optimize: rewrite }]);
+  batches.forEach((changes, step) => {
+    const applied = store.run([{ op: "apply", changes }])[0] as {
+      ok: boolean;
+    };
+    ok(applied.ok, `batch ${step} applies: ${sql}`);
+    const got = (store.run([{ op: "read", view: "v" }])[0] as {
+      result: { rows: Value[][] };
+    }).result.rows;
+    const want = execute(
+      bind(new Parser(sql).parse(), snapshot(store)),
+    ).rows;
+    ok(
+      JSON.stringify(got) === JSON.stringify(want),
+      `maintained after batch ${step}: ${sql}`,
+    );
+  });
+}
+const script: unknown[][] = [
+  [{ op: "delete", table: "r", id: 1 }],
+  [{ op: "insert", table: "r", id: 5, row: [1, 7] }],
+  [
+    { op: "update", table: "t", id: 2, row: [2, 10, true, null] },
+    { op: "update", table: "r", id: 3, row: [2, 20] },
+  ],
+  [{ op: "delete", table: "r", id: 5 }, { op: "delete", table: "r", id: 3 }],
+  [{ op: "insert", table: "t", id: 9, row: [9, null, false, true] }],
+  [{ op: "delete", table: "t", id: 1 }],
+];
+for (const sql of queries)
+  for (const rewrite of [false, true]) maintains(sql, rewrite, script);
+/* Bag multiplicity, group lifetime and batch atomicity. */
+const store = new Store(tables);
+store.run([
+  {
+    op: "create",
+    view: "v",
+    sql: "SELECT DISTINCT v AS x FROM t ORDER BY x NULLS LAST",
+    optimize: true,
+  },
+]);
+const read = (): unknown =>
+  (store.run([{ op: "read", view: "v" }])[0] as { result: unknown }).result;
+ok(
+  JSON.stringify(read()) ===
+    '{"revision":0,"columns":["x"],"rows":[[10],[null]]}',
+  "duplicates collapse into one DISTINCT row",
+);
+store.run([{ op: "apply", changes: [{ op: "delete", table: "t", id: 1 }] }]);
+ok(
+  JSON.stringify(read()) ===
+    '{"revision":1,"columns":["x"],"rows":[[10],[null]]}',
+  "one of two duplicate contributions leaves the row in place",
+);
+const rejected = store.run([
+  {
+    op: "apply",
+    changes: [
+      { op: "delete", table: "t", id: 3 },
+      { op: "delete", table: "t", id: 3 },
+    ],
+  },
+]);
+ok(
+  JSON.stringify(rejected) === '[{"ok":false,"error":{"code":"UNKNOWN_ROW"}}]',
+  "a failing change rejects its whole batch",
+);
+ok(
+  JSON.stringify(read()) ===
+    '{"revision":1,"columns":["x"],"rows":[[10],[null]]}',
+  "a rejected batch leaves neither rows nor revision behind",
+);
+store.run([{ op: "apply", changes: [{ op: "delete", table: "t", id: 3 }] }]);
+ok(
+  JSON.stringify(read()) ===
+    '{"revision":2,"columns":["x"],"rows":[[null]]}',
+  "the last contribution removes the DISTINCT row",
+);
+ok(
+  JSON.stringify(store.run([{ op: "apply", changes: [] }])) ===
+    '[{"ok":false,"error":{"code":"INVALID_COMMAND"}}]',
+  "an empty batch is rejected",
+);
 console.log(failures ? `${failures} failing check(s)` : "all checks passed");
 process.exit(failures ? 1 : 0);
