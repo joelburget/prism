@@ -11,11 +11,17 @@ fn step_status(status : StepStatus) : String =
     Pending => "pending"
     Running => "running"
     Succeeded => "succeeded"
+    Failed => "failed"
+    Blocked => "blocked"
+    Cancelled => "cancelled"
 
 fn run_status(status : RunStatus) : String =
   match status of
-    Active => "active"
-    Completed => "succeeded"
+    RunActive => "active"
+    RunSucceeded => "succeeded"
+    RunFailed => "failed"
+    RunCancelling => "cancelling"
+    RunCancelled => "cancelled"
 
 fn step_json(step : StepState) : Json =
   JObj([("id", JStr(step.id)), ("status", JStr(step_status(step.status))),
@@ -32,9 +38,22 @@ fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))
 
 fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
 
+fn call_kind(kind : CallKind) : String =
+  match kind of
+    ExecuteCall => "execute"
+    LookupCall => "lookup"
+
+fn call_outcome(outcome : CallOutcome) : String =
+  match outcome of
+    Applied => "applied"
+    Replayed => "replayed"
+    Transient => "transient"
+    Found => "found"
+    Missing => "missing"
+
 fn call_json(call : ServiceCall) : Json =
-  JObj([("kind", JStr("execute")), ("key", key_json(call.key)),
-    ("attempt", JInt(call.attempt)), ("outcome", JStr("applied"))])
+  JObj([("kind", JStr(call_kind(call.kind))), ("key", key_json(call.key)),
+    ("attempt", JInt(call.attempt)), ("outcome", JStr(call_outcome(call.outcome)))])
 
 fn effect_json(entry : Effect) : Json =
   JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])

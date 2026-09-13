@@ -13,6 +13,7 @@
     "Service.pr",
     "Validation.pr",
     "build.sh",
+    "extra_tests.py",
     "main.pr",
     "run.sh"
   ]

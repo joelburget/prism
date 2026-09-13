@@ -1,0 +1,16 @@
+{
+  "run_id": "run-69867c3df9b0",
+  "checkpoint": 1,
+  "model": "fable",
+  "model_id": "claude-fable-5-1",
+  "task": "workflow-recovery",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "b5758ba870cbc29d6e2d303c9da02f4b65caff52b59414ec6278a144371b6a2e",
+  "passed": true,
+  "seconds": 178.99941333394963,
+  "tool_calls": 11,
+  "flags": [],
+  "result_sha256": "61c90f5df9c1661d5e51013ef450de276ac3afd7371637e110a5c13819cbfce3",
+  "archive_note": "Exact frozen source"
+}
