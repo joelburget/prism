@@ -1,4 +1,4 @@
-/** Deterministic in-memory DAG runner. Recovery and idempotency are extension work. */
+/** Deterministic in-memory DAG runner with durable recovery, retries, and cancellation. */
 export const TIME_LIMIT = 2_147_483_647;
 export class DomainError extends Error {
   readonly code: string;
@@ -158,36 +158,89 @@ export function parseWorkflow(raw: unknown): Workflow {
   validateGraph(workflow.steps); // Scalar and shape validation has finished before graph checks.
   return workflow;
 }
+export type StepStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "blocked"
+  | "cancelled";
+export type RunStatus =
+  | "active"
+  | "succeeded"
+  | "failed"
+  | "cancelling"
+  | "cancelled";
 export interface StepState {
   id: string;
-  status: "pending" | "running" | "succeeded";
+  status: StepStatus;
   attempts: number;
   ready_at: number;
 }
 export interface RunState {
   id: string;
-  status: "active" | "succeeded";
+  status: RunStatus;
   cancel_requested: boolean;
   steps: StepState[];
 }
 type ActionKey = readonly [string, string];
-interface ServiceCall {
+type ExecuteOutcome = "applied" | "replayed" | "transient";
+type LookupOutcome = "found" | "missing";
+interface ExecuteCall {
   kind: "execute";
   key: ActionKey;
   attempt: number;
-  outcome: "applied";
+  outcome: ExecuteOutcome;
 }
+interface LookupCall {
+  kind: "lookup";
+  key: ActionKey;
+  attempt: number;
+  outcome: LookupOutcome;
+}
+type ServiceCall = ExecuteCall | LookupCall;
 interface Effect {
   key: ActionKey;
   amount: number;
 }
+function keyString(key: ActionKey): string {
+  // Steps/run IDs cannot contain a space, so this delimiter is collision-free.
+  return `${key[0]} ${key[1]}`;
+}
 export class MockService {
   readonly calls: ServiceCall[] = [];
   readonly effects: Effect[] = [];
-  execute(key: ActionKey, amount: number, attempt: number): void {
-    // Successful baseline actions only; no replay cache or failure counters yet.
+  private readonly effectIndex = new Map<string, Effect>();
+  private readonly transientCounts = new Map<string, number>();
+  execute(
+    key: ActionKey,
+    amount: number,
+    attempt: number,
+    failures: number,
+  ): ExecuteOutcome {
+    const k = keyString(key);
+    if (this.effectIndex.has(k)) {
+      this.calls.push({ kind: "execute", key, attempt, outcome: "replayed" });
+      return "replayed";
+    }
+    const count = this.transientCounts.get(k) ?? 0;
+    if (count < failures) {
+      this.transientCounts.set(k, count + 1);
+      this.calls.push({ kind: "execute", key, attempt, outcome: "transient" });
+      return "transient";
+    }
+    const effect: Effect = { key, amount };
+    this.effectIndex.set(k, effect);
+    this.effects.push(effect);
     this.calls.push({ kind: "execute", key, attempt, outcome: "applied" });
-    this.effects.push({ key, amount });
+    return "applied";
+  }
+  lookup(key: ActionKey, attempt: number): LookupOutcome {
+    const outcome: LookupOutcome = this.effectIndex.has(keyString(key))
+      ? "found"
+      : "missing";
+    this.calls.push({ kind: "lookup", key, attempt, outcome });
+    return outcome;
   }
 }
 export interface Snapshot {
@@ -243,22 +296,62 @@ export class Simulator {
     }
     return undefined;
   }
-  tick(): void {
+  tick(crashAt: "after_begin" | "after_call" | null): void {
     const action = this.selectAction();
     if (!action) return;
     const { run, step, definition } = action;
+    const key: ActionKey = [run.id, step.id];
     if (step.status === "pending") {
       step.status = "running";
       step.attempts += 1;
     }
-    this.service.execute([run.id, step.id], definition.amount, step.attempts);
-    step.status = "succeeded";
-    if (run.steps.every((state) => state.status === "succeeded"))
-      run.status = "succeeded";
+    if (crashAt === "after_begin") {
+      this.up = false;
+      return;
+    }
+    if (run.status === "cancelling") {
+      const outcome = this.service.lookup(key, step.attempts);
+      if (crashAt === "after_call") {
+        this.up = false;
+        return;
+      }
+      step.status = outcome === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+      return;
+    }
+    const outcome = this.service.execute(
+      key,
+      definition.amount,
+      step.attempts,
+      definition.failures,
+    );
+    if (crashAt === "after_call") {
+      this.up = false;
+      return;
+    }
+    if (outcome === "applied" || outcome === "replayed") {
+      step.status = "succeeded";
+      if (run.steps.every((state) => state.status === "succeeded"))
+        run.status = "succeeded";
+      return;
+    }
+    // Committed transient response: schedule a retry or exhaust the budget.
+    if (step.attempts < this.workflow.maxAttempts) {
+      const readyAt = this.now + this.workflow.retryDelay;
+      require(readyAt <= TIME_LIMIT, "TIME_OVERFLOW");
+      step.status = "pending";
+      step.ready_at = readyAt;
+    } else {
+      step.status = "failed";
+      run.status = "failed";
+      for (const other of run.steps)
+        if (other.status === "pending") other.status = "blocked";
+    }
   }
   apply(command: Command): void {
     switch (command.op) {
       case "start":
+        require(this.up, "PROCESS_DOWN");
         require(this.runs.every(
           (run) => run.id !== command.run,
         ), "DUPLICATE_RUN");
@@ -274,9 +367,27 @@ export class Simulator {
           })),
         });
         break;
+      case "cancel": {
+        require(this.up, "PROCESS_DOWN");
+        const run = this.runs.find((candidate) => candidate.id === command.run);
+        require(run !== undefined, "UNKNOWN_RUN");
+        if (
+          run.status === "succeeded" ||
+          run.status === "failed" ||
+          run.status === "cancelled"
+        )
+          break;
+        run.cancel_requested = true;
+        for (const step of run.steps)
+          if (step.status === "pending") step.status = "cancelled";
+        run.status = run.steps.some((step) => step.status === "running")
+          ? "cancelling"
+          : "cancelled";
+        break;
+      }
       case "tick":
-        require(command.crashAt === null, "UNSUPPORTED_FEATURE");
-        this.tick();
+        require(this.up, "PROCESS_DOWN");
+        this.tick(command.crashAt);
         break;
       case "advance":
         require(this.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW");
@@ -285,8 +396,14 @@ export class Simulator {
       case "observe":
         this.observations.push(this.snapshot());
         break;
-      default:
-        throw new DomainError("UNSUPPORTED_FEATURE");
+      case "crash":
+        require(this.up, "PROCESS_DOWN");
+        this.up = false;
+        break;
+      case "restart":
+        require(!this.up, "PROCESS_UP");
+        this.up = true;
+        break;
     }
   }
   snapshot(): Snapshot {
@@ -300,9 +417,6 @@ export class Simulator {
     };
   }
   run(): SimulationResult {
-    require(this.workflow.steps.every(
-      (step) => step.failures === 0,
-    ), "UNSUPPORTED_FEATURE");
     this.workflow.commands.forEach((command) => this.apply(command));
     return {
       observations: this.observations,
