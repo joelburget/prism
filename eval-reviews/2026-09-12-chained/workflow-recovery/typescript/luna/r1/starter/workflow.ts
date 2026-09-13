@@ -1,4 +1,4 @@
-/** Deterministic in-memory DAG runner. Recovery and idempotency are extension work. */
+/** Deterministic durable workflow simulator. */
 export const TIME_LIMIT = 2_147_483_647;
 export class DomainError extends Error {
   readonly code: string;
@@ -160,22 +160,22 @@ export function parseWorkflow(raw: unknown): Workflow {
 }
 export interface StepState {
   id: string;
-  status: "pending" | "running" | "succeeded";
+  status: "pending" | "running" | "succeeded" | "failed" | "blocked" | "cancelled";
   attempts: number;
   ready_at: number;
 }
 export interface RunState {
   id: string;
-  status: "active" | "succeeded";
+  status: "active" | "succeeded" | "failed" | "cancelling" | "cancelled";
   cancel_requested: boolean;
   steps: StepState[];
 }
 type ActionKey = readonly [string, string];
 interface ServiceCall {
-  kind: "execute";
+  kind: "execute" | "lookup";
   key: ActionKey;
   attempt: number;
-  outcome: "applied";
+  outcome: "applied" | "replayed" | "transient" | "found" | "missing";
 }
 interface Effect {
   key: ActionKey;
@@ -184,10 +184,33 @@ interface Effect {
 export class MockService {
   readonly calls: ServiceCall[] = [];
   readonly effects: Effect[] = [];
-  execute(key: ActionKey, amount: number, attempt: number): void {
-    // Successful baseline actions only; no replay cache or failure counters yet.
-    this.calls.push({ kind: "execute", key, attempt, outcome: "applied" });
-    this.effects.push({ key, amount });
+  private readonly failureCounts = new Map<string, number>();
+  private id(key: ActionKey): string { return JSON.stringify(key); }
+  execute(
+    key: ActionKey,
+    amount: number,
+    attempt: number,
+    failures: number,
+  ): "applied" | "replayed" | "transient" {
+    const effect = this.effects.find((item) => this.id(item.key) === this.id(key));
+    if (effect) {
+      this.calls.push({ kind: "execute", key: [...key], attempt, outcome: "replayed" });
+      return "replayed";
+    }
+    const count = this.failureCounts.get(this.id(key)) ?? 0;
+    if (count < failures) {
+      this.failureCounts.set(this.id(key), count + 1);
+      this.calls.push({ kind: "execute", key: [...key], attempt, outcome: "transient" });
+      return "transient";
+    }
+    this.calls.push({ kind: "execute", key: [...key], attempt, outcome: "applied" });
+    this.effects.push({ key: [...key], amount });
+    return "applied";
+  }
+  lookup(key: ActionKey, attempt: number): "found" | "missing" {
+    const found = this.effects.some((item) => this.id(item.key) === this.id(key));
+    this.calls.push({ kind: "lookup", key: [...key], attempt, outcome: found ? "found" : "missing" });
+    return found ? "found" : "missing";
   }
 }
 export interface Snapshot {
@@ -247,18 +270,41 @@ export class Simulator {
     const action = this.selectAction();
     if (!action) return;
     const { run, step, definition } = action;
+    const cancelling = run.status === "cancelling";
     if (step.status === "pending") {
       step.status = "running";
       step.attempts += 1;
     }
-    this.service.execute([run.id, step.id], definition.amount, step.attempts);
+    const key: ActionKey = [run.id, step.id];
+    const response = cancelling
+      ? this.service.lookup(key, step.attempts)
+      : this.service.execute(key, definition.amount, step.attempts, definition.failures);
+    if (response === "found" || response === "missing") {
+      step.status = response === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+      return;
+    }
+    if (response === "transient") {
+      if (step.attempts < this.workflow.maxAttempts) {
+        require(this.now + this.workflow.retryDelay <= TIME_LIMIT, "TIME_OVERFLOW");
+        step.status = "pending";
+        step.ready_at = this.now + this.workflow.retryDelay;
+      } else {
+        step.status = "failed";
+        run.status = "failed";
+        run.steps.forEach((state) => {
+          if (state.status === "pending") state.status = "blocked";
+        });
+      }
+      return;
+    }
     step.status = "succeeded";
-    if (run.steps.every((state) => state.status === "succeeded"))
-      run.status = "succeeded";
+    if (run.steps.every((state) => state.status === "succeeded")) run.status = "succeeded";
   }
   apply(command: Command): void {
     switch (command.op) {
       case "start":
+        require(this.up, "PROCESS_DOWN");
         require(this.runs.every(
           (run) => run.id !== command.run,
         ), "DUPLICATE_RUN");
@@ -275,8 +321,30 @@ export class Simulator {
         });
         break;
       case "tick":
-        require(command.crashAt === null, "UNSUPPORTED_FEATURE");
-        this.tick();
+        require(this.up, "PROCESS_DOWN");
+        {
+          const action = this.selectAction();
+          if (!action) break;
+          const { run, step, definition } = action;
+          const cancelling = run.status === "cancelling";
+          if (step.status === "pending") {
+            step.status = "running";
+            step.attempts += 1;
+          }
+          if (command.crashAt === "after_begin") {
+            this.up = false;
+            break;
+          }
+          const key: ActionKey = [run.id, step.id];
+          const response = cancelling
+            ? this.service.lookup(key, step.attempts)
+            : this.service.execute(key, definition.amount, step.attempts, definition.failures);
+          if (command.crashAt === "after_call") {
+            this.up = false;
+            break;
+          }
+          this.commitResponse(run, step, response);
+        }
         break;
       case "advance":
         require(this.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW");
@@ -285,8 +353,52 @@ export class Simulator {
       case "observe":
         this.observations.push(this.snapshot());
         break;
+      case "cancel": {
+        require(this.up, "PROCESS_DOWN");
+        const run = this.runs.find((candidate) => candidate.id === command.run);
+        require(run !== undefined, "UNKNOWN_RUN");
+        if (run.status === "succeeded" || run.status === "failed" || run.status === "cancelled") break;
+        run.cancel_requested = true;
+        run.steps.forEach((step) => {
+          if (step.status === "pending") step.status = "cancelled";
+        });
+        if (run.steps.every((step) => step.status !== "running")) run.status = "cancelled";
+        else run.status = "cancelling";
+        break;
+      }
+      case "crash":
+        require(this.up, "PROCESS_DOWN");
+        this.up = false;
+        break;
+      case "restart":
+        require(!this.up, "PROCESS_UP");
+        this.up = true;
+        break;
       default:
         throw new DomainError("UNSUPPORTED_FEATURE");
+    }
+  }
+  private commitResponse(
+    run: RunState,
+    step: StepState,
+    response: "applied" | "replayed" | "transient" | "found" | "missing",
+  ): void {
+    if (response === "found" || response === "missing") {
+      step.status = response === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+    } else if (response === "transient") {
+      if (step.attempts < this.workflow.maxAttempts) {
+        require(this.now + this.workflow.retryDelay <= TIME_LIMIT, "TIME_OVERFLOW");
+        step.status = "pending";
+        step.ready_at = this.now + this.workflow.retryDelay;
+      } else {
+        step.status = "failed";
+        run.status = "failed";
+        run.steps.forEach((state) => { if (state.status === "pending") state.status = "blocked"; });
+      }
+    } else {
+      step.status = "succeeded";
+      if (run.steps.every((state) => state.status === "succeeded")) run.status = "succeeded";
     }
   }
   snapshot(): Snapshot {
@@ -300,16 +412,13 @@ export class Simulator {
     };
   }
   run(): SimulationResult {
-    require(this.workflow.steps.every(
-      (step) => step.failures === 0,
-    ), "UNSUPPORTED_FEATURE");
     this.workflow.commands.forEach((command) => this.apply(command));
     return {
       observations: this.observations,
       final: {
         ...this.snapshot(),
-        calls: this.service.calls,
-        effects: this.service.effects,
+        calls: this.service.calls.map((call) => ({ ...call, key: [...call.key] })),
+        effects: this.service.effects.map((effect) => ({ ...effect, key: [...effect.key] })),
       },
     };
   }
