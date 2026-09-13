@@ -13,12 +13,12 @@ fn transient_count(xs : List(ServiceCall), key : ActionKey) : Int =
 
 pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : ServiceResult =
   if has_effect(service.effects, key) then
-    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Replayed }]) }, outcome = Replayed }
+    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { worker = "", ticket = 0, kind = ExecuteCall, key = key, attempt = attempt, outcome = Replayed }]) }, outcome = Replayed }
   elif transient_count(service.calls, key) < failures then
-    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Transient }]) }, outcome = Transient }
+    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { worker = "", ticket = 0, kind = ExecuteCall, key = key, attempt = attempt, outcome = Transient }]) }, outcome = Transient }
   else
-    ServiceResult { service = MockService { calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Applied }]), effects = append(service.effects, [Effect { key = key, amount = amount }]) }, outcome = Applied }
+    ServiceResult { service = MockService { calls = append(service.calls, [ServiceCall { worker = "", ticket = 0, kind = ExecuteCall, key = key, attempt = attempt, outcome = Applied }]), effects = append(service.effects, [Effect { key = key, amount = amount }]) }, outcome = Applied }
 
 pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : ServiceResult =
   let outcome = if has_effect(service.effects, key) then Found else Missing
-  ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = LookupCall, key = key, attempt = attempt, outcome = outcome }]) }, outcome = outcome }
+  ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { worker = "", ticket = 0, kind = LookupCall, key = key, attempt = attempt, outcome = outcome }]) }, outcome = outcome }

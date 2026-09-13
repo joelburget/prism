@@ -1,16 +1,25 @@
 import Data.List (..)
 import Data.Foldable (..)
 import Data.Result (..)
+import Json (..)
 import Domain (..)
 import Service (..)
 
-pub fn new_simulator() : Simulator = Simulator { now = 0, up = true, runs = [], service = new_service(), observations = [] }
+pub fn new_simulator() : Simulator = Simulator { now = 0, up = true, runs = [], service = new_service(), observations = [], workers = [], leased = false, results = [], tickets = [], next_ticket = 1 }
 pub fn snapshot(sim : Simulator) : Snapshot = Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
 
-fn new_step(now : Int, d : StepDefinition) : StepState = StepState { id = d.id, status = Pending, attempts = 0, ready_at = now }
+fn new_step(now : Int, d : StepDefinition) : StepState = StepState { id = d.id, status = Pending, attempts = 0, ready_at = now, lease = None }
 fn replace_step(run : RunState, replacement : StepState) : RunState = RunState { ..run, steps = map(\(s) -> if s.id == replacement.id then replacement else s, run.steps) }
 fn replace_run(sim : Simulator, replacement : RunState) : Simulator = Simulator { ..sim, runs = map(\(r) -> if r.id == replacement.id then replacement else r, sim.runs) }
 fn definition_for(defs : List(StepDefinition), id : String) : Option(StepDefinition) = find(\(d) -> d.id == id, defs)
+fn definition_amount(defs : List(StepDefinition), id : String) : Int =
+  match definition_for(defs, id) of
+    Some(d) => d.amount
+    None => 0
+fn definition_failures(defs : List(StepDefinition), id : String) : Int =
+  match definition_for(defs, id) of
+    Some(d) => d.failures
+    None => 0
 
 fn deps_done(run : RunState, d : StepDefinition) : Bool = all(\(dep) -> any(\(s) -> s.id == dep && s.status == Succeeded, run.steps), d.needs)
 fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), defs : List(StepDefinition)) : Option(Action) =
@@ -97,6 +106,12 @@ pub fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : 
       Ok(Simulator { ..sim, runs = append(sim.runs, [RunState { id = id, status = Active, cancel_requested = false, steps = map(\(d) -> new_step(sim.now, d), workflow.steps) }]) })
     Cancel(id) => if not(sim.up) then Err("PROCESS_DOWN") else cancel_run(sim, id)
     Tick(cp) => tick(sim, workflow, cp)
+    Claim(_) => Err("UNSUPPORTED_FEATURE")
+    Renew(_, _) => Err("UNSUPPORTED_FEATURE")
+    Call(_, _) => Err("UNSUPPORTED_FEATURE")
+    Deliver(_) => Err("UNSUPPORTED_FEATURE")
+    CrashWorker(_) => Err("UNSUPPORTED_FEATURE")
+    RestartWorker(_) => Err("UNSUPPORTED_FEATURE")
 
 fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
   match commands of
@@ -105,3 +120,159 @@ fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) 
       let next = apply_command(sim, workflow, c)?
       run_commands(next, workflow, rest)
 pub fn simulate(workflow : Workflow) : Result(Simulator, String) = run_commands(new_simulator(), workflow, workflow.commands)
+
+fn worker_exists(xs : List(WorkerState), id : String) : Bool = any(\(w) -> w.id == id, xs)
+fn worker_up(xs : List(WorkerState), id : String) : Bool = any(\(w) -> w.id == id && w.up, xs)
+fn set_worker(xs : List(WorkerState), id : String, up : Bool) : List(WorkerState) = map(\(w) -> if w.id == id then WorkerState { ..w, up = up } else w, xs)
+fn live_lease(lease : Option(Lease), now : Int) : Bool =
+  match lease of
+    None => false
+    Some(x) => now < x.expires
+fn busy_step(step : StepState, id : String, now : Int) : Bool =
+  match step.lease of
+    None => false
+    Some(x) => x.worker == id && now < x.expires
+fn busy_worker(runs : List(RunState), id : String, now : Int) : Bool = any(\(r) -> any(\(s) -> busy_step(s, id, now), r.steps), runs)
+fn find_ticket(xs : List(TicketState), t : Int) : Option(TicketState) = find(\(x) -> x.ticket == t, xs)
+fn tag_last(xs : List(ServiceCall), worker : String, ticket : Int) : List(ServiceCall) =
+  match xs of
+    Nil => Nil
+    Cons(x, rest) => if is_nil(rest) then Cons(ServiceCall { ..x, worker = worker, ticket = ticket }, Nil) else Cons(x, tag_last(rest, worker, ticket))
+fn replace_ticket(xs : List(TicketState), t : TicketState) : List(TicketState) = map(\(x) -> if x.ticket == t.ticket then t else x, xs)
+fn lease_step(run : RunState, step : StepState, worker : String, ticket : Int, expires : Int, begin : Bool) : RunState =
+  replace_step(run, StepState { ..step, status = if begin then Running else step.status, attempts = if begin then step.attempts + 1 else step.attempts, lease = Some(Lease { worker = worker, ticket = ticket, expires = expires }) })
+fn leased_action(sim : Simulator, workflow : Workflow) : Option(Action) =
+  match select_run(sim.now, true, sim.runs, workflow.steps) of
+    Some(a) => if live_lease(a.step.lease, sim.now) then leased_action_pending(sim, workflow) else Some(a)
+    None => leased_action_pending(sim, workflow)
+fn leased_action_pending(sim : Simulator, workflow : Workflow) : Option(Action) = select_run(sim.now, false, sim.runs, workflow.steps)
+
+fn add_result(sim : Simulator, value : Json) : Simulator = Simulator { ..sim, results = append(sim.results, [value]) }
+fn outcome_name(o : CallOutcome) : String =
+  match o of
+    Applied => "applied"
+    Replayed => "replayed"
+    Transient => "transient"
+    Found => "found"
+    Missing => "missing"
+
+fn claim(sim : Simulator, workflow : Workflow, worker : String) : Result(Simulator, String) =
+  if not(worker_exists(sim.workers, worker)) then Err("UNKNOWN_WORKER")
+  elif not(worker_up(sim.workers, worker)) then Err("WORKER_DOWN")
+  elif busy_worker(sim.runs, worker, sim.now) then Err("WORKER_BUSY")
+  else match leased_action(sim, workflow) of
+    None => Ok(add_result(sim, JObj([("ticket", JNull)])))
+    Some(a) =>
+      if sim.now + workflow.lease_duration > time_limit() then Err("TIME_OVERFLOW")
+      else
+        let n = sim.next_ticket
+        let begin = a.step.status == Pending
+        let rr = lease_step(a.run, a.step, worker, n, sim.now + workflow.lease_duration, begin)
+        let kind = if a.run.status == Active then ExecuteCall else LookupCall
+        let tt = TicketState { ticket = n, worker = worker, run_id = a.run.id, step_id = a.step.id, attempt = if begin then a.step.attempts + 1 else a.step.attempts, kind = kind, response = None, delivered = false }
+        Ok(add_result(Simulator { ..replace_run(sim, rr), tickets = append(sim.tickets, [tt]), next_ticket = n + 1 }, JObj([("ticket", JInt(n))])))
+
+fn call_ticket(sim : Simulator, workflow : Workflow, worker : String, n : Int) : Result(Simulator, String) =
+  if not(worker_exists(sim.workers, worker)) then Err("UNKNOWN_WORKER")
+  elif not(worker_up(sim.workers, worker)) then Err("WORKER_DOWN")
+  else match find_ticket(sim.tickets, n) of
+    None => Err("UNKNOWN_TICKET")
+    Some(t) => match find(\(r) -> r.id == t.run_id, sim.runs) of
+      None => Err("UNKNOWN_TICKET")
+      Some(_) => if t.worker /= worker then Err("WRONG_WORKER") else
+        match find(\(r) -> r.id == t.run_id, sim.runs) of
+          Some(r) => match find(\(s) -> s.id == t.step_id, r.steps) of
+            Some(s) => match s.lease of
+              Some(l) => if l.ticket /= n || l.worker /= worker || sim.now >= l.expires then Ok(add_result(sim, JObj([("outcome", JStr("stale"))])))
+                else match t.response of
+                  Some(o) => Ok(add_result(sim, JObj([("kind", JStr(if t.kind == ExecuteCall then "execute" else "lookup")), ("outcome", JStr(outcome_name(o)))])))
+                  None =>
+                    let key = ActionKey { run_id = t.run_id, step_id = t.step_id }
+                    let sr = if t.kind == ExecuteCall then execute(sim.service, key, definition_amount(workflow.steps, t.step_id), t.attempt, definition_failures(workflow.steps, t.step_id)) else lookup(sim.service, key, t.attempt)
+                    let tagged = MockService { ..sr.service, calls = tag_last(sr.service.calls, worker, n) }
+                    let nt = TicketState { ..t, response = Some(sr.outcome) }
+                    Ok(add_result(Simulator { ..sim, service = tagged, tickets = replace_ticket(sim.tickets, nt) }, JObj([("kind", JStr(if t.kind == ExecuteCall then "execute" else "lookup")), ("outcome", JStr(outcome_name(sr.outcome)))])))
+              None => Ok(add_result(sim, JObj([("outcome", JStr("stale"))])))
+            None => Err("UNKNOWN_TICKET")
+          None => Err("UNKNOWN_TICKET")
+
+fn lease_json_local(o : Option(Lease)) : Json =
+  match o of
+    None => JNull
+    Some(l) => JObj([("worker", JStr(l.worker)), ("ticket", JInt(l.ticket)), ("expires", JInt(l.expires))])
+fn leased_step_json_local(s : StepState) : Json = JObj([("id", JStr(s.id)), ("status", JStr(if s.status == Pending then "pending" elif s.status == Running then "running" elif s.status == Succeeded then "succeeded" elif s.status == Failed then "failed" elif s.status == Blocked then "blocked" else "cancelled")), ("attempts", JInt(s.attempts)), ("ready_at", JInt(s.ready_at)), ("lease", lease_json_local(s.lease))])
+fn leased_observe_json(sim : Simulator) : Json = JObj([("now", JInt(sim.now)), ("workers", JArr(map(\(w) -> JObj([("id", JStr(w.id)), ("up", JBool(w.up))]), sim.workers))), ("runs", JArr(map(\(r) -> JObj([("id", JStr(r.id)), ("status", JStr(if r.status == Active then "active" elif r.status == Cancelling then "cancelling" elif r.status == SucceededRun then "succeeded" elif r.status == FailedRun then "failed" elif r.status == Failing then "failing" else "cancelled")), ("cancel_requested", JBool(r.cancel_requested)), ("steps", JArr(map(leased_step_json_local, r.steps)))]), sim.runs)))])
+fn leased_observe(sim : Simulator) : Simulator = add_result(sim, leased_observe_json(sim))
+fn expire_step(s : StepState, now : Int) : StepState =
+  match s.lease of
+    None => s
+    Some(l) => StepState { ..s, lease = Some(Lease { ..l, expires = now }) }
+fn expire_cancel(sim : Simulator, id : String) : Simulator = Simulator { ..sim, runs = map(\(r) -> if r.id == id then RunState { ..r, steps = map(\(s) -> expire_step(s, sim.now), r.steps) } else r, sim.runs) }
+fn cancel_was_requested(sim : Simulator, id : String) : Bool = any(\(r) -> r.id == id && r.cancel_requested, sim.runs)
+fn drain_run(r : RunState, now : Int, current : String) : RunState = RunState { ..r, status = Failing, steps = map(\(s) -> if s.id == current then s else if s.status == Pending then StepState { ..s, status = Blocked } else expire_step(s, now), r.steps) }
+fn leased_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
+  match commands of
+    Nil => Ok(sim)
+    Cons(c, rest) =>
+      let step = match c of
+        Claim(w) => claim(sim, workflow, w)
+        Call(w, t) => call_ticket(sim, workflow, w, t)
+        Observe => Ok(leased_observe(sim))
+        CrashWorker(w) => if not(worker_exists(sim.workers, w)) then Err("UNKNOWN_WORKER") elif not(worker_up(sim.workers, w)) then Err("WORKER_DOWN") else Ok(add_result(Simulator { ..sim, workers = set_worker(sim.workers, w, false) }, JNull))
+        RestartWorker(w) => if not(worker_exists(sim.workers, w)) then Err("UNKNOWN_WORKER") elif worker_up(sim.workers, w) then Err("WORKER_UP") else Ok(add_result(Simulator { ..sim, workers = set_worker(sim.workers, w, true) }, JNull))
+        Renew(w, t) => renew_ticket(sim, workflow, w, t)
+        Deliver(t) => commit_ticket(sim, workflow, t)
+        Cancel(id) =>
+          let x = apply_command(sim, workflow, Cancel(id))?
+          Ok(add_result(if cancel_was_requested(sim, id) then x else expire_cancel(x, id), JNull))
+        _ =>
+          let x = apply_command(sim, workflow, c)?
+          Ok(add_result(x, JNull))
+      let next = step?
+      leased_commands(next, workflow, rest)
+
+fn initialize(workflow : Workflow) : Simulator =
+  match workflow.workers of
+    None => new_simulator()
+    Some(ws) => Simulator { ..new_simulator(), leased = true, workers = map(\(w) -> WorkerState { id = w, up = true }, ws) }
+
+pub fn simulate(workflow : Workflow) : Result(Simulator, String) =
+  match workflow.workers of
+    None => run_commands(new_simulator(), workflow, workflow.commands)
+    Some(_) => leased_commands(initialize(workflow), workflow, workflow.commands)
+
+fn commit_ticket(sim : Simulator, workflow : Workflow, n : Int) : Result(Simulator, String) =
+  match find_ticket(sim.tickets, n) of
+    None => Err("UNKNOWN_TICKET")
+    Some(t) => if t.delivered then Ok(add_result(sim, JObj([("committed", JBool(false))])))
+      elif not(worker_up(sim.workers, t.worker)) then Ok(add_result(sim, JObj([("committed", JBool(false))])))
+      else match find(\(r) -> r.id == t.run_id, sim.runs) of
+        None => Ok(add_result(sim, JObj([("committed", JBool(false))])))
+        Some(r) => match find(\(s) -> s.id == t.step_id, r.steps) of
+          None => Ok(add_result(sim, JObj([("committed", JBool(false))])))
+          Some(s) => match s.lease of
+            None => Ok(add_result(sim, JObj([("committed", JBool(false))])))
+            Some(l) => if l.ticket /= n || sim.now >= l.expires then Ok(add_result(sim, JObj([("committed", JBool(false))]))) else
+              match t.response of
+                None => Ok(add_result(sim, JObj([("committed", JBool(false))])))
+                Some(o) =>
+                  let ns = if o == Transient && s.attempts < workflow.max_attempts then StepState { ..s, status = Pending, ready_at = sim.now + workflow.retry_delay, lease = None } elif o == Transient then StepState { ..s, status = Failed, lease = None } else if t.kind == LookupCall && o == Missing then StepState { ..s, status = Cancelled, lease = None } else StepState { ..s, status = Succeeded, lease = None }
+                  let nr = if t.kind == LookupCall then RunState { ..replace_step(r, ns), status = if r.status == Failing then FailedRun else CancelledRun } elif o == Transient && s.attempts >= workflow.max_attempts then drain_run(replace_step(r, ns), sim.now, t.step_id) else finish_success(replace_step(r, ns))
+                  let nt = TicketState { ..t, delivered = true }
+                  Ok(add_result(Simulator { ..replace_run(Simulator { ..sim, tickets = replace_ticket(sim.tickets, nt) }, nr), tickets = replace_ticket(sim.tickets, nt) }, JObj([("committed", JBool(true))])))
+
+fn renew_ticket(sim : Simulator, workflow : Workflow, worker : String, n : Int) : Result(Simulator, String) =
+  if not(worker_exists(sim.workers, worker)) then Err("UNKNOWN_WORKER")
+  elif not(worker_up(sim.workers, worker)) then Err("WORKER_DOWN")
+  else match find_ticket(sim.tickets, n) of
+    None => Err("UNKNOWN_TICKET")
+    Some(t) => if t.worker /= worker then Err("WRONG_WORKER") else
+      match find(\(r) -> r.id == t.run_id, sim.runs) of
+        None => Err("UNKNOWN_TICKET")
+        Some(r) => match find(\(s) -> s.id == t.step_id, r.steps) of
+          None => Err("UNKNOWN_TICKET")
+          Some(s) => match s.lease of
+            None => Ok(add_result(sim, JObj([("renewed", JBool(false))])))
+            Some(l) => if l.ticket /= n || sim.now >= l.expires then Ok(add_result(sim, JObj([("renewed", JBool(false))]))) else
+              if sim.now + workflow.lease_duration > time_limit() then Err("TIME_OVERFLOW") else
+                Ok(add_result(replace_run(sim, replace_step(r, StepState { ..s, lease = Some(Lease { ..l, expires = sim.now + workflow.lease_duration }) })), JObj([("renewed", JBool(true))])))

@@ -1,4 +1,5 @@
--- Typed request and runner/service state. JSON is confined to validation and output.
+-- Typed request and runner/service state.
+import Json (..)
 pub type StepDefinition = StepDefinition {
   id: String,
   needs: List(String),
@@ -16,23 +17,36 @@ pub type Command
   | Crash
   | Restart
   | Cancel(String)
+  | Claim(String)
+  | Renew(String, Int)
+  | Call(String, Int)
+  | Deliver(Int)
+  | CrashWorker(String)
+  | RestartWorker(String)
 
 pub type Workflow = Workflow {
   steps: List(StepDefinition),
   commands: List(Command),
   max_attempts: Int,
-  retry_delay: Int
+  retry_delay: Int,
+  workers: Option(List(String)),
+  lease_duration: Int
 }
 
 pub type StepStatus = Pending | Running | Succeeded | Failed | Blocked | Cancelled deriving (Eq)
-pub type RunStatus = Active | SucceededRun | FailedRun | Cancelling | CancelledRun deriving (Eq)
+pub type RunStatus = Active | SucceededRun | FailedRun | Failing | Cancelling | CancelledRun deriving (Eq)
 
 pub type StepState = StepState {
   id: String,
   status: StepStatus,
   attempts: Int,
-  ready_at: Int
+  ready_at: Int,
+  lease: Option(Lease)
 }
+
+pub type Lease = Lease { worker: String, ticket: Int, expires: Int }
+pub type WorkerState = WorkerState { id: String, up: Bool }
+pub type TicketState = TicketState { ticket: Int, worker: String, run_id: String, step_id: String, attempt: Int, kind: CallKind, response: Option(CallOutcome), delivered: Bool }
 
 pub type RunState = RunState {
   id: String,
@@ -44,7 +58,7 @@ pub type RunState = RunState {
 pub type ActionKey = ActionKey { run_id: String, step_id: String }
 pub type CallKind = ExecuteCall | LookupCall deriving (Eq)
 pub type CallOutcome = Applied | Replayed | Transient | Found | Missing deriving (Eq)
-pub type ServiceCall = ServiceCall { kind: CallKind, key: ActionKey, attempt: Int, outcome: CallOutcome }
+pub type ServiceCall = ServiceCall { worker: String, ticket: Int, kind: CallKind, key: ActionKey, attempt: Int, outcome: CallOutcome }
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
 
@@ -54,7 +68,12 @@ pub type Simulator = Simulator {
   up: Bool,
   runs: List(RunState),
   service: MockService,
-  observations: List(Snapshot)
+  observations: List(Snapshot),
+  workers: List(WorkerState),
+  leased: Bool,
+  results: List(Json),
+  tickets: List(TicketState),
+  next_ticket: Int
 }
 
 pub type Action = Action { run: RunState, step: StepState, definition: StepDefinition }

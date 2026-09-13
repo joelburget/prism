@@ -21,11 +21,28 @@ fn run_status(status : RunStatus) : String =
     SucceededRun => "succeeded"
     FailedRun => "failed"
     Cancelling => "cancelling"
+    Failing => "failing"
     CancelledRun => "cancelled"
 
 fn step_json(step : StepState) : Json =
   JObj([("id", JStr(step.id)), ("status", JStr(step_status(step.status))),
     ("attempts", JInt(step.attempts)), ("ready_at", JInt(step.ready_at))])
+
+fn lease_json(lease : Option(Lease)) : Json =
+  match lease of
+    None => JNull
+    Some(x) => JObj([("worker", JStr(x.worker)), ("ticket", JInt(x.ticket)), ("expires", JInt(x.expires))])
+fn leased_step_json(step : StepState) : Json =
+  JObj([("id", JStr(step.id)), ("status", JStr(step_status(step.status))), ("attempts", JInt(step.attempts)),
+    ("ready_at", JInt(step.ready_at)), ("lease", lease_json(step.lease))])
+fn leased_run_json(run : RunState) : Json =
+  JObj([("id", JStr(run.id)), ("status", JStr(run_status(run.status))), ("cancel_requested", JBool(run.cancel_requested)),
+    ("steps", JArr(map(leased_step_json, run.steps)))])
+fn workers_json(xs : List(WorkerState)) : Json = JArr(map(\(w) -> JObj([("id", JStr(w.id)), ("up", JBool(w.up))]), xs))
+fn leased_snapshot_json(sim : Simulator) : Json = JObj([("now", JInt(sim.now)), ("workers", workers_json(sim.workers)), ("runs", JArr(map(leased_run_json, sim.runs)))])
+fn leased_call_json(call : ServiceCall) : Json =
+  JObj([("worker", JStr(call.worker)), ("ticket", JInt(call.ticket)), ("kind", JStr(if call.kind == ExecuteCall then "execute" else "lookup")),
+    ("key", key_json(call.key)), ("attempt", JInt(call.attempt)), ("outcome", JStr(outcome_text(call.outcome)))])
 
 fn run_json(run : RunState) : Json =
   JObj([("id", JStr(run.id)), ("status", JStr(run_status(run.status))),
@@ -53,10 +70,17 @@ fn outcome_text(outcome : CallOutcome) : String =
 fn effect_json(entry : Effect) : Json =
   JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
 
-pub fn result_json(sim : Simulator) : Json =
+fn legacy_result(sim : Simulator) : Json =
   let final_fields = append(snapshot_fields(snapshot(sim)),
     [("calls", JArr(map(call_json, sim.service.calls))), ("effects", JArr(map(effect_json, sim.service.effects)))])
   JObj([("observations", JArr(map(snapshot_json, sim.observations))), ("final", JObj(final_fields))])
+
+pub fn result_json(sim : Simulator) : Json =
+  if sim.leased then
+    JObj([("results", JArr(sim.results)), ("final", JObj([("now", JInt(sim.now)), ("workers", workers_json(sim.workers)),
+      ("runs", JArr(map(leased_run_json, sim.runs))), ("calls", JArr(map(leased_call_json, sim.service.calls))),
+      ("effects", JArr(map(effect_json, sim.service.effects)))]))])
+  else legacy_result(sim)
 
 pub fn response_json(result : Result(Simulator, String)) : Json =
   match result of
