@@ -155,3 +155,17 @@ pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
   -- No runtime work occurs until every shape/scalar and then the graph is validated.
   let _ = validate_graph(steps)?
   Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay })
+
+-- Keep envelope validation alongside input validation so duplicate and unknown
+-- top-level fields cannot be silently ignored by the process adapter.
+pub fn parse_request(raw : Json) : Result(Workflow, String) =
+  let obj = fields(raw, ["protocol_version", "task", "input"], [])?
+  let version = match get_field(obj, "protocol_version") of
+    JInt(n) => ensure(n == 1, "INVALID_INPUT")
+    _ => Err("INVALID_INPUT")
+  let _ = version?
+  let task = match get_field(obj, "task") of
+    JStr(name) => ensure(name == "workflow-recovery", "INVALID_INPUT")
+    _ => Err("INVALID_INPUT")
+  let _ = task?
+  parse_workflow(get_field(obj, "input"))

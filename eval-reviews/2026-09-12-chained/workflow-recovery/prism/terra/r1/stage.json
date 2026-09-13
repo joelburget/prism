@@ -1,0 +1,16 @@
+{
+  "run_id": "run-50018ad32ac3",
+  "checkpoint": 1,
+  "model": "terra",
+  "model_id": "gpt-5.6-terra",
+  "task": "workflow-recovery",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "64acc3270a8fae134995ca9aca71f44d94d9b9450c523e4a39ec08ffc6a0af48",
+  "passed": true,
+  "seconds": 185.38865087501472,
+  "tool_calls": 22,
+  "flags": [],
+  "result_sha256": "843359fe6678fc63d516bb4916b93355544a604d5f77aa6dff3e80b2f463aa62",
+  "archive_note": "Exact frozen source"
+}

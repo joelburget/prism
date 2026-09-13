@@ -6,7 +6,7 @@ pub type StepDefinition = StepDefinition {
   failures: Int
 }
 
-pub type Checkpoint = AfterBegin | AfterCall
+pub type Checkpoint = AfterBegin | AfterCall deriving (Eq)
 
 pub type Command
   = Start(String)
@@ -24,8 +24,8 @@ pub type Workflow = Workflow {
   retry_delay: Int
 }
 
-pub type StepStatus = Pending | Running | Succeeded deriving (Eq)
-pub type RunStatus = Active | Completed deriving (Eq)
+pub type StepStatus = Pending | Running | Succeeded | Failed | Blocked | Cancelled deriving (Eq)
+pub type RunStatus = Active | Completed | FailedRun | Cancelling | CancelledRun deriving (Eq)
 
 pub type StepState = StepState {
   id: String,
@@ -42,7 +42,11 @@ pub type RunState = RunState {
 }
 
 pub type ActionKey = ActionKey { run_id: String, step_id: String }
-pub type ServiceCall = ServiceCall { key: ActionKey, attempt: Int }
+pub type ExecuteOutcome = Applied | Replayed | Transient deriving (Eq)
+pub type LookupOutcome = Found | Missing deriving (Eq)
+pub type ServiceCall
+  = ExecuteCall { key: ActionKey, attempt: Int, execute_outcome: ExecuteOutcome }
+  | LookupCall { key: ActionKey, attempt: Int, lookup_outcome: LookupOutcome }
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
 
