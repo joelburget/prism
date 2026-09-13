@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task": "workflow-recovery",
+  "language": "typescript",
+  "entrypoint": "run.sh",
+  "build": null,
+  "files": [
+    ".gitignore",
+    "README.md",
+    "main.ts",
+    "package-lock.json",
+    "package.json",
+    "run.sh",
+    "tsconfig.json",
+    "workflow.ts"
+  ]
+}

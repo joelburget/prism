@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "task": "workflow-recovery",
+  "language": "python",
+  "entrypoint": "run.sh",
+  "build": null,
+  "files": [
+    ".gitignore",
+    "README.md",
+    "main.py",
+    "run.sh",
+    "workflow.py"
+  ]
+}

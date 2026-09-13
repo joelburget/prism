@@ -1,0 +1,262 @@
+-- Relational evaluation preserves input encounter order through every operator.
+import Json (..)
+import Model (..)
+import Binder (tree_any)
+import Data.List (..)
+import Data.Foldable (all, length, sum)
+
+pub fn compare_value(a : Json, b : Json) : Int =
+  match (a, b) of
+    (JInt(x), JInt(y)) =>
+      if x < y then
+        -1
+      elif x > y then
+        1
+      else
+        0
+    (JStr(x), JStr(y)) => str_cmp(x, y)
+    (JBool(x), JBool(y)) =>
+      if x == y then
+        0
+      elif x then
+        1
+      else
+        -1
+    _ => 0
+
+pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
+  let op = e.op
+  if op == "lit" then
+    e.value
+  elif op == "col" then
+    at(row, e.index)
+  elif agg(op) then
+    if op == "COUNT" then
+      JInt(length(group))
+    else
+      let vs = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
+      if op == "SUM" then
+        JInt(sum(map(integer, vs)))
+      else
+        extremum(vs, op == "MIN")
+  else
+    let a = evaluate(at(e.args, 0), row, group)
+    if op == "NOT" then
+      JBool(not(truth(a)))
+    else
+      let b = evaluate(at(e.args, 1), row, group)
+      if op == "+" then
+        JInt(integer(a) + integer(b))
+      elif op == "-" then
+        JInt(integer(a) - integer(b))
+      elif op == "*" then
+        JInt(integer(a) * integer(b))
+      elif op == "AND" then
+        JBool(truth(a) && truth(b))
+      elif op == "OR" then
+        JBool(truth(a) || truth(b))
+      else
+        let c = compare_value(a, b)
+        JBool(
+            if op == "=" then c == 0 elif op == "<>" then c /= 0 elif op == "<" then c < 0 elif op == ">" then c > 0 elif op == "<=" then c <= 0 else c >= 0,
+          )
+
+fn extremum(vs : List(Json), minimum : Bool) : Json =
+  match vs of
+    Nil => JNull
+    Cons(v, Nil) => v
+    Cons(v, rest) =>
+      let b = extremum(rest, minimum)
+      if (compare_value(v, b) < 0) == minimum then
+        v
+      else
+        b
+
+pub fn fold_constants(e : Expr) : Expr =
+  let n = Expr { ..e, args = map(fold_constants, e.args) }
+  if (not(agg(n.op))
+      && not(elem(n.op, ["lit", "col"]))
+      && all(\(a) -> a.op == "lit", n.args)) then
+    literal(evaluate(n, [], []))
+  else
+    n
+
+fn conjuncts(e : Expr) : List(Expr) =
+  if e.op == "AND" then
+    append(conjuncts(at(e.args, 0)), conjuncts(at(e.args, 1)))
+  else
+    [e]
+
+fn sources(e : Expr) : List(Int) =
+  if e.op == "col" then
+    [e.source]
+  else
+    flatten(map(sources, e.args))
+
+fn combine(es : List(Expr)) : Expr =
+  match es of
+    Nil => literal(JBool(true))
+    Cons(e, Nil) => e
+    Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool" }
+
+-- Push a conjunct only when every referenced slot belongs to one inner-join
+-- input. Slot numbers remain global; scan predicates receive a prefix padding.
+pub fn optimize(plan : Plan) : Plan =
+  let q = plan.query
+  let terms = conjuncts(fold_constants(q.predicate))
+  let pushable = \(e) -> let ss = sources(e) in length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
+  let fs = map(
+      \(i) -> filter(\(e) -> pushable(e) && at(sources(e), 0) == i, terms),
+      range(0, length(plan.tables)),
+    )
+  let rem = filter(\(e) -> not(pushable(e)), terms)
+  let bq = Query {
+    ..q,
+    predicate = combine(rem),
+    select = map(\(s) -> (fold_constants(fst(s)), snd(s)), q.select),
+    joins = map(fold_constants, q.joins),
+    having = fold_constants(q.having)
+  }
+  Plan { ..plan, query = bq, filters = fs }
+
+fn join_rows(
+  left : List(List(Json)),
+  right : List(List(Json)),
+  on : Expr
+) : List(List(Json)) =
+  flatten(
+      map(
+          \(l) -> filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)),
+          left,
+        ),
+    )
+
+pub type Group = Group { key: String, rows: List(List(Json)) }
+
+fn add_group(gs : List(Group), key : String, row : List(Json)) : List(Group) =
+  match gs of
+    Nil => [Group { key = key, rows = [row] }]
+    Cons(g, rest) =>
+      if g.key == key then
+        Cons(Group { ..g, rows = append(g.rows, [row]) }, rest)
+      else
+        Cons(g, add_group(rest, key, row))
+
+fn groups_for(rows : List(List(Json)), keys : List(Expr)) : List(Group) =
+  var gs := []
+  for row in sof(rows) do
+    let key = encode(JArr(map(\(e) -> evaluate(e, row, []), keys)))
+    gs := add_group(gs, key, row)
+  if length(keys) == 0 && length(rows) == 0 then
+    [Group { key = "[]", rows = [] }]
+  else
+    gs
+
+fn project(
+  q : Query,
+  row : List(Json),
+  group : List(List(Json))
+) : List(List(Json)) =
+  if truth(evaluate(q.having, row, group)) then
+    [map(\(s) -> evaluate(fst(s), row, group), q.select)]
+  else
+    []
+
+fn distinct_rows(
+  rows : List(List(Json)),
+  seen : List(String)
+) : List(List(Json)) =
+  match rows of
+    Nil => []
+    Cons(r, rest) =>
+      let key = encode(JArr(r))
+      if elem(key, seen) then
+        distinct_rows(rest, seen)
+      else
+        Cons(r, distinct_rows(rest, Cons(key, seen)))
+
+fn row_compare(
+  a : List(Json),
+  b : List(Json),
+  order : List((Int, Bool))
+) : Int =
+  match order of
+    Nil => 0
+    Cons((i, desc), rest) =>
+      let c = compare_value(at(a, i), at(b, i))
+      if c == 0 then
+        row_compare(a, b, rest)
+      elif desc then
+        -c
+      else
+        c
+
+fn insert_row(
+  r : List(Json),
+  rows : List(List(Json)),
+  order : List((Int, Bool))
+) : List(List(Json)) =
+  match rows of
+    Nil => [r]
+    Cons(x, rest) =>
+      if row_compare(r, x, order) <= 0 then
+        Cons(r, rows)
+      else
+        Cons(x, insert_row(r, rest, order))
+
+fn sort_rows(
+  rows : List(List(Json)),
+  order : List((Int, Bool))
+) : List(List(Json)) =
+  match rows of
+    Nil => []
+    Cons(r, rest) => insert_row(r, sort_rows(rest, order), order)
+
+pub fn execute(plan : Plan) : Json =
+  let q = plan.query
+  var scans := []
+  var offset := 0
+  for i in srange(0, length(plan.tables)) do
+    let t = at(plan.tables, i)
+    let padding = replicate(offset, JNull)
+    let predicates = at(plan.filters, i)
+    let rs = filter(
+        \(r) -> all(\(p) -> truth(evaluate(p, append(padding, r), [])), predicates),
+        t.rows,
+      )
+    scans := append(scans, [rs])
+    offset += length(t.columns)
+  var rows := at(scans, 0)
+  for i in srange(0, length(q.joins)) do
+    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i))
+  let filtered = filter(\(r) -> truth(evaluate(q.predicate, r, [])), rows)
+  let projected =
+    if plan.aggregate then
+      flatten(
+          map(
+              \(g) -> project(q, if length(g.rows) > 0 then at(g.rows, 0) else [], g.rows),
+              groups_for(filtered, q.groups),
+            ),
+        )
+    else
+      flatten(map(\(r) -> project(q, r, []), filtered))
+  let distinct =
+    if q.distinct then
+      distinct_rows(projected, [])
+    else
+      projected
+  let sorted =
+    if length(plan.order) > 0 then
+      sort_rows(distinct, plan.order)
+    else
+      distinct
+  let skipped = drop(q.offset, sorted)
+  let final =
+    if q.limit >= 0 then
+      take(q.limit, skipped)
+    else
+      skipped
+  JObj([
+      ("columns", JArr(map(\(s) -> JStr(snd(s)), q.select))),
+      ("rows", JArr(map(JArr, final))),
+    ])

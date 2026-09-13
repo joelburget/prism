@@ -1,0 +1,257 @@
+-- The parser owns a scoped token-state effect; all ASTs are immutable values.
+import Json (..)
+import Data.String (..)
+import Data.List (..)
+import Data.Foldable (all, length)
+import Model (..)
+import Control.State (..)
+
+pub type Token = Token { word: String, value: Json }
+
+fn tok(s : String) : Token = Token { word = s, value = JNull }
+
+fn scan_string(s : String, i : Int, acc : String) : (String, Int) =
+  demand(i < byte_len(s), "PARSE_ERROR")
+  if byte_at(s, i) == 39 then
+    if i + 1 < byte_len(s) && byte_at(s, i + 1) == 39 then
+      scan_string(s, i + 2, concat(acc, "'"))
+    else
+      (acc, i + 1)
+  else
+    scan_string(s, i + 1, concat(acc, str_of_char(chr(byte_at(s, i)))))
+
+fn scan_word(s : String, i : Int, numbers : Bool) : Int =
+  if i >= byte_len(s) then
+    i
+  else
+    let c = byte_at(s, i)
+    if (digit(c) || not(numbers) && (letter(c) || c >= 65 && c <= 90)) then
+      scan_word(s, i + 1, numbers)
+    else
+      i
+
+fn slice(s : String, i : Int, j : Int) : String =
+  string_of_buf(slice_bytes(s, i, j, buf_empty()))
+
+fn lex(s : String, i : Int) : List(Token) =
+  if i >= byte_len(s) then
+    [tok("$END")]
+  else
+    let c = byte_at(s, i)
+    if elem(c, [32, 9, 10, 13]) then
+      lex(s, i + 1)
+    elif c == 39 then
+      let (v, j) = scan_string(s, i + 1, "")
+      Cons(Token { word = "LITERAL", value = JStr(v) }, lex(s, j))
+    elif digit(c) then
+      let j = scan_word(s, i, true)
+      let n =
+        match parse_int(slice(s, i, j)) of
+          Some(v) => v
+          None => 0
+      Cons(Token { word = "NUMBER", value = JInt(n) }, lex(s, j))
+    elif letter(c) || c >= 65 && c <= 90 then
+      let j = scan_word(s, i, false)
+      let w = slice(s, i, j)
+      Cons(tok(if reserved(w) then to_upper(w) else w), lex(s, j))
+    else
+      let two = slice(s, i, min(i + 2, byte_len(s)))
+      if elem(two, ["<>", "<=", ">="]) then
+        Cons(tok(two), lex(s, i + 2))
+      else
+        demand(
+            elem(c, [40, 41, 44, 46, 59, 43, 45, 42, 61, 60, 62]),
+            "PARSE_ERROR",
+          )
+        Cons(tok(str_of_char(chr(c))), lex(s, i + 1))
+
+fn peek() : String ! {State(List(Token))} = at(get(), 0).word
+
+fn pop() : Token ! {State(List(Token)), Domain} =
+  let ts = get()
+  let t = at(ts, 0)
+  demand(t.word /= "$END", "PARSE_ERROR")
+  put(tail(ts))
+  t
+
+fn accept(w : String) : Bool ! {State(List(Token))} =
+  if peek() == w then
+    let ts = get()
+    put(tail(ts))
+    true
+  else
+    false
+
+fn expect(w : String) : Unit = demand(accept(w), "PARSE_ERROR")
+
+fn name() : String =
+  let w = pop().word
+  demand(name_ok(w), "PARSE_ERROR")
+  w
+
+fn natural() : Int =
+  let t = pop()
+  demand(t.word == "NUMBER", "PARSE_ERROR")
+  integer(t.value)
+
+fn reference() : Expr =
+  let n = name()
+  if accept(".") then
+    column_ref(n, name())
+  else
+    column_ref("", n)
+
+fn source() : (String, String) =
+  let n = name()
+  (n, if accept("AS") then name() else n)
+
+fn precedence(op : String) : Int =
+  if op == "OR" then
+    1
+  elif op == "AND" then
+    2
+  elif elem(op, ["=", "<>", "<", ">", "<=", ">="]) then
+    4
+  elif elem(op, ["+", "-"]) then
+    5
+  elif op == "*" then
+    6
+  else
+    0
+
+fn expression(minimum : Int) : Expr =
+  let t = pop()
+  let w = t.word
+  demand(not(elem(w, ["NULL", "COALESCE"])), "UNSUPPORTED_FEATURE")
+  let e =
+    if w == "NOT" then
+      node(w, [expression(3)])
+    elif w == "(" then
+      let x = expression(1)
+      expect(")")
+      x
+    elif w == "-" then
+      literal(JInt(-natural()))
+    elif elem(w, ["NUMBER", "LITERAL"]) then
+      literal(t.value)
+    elif elem(w, ["TRUE", "FALSE"]) then
+      literal(JBool(w == "TRUE"))
+    elif agg(w) then
+      expect("(")
+      let args =
+        if w == "COUNT" && accept("*") then
+          []
+        else
+          [expression(1)]
+      expect(")")
+      node(w, args)
+    else
+      demand(name_ok(w), "PARSE_ERROR")
+      if accept(".") then
+        column_ref(w, name())
+      else
+        column_ref("", w)
+  binary(e, minimum, false)
+
+fn binary(left : Expr, minimum : Int, compared : Bool) : Expr =
+  let op = peek()
+  demand(op /= "IS", "UNSUPPORTED_FEATURE")
+  let p = precedence(op)
+  if p < minimum then
+    left
+  else
+    demand(not(p == 4 && compared), "PARSE_ERROR")
+    let ignored = pop()
+    let right = expression(p + 1)
+    binary(node(op, [left, right]), minimum, compared || p == 4)
+
+fn selections() : List((Expr, String)) =
+  let e = expression(1)
+  expect("AS")
+  let a = name()
+  Cons((e, a), if accept(",") then selections() else [])
+
+fn group_keys() : List(Expr) =
+  let e = reference()
+  Cons(e, if accept(",") then group_keys() else [])
+
+fn order_keys() : List((String, Bool)) =
+  let n = name()
+  let desc = accept("DESC")
+  if not(desc) then
+    let ignored = accept("ASC")
+    ()
+  demand(peek() /= "NULLS", "UNSUPPORTED_FEATURE")
+  Cons((n, desc), if accept(",") then order_keys() else [])
+
+fn join_sources(
+  ss : List((String, String)),
+  js : List(Expr)
+) : (List((String, String)), List(Expr)) =
+  demand(peek() /= "LEFT", "UNSUPPORTED_FEATURE")
+  if elem(peek(), ["INNER", "JOIN"]) then
+    let ignored = accept("INNER")
+    expect("JOIN")
+    let s = source()
+    expect("ON")
+    let e = expression(1)
+    join_sources(append(ss, [s]), append(js, [e]))
+  else
+    (ss, js)
+
+fn query() : Query =
+  expect("SELECT")
+  let distinct = accept("DISTINCT")
+  let sels = selections()
+  expect("FROM")
+  let (ss, js) = join_sources([source()], [])
+  let pred =
+    if accept("WHERE") then
+      expression(1)
+    else
+      literal(JBool(true))
+  let groups =
+    if accept("GROUP") then
+      expect("BY")
+      group_keys()
+    else
+      []
+  let hh = accept("HAVING")
+  let hav =
+    if hh then
+      expression(1)
+    else
+      literal(JBool(true))
+  let order =
+    if accept("ORDER") then
+      expect("BY")
+      order_keys()
+    else
+      []
+  let lim =
+    if accept("LIMIT") then
+      natural()
+    else
+      -1
+  let off =
+    if lim >= 0 && accept("OFFSET") then
+      natural()
+    else
+      0
+  let ignored = accept(";")
+  demand(peek() == "$END", "PARSE_ERROR")
+  Query {
+    select = sels,
+    sources = ss,
+    joins = js,
+    predicate = pred,
+    groups = groups,
+    having = hav,
+    has_having = hh,
+    order = order,
+    distinct = distinct,
+    limit = lim,
+    offset = off
+  }
+
+pub fn parse_sql(s : String) : Query = eval_state(lex(s, 0), query)

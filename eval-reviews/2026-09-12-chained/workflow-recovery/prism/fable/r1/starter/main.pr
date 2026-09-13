@@ -1,0 +1,19 @@
+import Data.List (..)
+import Data.Foldable (..)
+import Data.String (..)
+import Data.Result (..)
+import Json (..)
+import Domain (..)
+import Validation (..)
+import Runner (simulate)
+import Output (response_json)
+
+fn handle_request(line : String) : Result(Simulator, String) =
+  let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
+  match request of
+    JObj(fields) =>
+      let workflow = parse_workflow(get_field(fields, "input"))?
+      simulate(workflow)
+    _ => Err("INVALID_INPUT")
+
+fn main() = println(encode(response_json(handle_request(read_line()))))

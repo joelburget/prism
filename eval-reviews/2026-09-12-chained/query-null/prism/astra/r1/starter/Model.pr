@@ -1,0 +1,208 @@
+-- Typed syntax and bound logical plan. JSON is used only for wire values.
+import Json (..)
+import Data.String (..)
+import Data.List (..)
+import Data.Foldable (all, length)
+
+pub effect Domain
+  never reject(String) : Unit
+
+pub fn demand(b : Bool, code : String) : Unit =
+  if not(b) then
+    reject(code)
+
+pub fn arr(j : Json) : List(Json) =
+  match j of
+    JArr(xs) => xs
+    _ =>
+      reject("INVALID_INPUT")
+      []
+
+pub fn text(j : Json) : String =
+  match j of
+    JStr(s) => s
+    _ =>
+      reject("INVALID_INPUT")
+      ""
+
+pub fn integer(j : Json) : Int =
+  match j of
+    JInt(n) => n
+    _ => 0
+
+pub fn truth(j : Json) : Bool =
+  match j of
+    JBool(b) => b
+    _ => false
+
+pub fn getfield(j : Json, key : String) : Json =
+  match j of
+    JObj(xs) => lookup_field(xs, key)
+    _ =>
+      reject("INVALID_INPUT")
+      JNull
+
+fn lookup_field(xs : List((String, Json)), key : String) : Json =
+  match xs of
+    Nil =>
+      reject("INVALID_INPUT")
+      JNull
+    Cons((k, v), rest) =>
+      if k == key then
+        v
+      else
+        lookup_field(rest, key)
+
+pub fn fields(j : Json, names : List(String)) : Unit =
+  match j of
+    JObj(xs) =>
+      demand(length(xs) == length(names), "INVALID_INPUT")
+      demand(
+          all(
+              \(name) -> length(filter(\(kv) -> fst(kv) == name, xs)) == 1,
+              names,
+            ),
+          "INVALID_INPUT",
+        )
+    _ => reject("INVALID_INPUT")
+
+pub fn reserved(s : String) : Bool =
+  elem(
+      to_upper(s),
+      split(
+          32,
+          "SELECT DISTINCT AS FROM INNER JOIN LEFT OUTER ON WHERE GROUP BY HAVING ORDER ASC DESC NULLS FIRST LAST LIMIT OFFSET AND OR NOT IS NULL TRUE FALSE COALESCE COUNT SUM MIN MAX",
+        ),
+    )
+
+pub fn letter(c : Int) : Bool = c >= 97 && c <= 122 || c == 95
+
+pub fn digit(c : Int) : Bool = c >= 48 && c <= 57
+
+pub fn name_ok(s : String) : Bool =
+  byte_len(s) > 0
+    && letter(byte_at(s, 0))
+    && all(
+        \(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)),
+        range(0, byte_len(s)),
+      )
+    && not(reserved(s))
+
+pub fn value_type(v : Json) : String =
+  match v of
+    JInt(_) => "int"
+    JBool(_) => "bool"
+    JStr(_) => "text"
+    _ => "invalid"
+
+pub type Column = Column {
+  name: String,
+  kind: String,
+  qualifier: String,
+  source: Int,
+  index: Int
+}
+
+pub type Table = Table {
+  name: String,
+  columns: List(Column),
+  rows: List(List(Json))
+}
+
+pub type Expr = Expr {
+  op: String,
+  value: Json,
+  qualifier: String,
+  name: String,
+  args: List(Expr),
+  kind: String,
+  index: Int,
+  source: Int
+}
+
+pub fn node(op : String, args : List(Expr)) : Expr =
+  Expr {
+    op = op,
+    value = JNull,
+    qualifier = "",
+    name = "",
+    args = args,
+    kind = "",
+    index = -1,
+    source = -1
+  }
+
+pub fn literal(v : Json) : Expr =
+  Expr { ..node("lit", []), value = v, kind = value_type(v) }
+
+pub fn column_ref(q : String, n : String) : Expr =
+  Expr { ..node("col", []), qualifier = q, name = n }
+
+pub fn agg(op : String) : Bool = elem(op, ["COUNT", "SUM", "MIN", "MAX"])
+
+pub fn at(xs : List(a), i : Int) : a =
+  match nth(i, xs) of
+    Some(x) => x
+    None => at(xs, i)
+
+pub type Query = Query {
+  select: List((Expr, String)),
+  sources: List((String, String)),
+  joins: List(Expr),
+  predicate: Expr,
+  groups: List(Expr),
+  having: Expr,
+  has_having: Bool,
+  order: List((String, Bool)),
+  distinct: Bool,
+  limit: Int,
+  offset: Int
+}
+
+pub type Plan = Plan {
+  query: Query,
+  tables: List(Table),
+  filters: List(List(Expr)),
+  aggregate: Bool,
+  order: List((Int, Bool))
+}
+
+pub fn validate_table(j : Json) : Table =
+  fields(j, ["name", "columns", "rows"])
+  let n = text(getfield(j, "name"))
+  demand(name_ok(n), "INVALID_INPUT")
+  let cs = map(validate_column, arr(getfield(j, "columns")))
+  demand(length(cs) > 0, "INVALID_INPUT")
+  demand(unique(map(\(c) -> c.name, cs)), "INVALID_INPUT")
+  let rows = map(arr, arr(getfield(j, "rows")))
+  for row in sof(rows) do
+    demand(length(row) == length(cs), "INVALID_INPUT")
+    for i in srange(0, length(cs)) do
+      demand(value_type(at(row, i)) == at(cs, i).kind, "INVALID_INPUT")
+  Table { name = n, columns = cs, rows = rows }
+
+fn validate_column(j : Json) : Column =
+  fields(j, ["name", "type", "nullable"])
+  let n = text(getfield(j, "name"))
+  let t = text(getfield(j, "type"))
+  demand(name_ok(n) && elem(t, ["int", "text", "bool"]), "INVALID_INPUT")
+  match getfield(j, "nullable") of
+    JBool(b) => demand(not(b), "UNSUPPORTED_FEATURE")
+    _ => reject("INVALID_INPUT")
+  Column {
+    name = n,
+    kind = t,
+    qualifier = "",
+    source = 0,
+    index = 0
+  }
+
+pub fn unique(xs : List(String)) : Bool =
+  match xs of
+    Nil => true
+    Cons(x, rest) => not(elem(x, rest)) && unique(rest)
+
+pub fn elem(x : a, xs : List(a)) : Bool given Eq(a) =
+  match xs of
+    Nil => false
+    Cons(y, rest) => x == y || elem(x, rest)

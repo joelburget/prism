@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "task": "query-null",
+  "language": "prism",
+  "entrypoint": "run.sh",
+  "build": "build.sh",
+  "files": [
+    ".gitignore",
+    "Binder.pr",
+    "Engine.pr",
+    "Model.pr",
+    "Parser.pr",
+    "README.md",
+    "build.sh",
+    "main.pr",
+    "run.sh"
+  ]
+}

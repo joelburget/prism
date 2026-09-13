@@ -1,0 +1,133 @@
+-- Resolve columns to flattened row slots, and validate before any execution.
+import Json (..)
+import Model (..)
+import Data.List (..)
+import Data.Foldable (all, any, length)
+
+fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
+  if e.op == "col" then
+    let matches = filter(
+        \(c) -> c.name == e.name && (e.qualifier == "" || e.qualifier == c.qualifier),
+        columns,
+      )
+    demand(length(matches) > 0, "UNKNOWN_COLUMN")
+    demand(length(matches) == 1, "AMBIGUOUS_COLUMN")
+    let c = at(matches, 0)
+    Expr { ..e, index = c.index, source = c.source, kind = c.kind }
+  elif e.op == "lit" then
+    e
+  else
+    let isagg = agg(e.op)
+    demand(not(isagg) || allow && not(inside), "INVALID_AGGREGATION")
+    let args = map(\(a) -> check(a, columns, allow, inside || isagg), e.args)
+    let ts = map(\(a) -> a.kind, args)
+    let kind =
+      if e.op == "COUNT" then
+        "int"
+      elif elem(e.op, ["SUM", "+", "-", "*"]) then
+        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
+        "int"
+      elif elem(e.op, ["MIN", "MAX"]) then
+        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
+        at(ts, 0)
+      elif elem(e.op, ["NOT", "AND", "OR"]) then
+        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
+        "bool"
+      else
+        demand(
+            at(ts, 0) == at(ts, 1)
+              && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
+            "TYPE_ERROR",
+          )
+        "bool"
+    Expr { ..e, args = args, kind = kind }
+
+fn predicate(e : Expr, columns : List(Column), allow : Bool) : Expr =
+  let b = check(e, columns, allow, false)
+  demand(b.kind == "bool", "TYPE_ERROR")
+  b
+
+pub fn tree_any(p : (Expr) -> Bool, e : Expr) : Bool =
+  p(e) || any(\(a) -> tree_any(p, a), e.args)
+
+fn grouped(e : Expr, keys : List(Int)) : Unit =
+  if not(agg(e.op)) then
+    demand(e.op /= "col" || elem(e.index, keys), "INVALID_AGGREGATION")
+    for a in sof(e.args) do
+      grouped(a, keys)
+
+fn find_table(database : List(Table), name : String) : Table =
+  let ts = filter(\(t) -> t.name == name, database)
+  demand(length(ts) > 0, "UNKNOWN_TABLE")
+  at(ts, 0)
+
+pub fn bind(q : Query, database : List(Table)) : Plan =
+  let aliases = map(snd, q.select)
+  demand(unique(aliases), "DUPLICATE_ALIAS")
+  demand(unique(map(snd, q.sources)), "DUPLICATE_ALIAS")
+  let tables = map(\(s) -> find_table(database, fst(s)), q.sources)
+  var columns := []
+  var joins := []
+  for i in srange(0, length(tables)) do
+    let t = at(tables, i)
+    let offset = length(columns)
+    let qualifier = snd(at(q.sources, i))
+    let cs = map(
+        \(k) -> Column { ..at(t.columns, k), index = offset + k, source = i, qualifier = qualifier },
+        range(0, length(t.columns)),
+      )
+    columns := append(columns, cs)
+    if i > 0 then
+      joins := append(joins, [predicate(at(q.joins, i - 1), columns, false)])
+  let cs = columns
+  let sels = map(\(s) -> (check(fst(s), cs, true, false), snd(s)), q.select)
+  let groups = map(\(e) -> check(e, cs, false, false), q.groups)
+  let keys = map(\(e) -> e.index, groups)
+  demand(unique(map(show_int, keys)), "INVALID_AGGREGATION")
+  let pred = predicate(q.predicate, cs, false)
+  let hav = predicate(q.having, cs, true)
+  let roots = append(map(fst, sels), [hav])
+  let aggregate =
+    length(groups) > 0 || any(\(e) -> tree_any(\(n) -> agg(n.op), e), roots)
+  demand(not(q.has_having) || aggregate, "INVALID_AGGREGATION")
+  if aggregate then
+    for e in sof(roots) do
+      grouped(e, keys)
+  demand(
+      length(groups) > 0
+        || not(
+            any(
+                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
+                roots,
+              ),
+          ),
+      "UNSUPPORTED_FEATURE",
+    )
+  let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
+  let bq =
+    Query {
+      ..q,
+      select = sels,
+      joins = joins,
+      groups = groups,
+      predicate = pred,
+      having = hav
+    }
+  Plan {
+    query = bq,
+    tables = tables,
+    filters = map(\(_) -> [], tables),
+    aggregate = aggregate,
+    order = order
+  }
+
+fn alias_index(names : List(String), n : String, i : Int) : Int =
+  match names of
+    Nil =>
+      reject("UNKNOWN_COLUMN")
+      -1
+    Cons(a, rest) =>
+      if a == n then
+        i
+      else
+        alias_index(rest, n, i + 1)

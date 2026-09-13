@@ -1,0 +1,15 @@
+import Data.List (..)
+import Data.Foldable (..)
+import Data.String (..)
+import Data.Result (..)
+import Domain (..)
+
+pub fn new_service() : MockService = MockService { calls = [], effects = [] }
+
+-- The baseline has successful calls only. Replay caching, transient responses,
+-- failure counters and lookup reconciliation are left for the requested extension.
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
+  MockService {
+    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
+    effects = append(service.effects, [Effect { key = key, amount = amount }])
+  }

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task": "query-null",
+  "language": "python",
+  "entrypoint": "run.sh",
+  "build": null,
+  "files": [
+    ".gitignore",
+    "README.md",
+    "binder.py",
+    "engine.py",
+    "main.py",
+    "model.py",
+    "parser.py",
+    "run.sh"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "task": "workflow-recovery",
+  "language": "prism",
+  "entrypoint": "run.sh",
+  "build": "build.sh",
+  "files": [
+    ".gitignore",
+    "Domain.pr",
+    "Output.pr",
+    "README.md",
+    "Runner.pr",
+    "Service.pr",
+    "Validation.pr",
+    "build.sh",
+    "main.pr",
+    "run.sh"
+  ]
+}
