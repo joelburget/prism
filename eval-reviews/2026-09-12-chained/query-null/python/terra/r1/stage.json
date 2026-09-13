@@ -1,16 +1,16 @@
 {
-  "run_id": "run-39be87b1ef32",
-  "checkpoint": 1,
+  "run_id": "run-a8bdaed3a116",
+  "checkpoint": 2,
   "model": "terra",
   "model_id": "gpt-5.6-terra",
   "task": "query-null",
   "language": "python",
   "source_available": true,
-  "source_sha256": "93f348a40b2f6f7a0e178c8531370e58b3fb11dacdf93d240907af85a7280ddc",
+  "source_sha256": "f6cb88833c6a042474608227d009ea376ae8dc8581113cab5913fe08bc410389",
   "passed": true,
-  "seconds": 143.6331527910079,
-  "tool_calls": 10,
+  "seconds": 112.01618429203518,
+  "tool_calls": 7,
   "flags": [],
-  "result_sha256": "93ce73d14083b90018ecae499f8431524033a63a31dde7208d59639857d39cf5",
+  "result_sha256": "f78f138fbbcead0fe12adfa77de75b20312691e186ad8ae39f4e118b54743631",
   "archive_note": "Exact frozen source"
 }

@@ -11,3 +11,10 @@ Optimization performs bottom-up folding of constant scalar expressions and pushe
 The engine supports nullable schemas and SQL NULL throughout evaluation: three-valued boolean logic, IS NULL/IS NOT NULL, COALESCE, null-aware aggregates and DISTINCT, and default or explicit NULLS ordering. LEFT [OUTER] JOIN emits null-padded unmatched rows. Global COUNT/SUM/MIN/MAX produce one row even on empty input. Optimized plans retain constant folding and restrict filter pushdown to all-inner-join plans, where it remains valid under NULL semantics.
 
 This directory is self-contained; `starter.json` lists its export files. Build outputs and dependency installations are ignored.
+
+Checkpoint two additionally accepts `input.commands`.  It retains parsed and bound
+plans and a materialized result for every live named view. Reads copy that cached
+result, while an atomic apply works on private row/ID state and refreshes only
+views whose source-table dependency set intersects the changed tables. This keeps
+unrelated views untouched across writes and prevents partial state from failed
+batches becoming visible.
