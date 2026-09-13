@@ -1,0 +1,346 @@
+-- Persistent bags are keyed by encounter-position lineage, never by SQL values.
+-- A batch propagates final old/new rows once through each relational stage.
+import Json (..)
+import Model (..)
+import Engine (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.String (pad_left)
+import Data.Foldable (all, length)
+
+pub type LiveRow = LiveRow { position: Int, row: List(Json) }
+pub type Base = Base { table: Table, live: Map(Int, LiveRow), used: Map(Int, Bool), next: Int }
+pub alias Rows = Map(String, List(Json))
+alias Index = Map(String, Rows)
+
+pub fn empty_rows() : Rows = map_empty
+
+pub fn lookup(key : k, m : Map(k, v), fallback : v) : v given Ord(k) =
+  match map_lookup(key, m) of
+    Some(v) => v
+    None => fallback
+
+pub fn base_table(t : Table) : Base =
+  var live := map_empty
+  var used := map_empty
+  var n := 1
+  for r in sof(t.rows) do
+    live := map_insert(n, LiveRow { position = n, row = r }, live)
+    used := map_insert(n, true, used)
+    n += 1
+  Base { table = Table { ..t, rows = [] }, live = live, used = used, next = n }
+
+fn position_key(n : Int) : String = pad_left(show_int(n), 10)
+
+fn scan_row(p : Plan, source : Int, r : List(Json)) : Bool =
+  let width = length(flatten(map(\(t) -> t.columns, take(source, p.tables))))
+  let padded = append(replicate(width, JNull), r)
+  all(\(e) -> truth(evaluate(e, padded, [])), at(p.filters, source))
+
+fn initial_scan(p : Plan, source : Int, b : Base) : Rows =
+  var rows := empty_rows()
+  for pair in sof(map_to_list(b.live)) do
+    let r = snd(pair)
+    if scan_row(p, source, r.row) then
+      rows := map_insert(position_key(r.position), r.row, rows)
+  rows
+
+fn changed_scan(p : Plan, source : Int, old : Base, new : Base, ids : List(Int), rows : Rows) : (Rows, List(String)) =
+  var out := rows
+  var changed := map_empty
+  for id in sof(ids) do
+    match map_lookup(id, old.live) of
+      Some(r) =>
+        let k = position_key(r.position)
+        out := map_delete(k, out)
+        changed := map_insert(k, true, changed)
+      None => ()
+    match map_lookup(id, new.live) of
+      Some(r) =>
+        let k = position_key(r.position)
+        if scan_row(p, source, r.row) then
+          out := map_insert(k, r.row, out)
+        changed := map_insert(k, true, changed)
+      None => ()
+  (out, map(fst, map_to_list(changed)))
+
+-- A usable equality conjunct restricts probes; arbitrary ON expressions use
+-- one bucket and still evaluate only the affected left/right contributions.
+fn equality(on : Expr, offset : Int) : (Int, Int) =
+  if on.op == "AND" then
+    let a = equality(at(on.args, 0), offset)
+    if fst(a) >= 0 then a else equality(at(on.args, 1), offset)
+  elif on.op == "=" then
+    let a = at(on.args, 0)
+    let b = at(on.args, 1)
+    if a.op == "col" && b.op == "col" then
+      if a.index < offset && b.index >= offset then
+        (a.index, b.index - offset)
+      elif b.index < offset && a.index >= offset then
+        (b.index, a.index - offset)
+      else (-1, -1)
+    else (-1, -1)
+  else (-1, -1)
+
+fn bucket(row : List(Json), slot : Int) : String =
+  if slot < 0 then "" else encode(at(row, slot))
+
+fn index_add(index : Index, slot : Int, k : String, row : List(Json)) : Index =
+  let b = bucket(row, slot)
+  map_insert(b, map_insert(k, row, lookup(b, index, empty_rows())), index)
+
+fn index_remove(index : Index, slot : Int, k : String, row : List(Json)) : Index =
+  let b = bucket(row, slot)
+  let rs = map_delete(k, lookup(b, index, empty_rows()))
+  if map_height(rs) == 0 then map_delete(b, index) else map_insert(b, rs, index)
+
+fn update_index(index : Index, slot : Int, old : Rows, new : Rows, changes : List(String)) : Index =
+  var out := index
+  for k in sof(changes) do
+    match map_lookup(k, old) of
+      Some(r) => out := index_remove(out, slot, k, r)
+      None => ()
+    match map_lookup(k, new) of
+      Some(r) => out := index_add(out, slot, k, r)
+      None => ()
+  out
+
+pub type Stage = Stage {
+  left_slot: Int, right_slot: Int, left_index: Index, right_index: Index,
+  children: Map(String, Rows), rows: Rows
+}
+
+fn empty_stage(on : Expr, offset : Int) : Stage =
+  let slots = equality(on, offset)
+  Stage { left_slot = fst(slots), right_slot = snd(slots), left_index = map_empty,
+    right_index = map_empty, children = map_empty, rows = empty_rows() }
+
+fn maintain_join(s : Stage, old_left : Rows, new_left : Rows, dl : List(String), old_right : Rows, new_right : Rows, dr : List(String), on : Expr, outer : Bool, width : Int) : (Stage, List(String)) =
+  let li = update_index(s.left_index, s.left_slot, old_left, new_left, dl)
+  let ri = update_index(s.right_index, s.right_slot, old_right, new_right, dr)
+  var affected := map_from_list(map(\(k) -> (k, true), dl))
+  -- Probe both old and new right keys, against final left rows. Changed left
+  -- rows are already in affected, including deletions and key changes.
+  for k in sof(dr) do
+    for right in sof([old_right, new_right]) do
+      match map_lookup(k, right) of
+        Some(r) =>
+          let candidates = lookup(bucket(r, s.right_slot), li, empty_rows())
+          for pair in sof(map_to_list(candidates)) do
+            affected := map_insert(fst(pair), true, affected)
+        None => ()
+  var children := s.children
+  var out := s.rows
+  var delta := map_empty
+  for pair in sof(map_to_list(affected)) do
+    let k = fst(pair)
+    for old in sof(map_to_list(lookup(k, children, empty_rows()))) do
+      out := map_delete(fst(old), out)
+      delta := map_insert(fst(old), true, delta)
+    children := map_delete(k, children)
+    match map_lookup(k, new_left) of
+      None => ()
+      Some(l) =>
+        var matches := empty_rows()
+        let candidates = lookup(bucket(l, s.left_slot), ri, empty_rows())
+        for right in sof(map_to_list(candidates)) do
+          let row = append(l, snd(right))
+          if truth(evaluate(on, row, [])) then
+            matches := map_insert(concat(k, concat("/", fst(right))), row, matches)
+        if outer && map_height(matches) == 0 then
+          matches := map_insert(concat(k, concat("/", position_key(0))), append(l, replicate(width, JNull)), matches)
+        for child in sof(map_to_list(matches)) do
+          out := map_insert(fst(child), snd(child), out)
+          delta := map_insert(fst(child), true, delta)
+        children := map_insert(k, matches, children)
+  (Stage { ..s, left_index = li, right_index = ri, children = children, rows = out }, map(fst, map_to_list(delta)))
+
+-- Each aggregate occurrence has a private slot. Scalar evaluation remains the
+-- checkpoint-one evaluator, with aggregate slots substituted by typed literals.
+fn number_aggs(e : Expr, start : Int) : (Expr, List(Expr)) =
+  if agg(e.op) then
+    (Expr { ..e, index = start }, [e])
+  else
+    let pair = number_args(e.args, start)
+    (Expr { ..e, args = fst(pair) }, snd(pair))
+
+fn number_args(args : List(Expr), start : Int) : (List(Expr), List(Expr)) =
+  match args of
+    Nil => ([], [])
+    Cons(a, rest) =>
+      let next = number_aggs(a, start)
+      let remaining = number_args(rest, start + length(snd(next)))
+      (Cons(fst(next), fst(remaining)), append(snd(next), snd(remaining)))
+
+fn prepare(p : Plan) : (Plan, List(Expr)) =
+  var aggs := []
+  var sels := []
+  for item in sof(p.query.select) do
+    let next = number_aggs(fst(item), length(aggs))
+    sels := Cons((fst(next), snd(item)), sels)
+    aggs := append(aggs, snd(next))
+  let hav = number_aggs(p.query.having, length(aggs))
+  (Plan { ..p, query = Query { ..p.query, select = reverse(sels), having = fst(hav) } }, append(aggs, snd(hav)))
+
+pub type Acc = Acc { count: Int, total: Int, ints: Map(Int, Int), texts: Map(String, Int) }
+fn empty_acc() : Acc = Acc { count = 0, total = 0, ints = map_empty, texts = map_empty }
+
+fn counted(m : Map(k, Int), k : k, sign : Int) : Map(k, Int) given Ord(k) =
+  let n = lookup(k, m, 0) + sign
+  if n == 0 then map_delete(k, m) else map_insert(k, n, m)
+
+fn accumulate(a : Acc, e : Expr, row : List(Json), sign : Int) : Acc =
+  let v = if length(e.args) == 0 then JInt(1) else evaluate(at(e.args, 0), row, [])
+  if is_null(v) then a
+  else
+    let n = Acc { ..a, count = a.count + sign }
+    if e.op == "SUM" then Acc { ..n, total = a.total + sign * integer(v) }
+    elif elem(e.op, ["MIN", "MAX"]) then
+      match v of
+        JInt(i) => Acc { ..n, ints = counted(a.ints, i, sign) }
+        JStr(s) => Acc { ..n, texts = counted(a.texts, s, sign) }
+        _ => n
+    else n
+
+fn extreme(m : Map(k, Int), minimum : Bool, fallback : k) : k =
+  match m of
+    Tip => fallback
+    Bin(_, k, _, l, r) =>
+      if minimum then
+        if map_height(l) == 0 then k else extreme(l, minimum, fallback)
+      else
+        if map_height(r) == 0 then k else extreme(r, minimum, fallback)
+
+fn acc_value(a : Acc, e : Expr) : Json =
+  if e.op == "COUNT" then JInt(a.count)
+  elif a.count == 0 then JNull
+  elif e.op == "SUM" then JInt(a.total)
+  elif map_height(a.ints) > 0 then JInt(extreme(a.ints, e.op == "MIN", 0))
+  else JStr(extreme(a.texts, e.op == "MIN", ""))
+
+fn substitute(e : Expr, accs : List(Acc)) : Expr =
+  if agg(e.op) then literal(acc_value(at(accs, e.index), e))
+  else Expr { ..e, args = map(\(a) -> substitute(a, accs), e.args) }
+
+pub type BagGroup = BagGroup { members: Rows, accs: List(Acc) }
+fn empty_group(aggs : List(Expr)) : BagGroup =
+  BagGroup { members = empty_rows(), accs = map(\(_) -> empty_acc(), aggs) }
+
+fn group_key(p : Plan, row : List(Json)) : String =
+  encode(JArr(map(\(e) -> evaluate(e, row, []), p.query.groups)))
+
+fn first_member(g : BagGroup) : (String, List(Json)) =
+  match map_min(g.members) of
+    Some(pair) => pair
+    None => ("", [])
+
+pub type View = View {
+  plan: Plan, aggs: List(Expr), scans: List(Rows), stages: List(Stage),
+  filtered: Rows, groups: Map(String, BagGroup), projected: Rows, result: Json
+}
+
+fn project_group(p : Plan, g : BagGroup) : List(List(Json)) =
+  let row = snd(first_member(g))
+  if truth(evaluate(substitute(p.query.having, g.accs), row, [])) then
+    [map(\(s) -> evaluate(substitute(fst(s), g.accs), row, []), p.query.select)]
+  else []
+
+fn change_group(groups : Map(String, BagGroup), p : Plan, aggs : List(Expr), k : String, row : List(Json), sign : Int) : Map(String, BagGroup) =
+  let key = group_key(p, row)
+  let g = lookup(key, groups, empty_group(aggs))
+  let members = if sign < 0 then map_delete(k, g.members) else map_insert(k, row, g.members)
+  let accs = map(\(i) -> accumulate(at(g.accs, i), at(aggs, i), row, sign), range(0, length(aggs)))
+  map_insert(key, BagGroup { members = members, accs = accs }, groups)
+
+fn maintain_output(v : View, joined : Rows, delta : List(String)) : View =
+  let p = v.plan
+  var filtered := v.filtered
+  var dirty := map_empty
+  var groups := v.groups
+  var projected := v.projected
+  for k in sof(delta) do
+    match map_lookup(k, v.filtered) of
+      Some(row) =>
+        if p.aggregate then
+          dirty := map_insert(group_key(p, row), true, dirty)
+          groups := change_group(groups, p, v.aggs, k, row, -1)
+        filtered := map_delete(k, filtered)
+      None => ()
+    if not(p.aggregate) then projected := map_delete(k, projected)
+    match map_lookup(k, joined) of
+      Some(row) =>
+        if truth(evaluate(p.query.predicate, row, [])) then
+          filtered := map_insert(k, row, filtered)
+          if p.aggregate then
+            dirty := map_insert(group_key(p, row), true, dirty)
+            groups := change_group(groups, p, v.aggs, k, row, 1)
+          else
+            projected := map_insert(k, map(\(s) -> evaluate(fst(s), row, []), p.query.select), projected)
+      None => ()
+  if p.aggregate then
+    if length(p.query.groups) == 0 then
+      dirty := map_insert("[]", true, dirty)
+      if not(map_member("[]", groups)) then groups := map_insert("[]", empty_group(v.aggs), groups)
+    -- Remove all previous encounter keys before installing any replacements:
+    -- a moved row can become the first member of a different group.
+    for item in sof(map_to_list(dirty)) do
+      match map_lookup(fst(item), v.groups) of
+        Some(g) => projected := map_delete(fst(first_member(g)), projected)
+        None => ()
+    for item in sof(map_to_list(dirty)) do
+      let key = fst(item)
+      let g = lookup(key, groups, empty_group(v.aggs))
+      if map_height(g.members) == 0 && length(p.query.groups) > 0 then
+        groups := map_delete(key, groups)
+      else
+        for row in sof(project_group(p, g)) do
+          projected := map_insert(fst(first_member(g)), row, projected)
+  let result = finish(p, map(snd, map_to_list(projected)))
+  View { ..v, filtered = filtered, groups = groups, projected = projected, result = result }
+
+pub fn create_view(plan : Plan, database : Map(String, Base)) : View =
+  let prepared = prepare(plan)
+  -- Bound tables retain schema only; all live data is owned by Base/scans.
+  let p = Plan { ..fst(prepared), tables = map(\(t) -> Table { ..t, rows = [] }, plan.tables) }
+  let scans = map(\(i) -> initial_scan(p, i, lookup(at(p.tables, i).name, database, base_table(at(p.tables, i)))), range(0, length(p.tables)))
+  var rows := at(scans, 0)
+  var delta := map(fst, map_to_list(rows))
+  var stages := []
+  var offset := length(at(p.tables, 0).columns)
+  for i in srange(0, length(p.query.joins)) do
+    let right = at(scans, i + 1)
+    let width = length(at(p.tables, i + 1).columns)
+    let next = maintain_join(empty_stage(at(p.query.joins, i), offset), empty_rows(), rows, delta, empty_rows(), right, map(fst, map_to_list(right)), at(p.query.joins, i), at(p.query.left_joins, i), width)
+    stages := Cons(fst(next), stages)
+    rows := fst(next).rows
+    delta := snd(next)
+    offset += width
+  let v = View { plan = p, aggs = snd(prepared), scans = scans, stages = reverse(stages), filtered = empty_rows(), groups = map_empty, projected = empty_rows(), result = JNull }
+  maintain_output(v, rows, delta)
+
+pub fn update_view(v : View, old : Map(String, Base), new : Map(String, Base), touched : Map(String, List(Int))) : View =
+  let p = v.plan
+  if all(\(t) -> not(map_member(t.name, touched)), p.tables) then v
+  else
+    var scans := []
+    var deltas := []
+    for i in srange(0, length(p.tables)) do
+      let t = at(p.tables, i)
+      let fallback = base_table(t)
+      let next = changed_scan(p, i, lookup(t.name, old, fallback), lookup(t.name, new, fallback), lookup(t.name, touched, []), at(v.scans, i))
+      scans := Cons(fst(next), scans)
+      deltas := Cons(snd(next), deltas)
+    let ns = reverse(scans)
+    let ds = reverse(deltas)
+    var old_rows := at(v.scans, 0)
+    var rows := at(ns, 0)
+    var delta := at(ds, 0)
+    var stages := []
+    for i in srange(0, length(p.query.joins)) do
+      let stage = at(v.stages, i)
+      let next = maintain_join(stage, old_rows, rows, delta, at(v.scans, i + 1), at(ns, i + 1), at(ds, i + 1), at(p.query.joins, i), at(p.query.left_joins, i), length(at(p.tables, i + 1).columns))
+      stages := Cons(fst(next), stages)
+      old_rows := stage.rows
+      rows := fst(next).rows
+      delta := snd(next)
+    maintain_output(View { ..v, scans = ns, stages = reverse(stages) }, rows, delta)

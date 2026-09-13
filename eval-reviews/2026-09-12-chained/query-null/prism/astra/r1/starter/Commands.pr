@@ -1,0 +1,153 @@
+-- Command state is immutable. A handled Domain rejection returns the original
+-- state, so base rows, reserved IDs, view caches and revision commit together.
+import Json (..)
+import Model (..)
+import Parser (parse_sql)
+import Binder (bind)
+import Engine (optimize)
+import Incremental (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.String (..)
+import Data.Foldable (all, length)
+
+pub fn success(value : Json) : Json =
+  JObj([("ok", JBool(true)), ("result", value)])
+
+pub fn failure(code : String) : Json =
+  JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+pub fn has_field(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => length(filter(\(kv) -> fst(kv) == key, xs)) > 0
+    _ => false
+
+fn view_name(s : String) : Bool =
+  byte_len(s) >= 1 && byte_len(s) <= 40
+    && byte_at(s, 0) >= 97 && byte_at(s, 0) <= 122
+    && all(\(i) -> let c = byte_at(s, i) in c >= 97 && c <= 122 || digit(c) || c == 45, range(0, byte_len(s)))
+
+fn table_name(s : String) : Bool =
+  byte_len(s) > 0 && letter(byte_at(s, 0))
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))
+
+fn validate_change(c : Json) : Unit =
+  let op = text(getfield(c, "op"))
+  demand(elem(op, ["insert", "update", "delete"]), "INVALID_COMMAND")
+  fields(c, if op == "delete" then ["op", "table", "id"] else ["op", "table", "id", "row"])
+  demand(table_name(text(getfield(c, "table"))), "INVALID_COMMAND")
+  let id = getfield(c, "id")
+  demand(value_type(id) == "int" && integer(id) >= 1 && integer(id) <= 2147483647, "INVALID_COMMAND")
+  if op /= "delete" then
+    let ignored = arr(getfield(c, "row"))
+    ()
+
+fn command_shape(c : Json) : Unit =
+  let op = text(getfield(c, "op"))
+  demand(elem(op, ["create", "read", "drop", "apply"]), "INVALID_COMMAND")
+  if op == "apply" then
+    fields(c, ["op", "changes"])
+    let changes = arr(getfield(c, "changes"))
+    demand(length(changes) >= 1 && length(changes) <= 200, "INVALID_COMMAND")
+    for change in sof(changes) do
+      validate_change(change)
+  else
+    fields(c, if op == "create" then ["op", "view", "sql", "optimize"] else ["op", "view"])
+    demand(view_name(text(getfield(c, "view"))), "INVALID_COMMAND")
+    if op == "create" then
+      let ignored = text(getfield(c, "sql"))
+      demand(value_type(getfield(c, "optimize")) == "bool", "INVALID_COMMAND")
+
+fn shape_ok(c : Json) : Bool =
+  handle command_shape(c) with
+    never reject(_) => false
+    return _ => true
+
+fn validate_row(row : List(Json), cs : List(Column)) : Unit =
+  demand(length(row) == length(cs), "INVALID_ROW")
+  for i in srange(0, length(cs)) do
+    let v = at(row, i)
+    let c = at(cs, i)
+    demand(value_type(v) == c.kind || is_null(v) && c.nullable, "INVALID_ROW")
+    match v of
+      JInt(n) => demand(n >= -1000000000 && n <= 1000000000, "INVALID_ROW")
+      _ => ()
+
+pub type State = State { database: Map(String, Base), views: Map(String, View), revision: Int }
+
+fn revision(r : Int) : Json = JObj([("revision", JInt(r))])
+
+fn require_base(name : String, db : Map(String, Base)) : Base =
+  match map_lookup(name, db) of
+    Some(b) => b
+    None =>
+      reject("UNKNOWN_TABLE")
+      require_base(name, db)
+
+fn require_view(name : String, vs : Map(String, View)) : View =
+  match map_lookup(name, vs) of
+    Some(v) => v
+    None =>
+      reject("UNKNOWN_VIEW")
+      require_view(name, vs)
+
+fn command(s : State, c : Json) : (State, Json) =
+  demand(shape_ok(c), "INVALID_COMMAND")
+  let op = text(getfield(c, "op"))
+  if op == "apply" then
+    var database := s.database
+    var touched := map_empty
+    for change in sof(arr(getfield(c, "changes"))) do
+      let name = text(getfield(change, "table"))
+      demand(map_member(name, database), "UNKNOWN_TABLE")
+      let b = require_base(name, database)
+      let action = text(getfield(change, "op"))
+      let id = integer(getfield(change, "id"))
+      let row = if action == "delete" then [] else arr(getfield(change, "row"))
+      if action /= "delete" then validate_row(row, b.table.columns)
+      if action == "insert" then
+        demand(not(map_member(id, b.used)), "ROW_ID_USED")
+        database := map_insert(name, Base { ..b, live = map_insert(id, LiveRow { position = b.next, row = row }, b.live), used = map_insert(id, true, b.used), next = b.next + 1 }, database)
+      else
+        demand(map_member(id, b.live), "UNKNOWN_ROW")
+        if action == "delete" then
+          database := map_insert(name, Base { ..b, live = map_delete(id, b.live) }, database)
+        else
+          let old = lookup(id, b.live, LiveRow { position = 0, row = [] })
+          database := map_insert(name, Base { ..b, live = map_insert(id, LiveRow { ..old, row = row }, b.live) }, database)
+      let ids = lookup(name, touched, [])
+      touched := map_insert(name, if elem(id, ids) then ids else Cons(id, ids), touched)
+    let committed = database
+    let changed = touched
+    let views = map_from_list(map(\(kv) -> (fst(kv), update_view(snd(kv), s.database, committed, changed)), map_to_list(s.views)))
+    (State { database = committed, views = views, revision = s.revision + 1 }, revision(s.revision + 1))
+  else
+    let name = text(getfield(c, "view"))
+    if op == "create" then
+      demand(not(map_member(name, s.views)), "VIEW_EXISTS")
+      let database = map(\(kv : (String, Base)) -> snd(kv).table, map_to_list(s.database))
+      let plan = bind(parse_sql(text(getfield(c, "sql"))), database)
+      let view = create_view(if truth(getfield(c, "optimize")) then optimize(plan) else plan, s.database)
+      (State { ..s, views = map_insert(name, view, s.views) }, JObj([("view", JStr(name)), ("revision", JInt(s.revision))]))
+    else
+      demand(map_member(name, s.views), "UNKNOWN_VIEW")
+      if op == "drop" then
+        (State { ..s, views = map_delete(name, s.views) }, JObj([("dropped", JStr(name))]))
+      else
+        let v = require_view(name, s.views)
+        (s, JObj([("revision", JInt(s.revision)), ("columns", getfield(v.result, "columns")), ("rows", getfield(v.result, "rows"))]))
+
+fn attempt(s : State, c : Json) : (State, Json) =
+  handle command(s, c) with
+    never reject(code) => (s, failure(code))
+    return pair => (fst(pair), success(snd(pair)))
+
+pub fn commands(database : List(Table), cs : List(Json)) : Json =
+  demand(length(cs) <= 2000, "INVALID_INPUT")
+  var state := State { database = map_from_list(map(\(t) -> (t.name, base_table(t)), database)), views = map_empty, revision = 0 }
+  var replies := []
+  for c in sof(cs) do
+    let next = attempt(state, c)
+    state := fst(next)
+    replies := Cons(snd(next), replies)
+  success(JObj([("results", JArr(reverse(replies)))]))

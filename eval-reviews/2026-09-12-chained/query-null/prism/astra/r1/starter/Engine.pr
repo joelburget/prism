@@ -266,6 +266,10 @@ pub fn execute(plan : Plan) : Json =
         )
     else
       flatten(map(\(r) -> project(q, r, []), filtered))
+  finish(plan, projected)
+
+pub fn finish(plan : Plan, projected : List(List(Json))) : Json =
+  let q = plan.query
   let distinct =
     if q.distinct then
       distinct_rows(projected, [])
