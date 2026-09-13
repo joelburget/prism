@@ -24,8 +24,8 @@ pub type Workflow = Workflow {
   retry_delay: Int
 }
 
-pub type StepStatus = Pending | Running | Succeeded deriving (Eq)
-pub type RunStatus = Active | Completed deriving (Eq)
+pub type StepStatus = Pending | Running | Succeeded | StepFailed | Blocked | StepCancelled deriving (Eq)
+pub type RunStatus = Active | Completed | RunFailed | Cancelling | RunCancelled deriving (Eq)
 
 pub type StepState = StepState {
   id: String,
@@ -41,10 +41,18 @@ pub type RunState = RunState {
   steps: List(StepState)
 }
 
+-- The idempotency key stays structured; its components are never concatenated.
 pub type ActionKey = ActionKey { run_id: String, step_id: String }
-pub type ServiceCall = ServiceCall { key: ActionKey, attempt: Int }
+
+pub type CallKind = ExecuteKind | LookupKind deriving (Eq)
+pub type Outcome = Applied | Replayed | Transient | Found | Missing deriving (Eq)
+
+pub type ServiceCall = ServiceCall { kind: CallKind, key: ActionKey, attempt: Int, outcome: Outcome }
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
+
+-- One atomic service interaction: the audited service plus its committed outcome.
+pub type Response = Response { service: MockService, outcome: Outcome }
 
 pub type Snapshot = Snapshot { now: Int, up: Bool, runs: List(RunState) }
 pub type Simulator = Simulator {

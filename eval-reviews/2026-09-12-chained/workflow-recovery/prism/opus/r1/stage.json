@@ -1,0 +1,16 @@
+{
+  "run_id": "run-c21c47b323a5",
+  "checkpoint": 1,
+  "model": "opus",
+  "model_id": "claude-opus-5",
+  "task": "workflow-recovery",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "44de79def13a2ae2b7176a0b807a766358088e8a72878e24eb7e5358ea6ec889",
+  "passed": true,
+  "seconds": 256.0662909580278,
+  "tool_calls": 23,
+  "flags": [],
+  "result_sha256": "abcf2db2ce7ed0f231c30dae6e3c3e54f54ab5d79224e5da22d921e12e471933",
+  "archive_note": "Exact frozen source"
+}

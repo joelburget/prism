@@ -46,39 +46,100 @@ fn replace_step(run : RunState, replacement : StepState) : RunState =
 fn replace_run(sim : Simulator, replacement : RunState) : Simulator =
   Simulator { ..sim, runs = map(\(run) -> if run.id == replacement.id then replacement else run, sim.runs) }
 
-pub fn tick(sim : Simulator, workflow : Workflow) : Simulator =
+fn terminal(run : RunState) : Bool =
+  run.status == Completed || run.status == RunFailed || run.status == RunCancelled
+
+-- Commit the durable consequences of a response that the runner actually received.
+fn commit(sim : Simulator, workflow : Workflow, run : RunState, step : StepState, outcome : Outcome)
+    : Result(Simulator, String) =
+  if outcome == Applied || outcome == Replayed || outcome == Found then
+    let done = replace_step(run, StepState { ..step, status = Succeeded })
+    let finished =
+      if outcome == Found then RunState { ..done, status = RunCancelled }
+      elif all(\(other) -> other.status == Succeeded, done.steps) then RunState { ..done, status = Completed }
+      else done
+    Ok(replace_run(sim, finished))
+  elif outcome == Missing then
+    let stopped = replace_step(run, StepState { ..step, status = StepCancelled })
+    Ok(replace_run(sim, RunState { ..stopped, status = RunCancelled }))
+  elif step.attempts < workflow.max_attempts then
+    -- A committed transient with budget left schedules backoff from the commit time.
+    if sim.now + workflow.retry_delay > time_limit() then Err("TIME_OVERFLOW")
+    else
+      let waiting = replace_step(run,
+        StepState { ..step, status = Pending, ready_at = sim.now + workflow.retry_delay })
+      Ok(replace_run(sim, waiting))
+  else
+    -- Exhausting the budget fails the run and blocks every remaining pending step.
+    let failed = replace_step(run, StepState { ..step, status = StepFailed })
+    let blocked = map(\(other) -> if other.status == Pending then StepState { ..other, status = Blocked } else other,
+      failed.steps)
+    Ok(replace_run(sim, RunState { ..failed, status = RunFailed, steps = blocked }))
+
+pub fn tick(sim : Simulator, workflow : Workflow, checkpoint : Option(Checkpoint)) : Result(Simulator, String) =
   match select_action(sim, workflow) of
-    None => sim
+    -- No eligible work means no checkpoint is reached and nothing changes.
+    None => Ok(sim)
     Some(action) =>
+      -- Beginning an attempt is durable and happens once, before any service call.
       let running =
         if action.step.status == Pending then
           StepState { ..action.step, status = Running, attempts = action.step.attempts + 1 }
         else action.step
       let begun_run = replace_step(action.run, running)
       let begun = replace_run(sim, begun_run)
-      let key = ActionKey { run_id = action.run.id, step_id = running.id }
-      let service = execute(begun.service, key, action.definition.amount, running.attempts)
-      let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })
-      let finished =
-        if all(\(step) -> step.status == Succeeded, completed.steps) then
-          RunState { ..completed, status = Completed }
-        else completed
-      replace_run(Simulator { ..begun, service = service }, finished)
+      match checkpoint of
+        Some(AfterBegin) => Ok(Simulator { ..begun, up = false })
+        _ =>
+          let key = ActionKey { run_id = action.run.id, step_id = running.id }
+          let response =
+            if action.run.status == Cancelling then lookup(begun.service, key, running.attempts)
+            else execute(begun.service, key, action.definition.amount, running.attempts, action.definition.failures)
+          -- The service and its audit survive crashes separately from the runner.
+          let called = Simulator { ..begun, service = response.service }
+          match checkpoint of
+            Some(AfterCall) => Ok(Simulator { ..called, up = false })
+            _ => commit(called, workflow, begun_run, running, response.outcome)
+
+fn cancel_run(sim : Simulator, run : RunState) : Simulator =
+  if terminal(run) then sim
+  else
+    let steps = map(\(step) -> if step.status == Pending then StepState { ..step, status = StepCancelled } else step,
+      run.steps)
+    -- A running step stays uncertain until a tick reconciles it by lookup.
+    let status = if any(\(step) -> step.status == Running, steps) then Cancelling else RunCancelled
+    replace_run(sim, RunState { ..run, status = status, cancel_requested = true, steps = steps })
 
 pub fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : Result(Simulator, String) =
   match command of
     Start(id) =>
-      if any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
+      if not(sim.up) then Err("PROCESS_DOWN")
+      elif any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
       else
         let run = RunState { id = id, status = Active, cancel_requested = false,
           steps = map(\(definition) -> new_step(sim.now, definition), workflow.steps) }
         Ok(Simulator { ..sim, runs = append(sim.runs, [run]) })
-    Tick(None) => Ok(tick(sim, workflow))
+    Tick(checkpoint) =>
+      if not(sim.up) then Err("PROCESS_DOWN")
+      else tick(sim, workflow, checkpoint)
     Advance(by) =>
+      -- Time belongs to the simulator and advances while the process is down.
       if sim.now + by > time_limit() then Err("TIME_OVERFLOW")
       else Ok(Simulator { ..sim, now = sim.now + by })
     Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })
-    _ => Err("UNSUPPORTED_FEATURE")
+    Crash =>
+      if not(sim.up) then Err("PROCESS_DOWN")
+      else Ok(Simulator { ..sim, up = false })
+    Restart =>
+      -- Restart is passive: no service call and no status transition.
+      if sim.up then Err("PROCESS_UP")
+      else Ok(Simulator { ..sim, up = true })
+    Cancel(id) =>
+      if not(sim.up) then Err("PROCESS_DOWN")
+      else
+        match find(\(run) -> run.id == id, sim.runs) of
+          None => Err("UNKNOWN_RUN")
+          Some(run) => Ok(cancel_run(sim, run))
 
 fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
   match commands of
@@ -88,5 +149,4 @@ fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) 
       run_commands(next, workflow, rest)
 
 pub fn simulate(workflow : Workflow) : Result(Simulator, String) =
-  if any(\(step) -> step.failures > 0, workflow.steps) then Err("UNSUPPORTED_FEATURE")
-  else run_commands(new_simulator(), workflow, workflow.commands)
+  run_commands(new_simulator(), workflow, workflow.commands)

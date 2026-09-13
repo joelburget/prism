@@ -6,10 +6,34 @@ import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
-  }
+pub fn same_key(left : ActionKey, right : ActionKey) : Bool =
+  left.run_id == right.run_id && left.step_id == right.step_id
+
+fn recorded(service : MockService, key : ActionKey) : Bool =
+  any(\(entry) -> same_key(entry.key, key), service.effects)
+
+-- The configured failure budget is consumed per key by committed or lost transients.
+fn transients(service : MockService, key : ActionKey) : Int =
+  count(\(call) -> call.kind == ExecuteKind && call.outcome == Transient && same_key(call.key, key),
+    service.calls)
+
+fn audit(service : MockService, kind : CallKind, key : ActionKey, attempt : Int, outcome : Outcome) : MockService =
+  MockService { ..service,
+    calls = append(service.calls, [ServiceCall { kind = kind, key = key, attempt = attempt, outcome = outcome }]) }
+
+-- Execution is atomic: audit, replay caching, transient failures and effect
+-- recording all happen together, so no caller can observe a partial call.
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : Response =
+  if recorded(service, key) then
+    Response { service = audit(service, ExecuteKind, key, attempt, Replayed), outcome = Replayed }
+  elif transients(service, key) < failures then
+    Response { service = audit(service, ExecuteKind, key, attempt, Transient), outcome = Transient }
+  else
+    let applied = MockService { ..service, effects = append(service.effects, [Effect { key = key, amount = amount }]) }
+    Response { service = audit(applied, ExecuteKind, key, attempt, Applied), outcome = Applied }
+
+-- Lookup never records an effect and never consumes the failure budget, so it is
+-- safe to repeat after a crash during cancellation reconciliation.
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : Response =
+  let outcome = if recorded(service, key) then Found else Missing
+  Response { service = audit(service, LookupKind, key, attempt, outcome), outcome = outcome }

@@ -14,6 +14,7 @@
     "Validation.pr",
     "build.sh",
     "main.pr",
-    "run.sh"
+    "run.sh",
+    "selftest.py"
   ]
 }
