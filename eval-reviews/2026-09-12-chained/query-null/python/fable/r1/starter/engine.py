@@ -13,9 +13,13 @@ def is_true(v):
 
 
 def evaluate(e, row, group=None):
+    """Evaluate `e` on a flattened row. For aggregate queries `group` is either
+    the list of member rows or, for incrementally maintained views, a mapping
+    from the aggregate node's id() to its already-maintained value."""
     if e.op == 'lit': return e.value
     if e.op == 'col': return row[e.index]
     if e.op in AGGREGATES:
+        if isinstance(group, dict): return group[id(e)]
         if e.op == 'COUNT' and not e.args: return len(group)
         vs = [v for v in (evaluate(e.args[0], r) for r in group) if v is not None]
         if e.op == 'COUNT': return len(vs)

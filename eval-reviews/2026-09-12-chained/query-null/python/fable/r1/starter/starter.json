@@ -13,6 +13,8 @@
     "model.py",
     "parser.py",
     "run.sh",
-    "test_null.py"
+    "test_null.py",
+    "test_views.py",
+    "views.py"
   ]
 }

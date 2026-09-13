@@ -52,10 +52,15 @@ class Plan:
 
 
 def validate(request):
+    """Check the wire envelope and database; return (database, queries, commands).
+
+    Exactly one of `queries` (checkpoint one) or `commands` (views) is present."""
     require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
     data = request.get('input')
-    fields(data, {'database', 'queries'})
-    require(isinstance(data['database'], list) and isinstance(data['queries'], list))
+    require(isinstance(data, dict))
+    mode = 'commands' if 'commands' in data else 'queries'
+    fields(data, {'database', mode})
+    require(isinstance(data['database'], list) and isinstance(data[mode], list))
     database = {}
     for t in data['database']:
         fields(t, {'name', 'columns', 'rows'})
@@ -71,10 +76,11 @@ def validate(request):
             for v, c in zip(row, t['columns']):
                 require((v is None and c['nullable']) or type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
+    if mode == 'commands': return database, None, data['commands']
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})
         require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
-    return database, data['queries']
+    return database, data['queries'], None
 
 
 def fields(value, expected):
