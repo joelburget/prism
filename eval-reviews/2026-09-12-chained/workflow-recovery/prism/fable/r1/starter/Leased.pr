@@ -1,0 +1,293 @@
+-- Checkpoint two: leased workers, fenced delivery and recovery by reclaim.
+-- Every command is a pure transition over persistent state, so earlier
+-- observation values can never see later updates.
+import Data.List (..)
+import Data.Foldable (..)
+import Data.String (..)
+import Data.Result (..)
+import Domain (..)
+import Service (..)
+
+pub fn new_leased(workflow : LeasedWorkflow) : LeasedSimulator =
+  LeasedSimulator { now = 0, workers = map(\(id) -> WorkerState { id = id, up = true }, workflow.workers),
+    runs = [], tickets = [], next_ticket = 1, service = new_service(), results = [] }
+
+pub fn leased_snapshot(sim : LeasedSimulator) : LeasedSnapshot =
+  LeasedSnapshot { now = sim.now, workers = sim.workers, runs = sim.runs }
+
+-- Lease helpers. A lease is live exactly when now < expires.
+fn lease_live(now : Int, lease : Option(Lease)) : Bool =
+  match lease of
+    Some(l) => now < l.expires
+    None => false
+
+fn lease_ticket(lease : Option(Lease)) : Int =
+  match lease of
+    Some(l) => l.ticket
+    None => 0
+
+fn expire_lease(now : Int, step : StepState) : StepState =
+  match step.lease of
+    Some(l) => if step.status == Running then StepState { ..step, lease = Some(Lease { ..l, expires = now }) } else step
+    None => step
+
+-- Expire every running lease of a run immediately, keeping ticket/worker visible.
+fn expire_running(now : Int, run : RunState) : RunState =
+  RunState { ..run, steps = map(\(step) -> expire_lease(now, step), run.steps) }
+
+fn has_running(run : RunState) : Bool = any(\(step) -> step.status == Running, run.steps)
+
+-- Structural updates.
+fn replace_step(run : RunState, replacement : StepState) : RunState =
+  RunState { ..run, steps = map(\(step) -> if step.id == replacement.id then replacement else step, run.steps) }
+
+fn replace_run(sim : LeasedSimulator, replacement : RunState) : LeasedSimulator =
+  LeasedSimulator { ..sim, runs = map(\(run) -> if run.id == replacement.id then replacement else run, sim.runs) }
+
+fn replace_ticket(sim : LeasedSimulator, replacement : Ticket) : LeasedSimulator =
+  LeasedSimulator { ..sim, tickets = map(\(t) -> if t.id == replacement.id then replacement else t, sim.tickets) }
+
+fn set_worker(sim : LeasedSimulator, id : String, up : Bool) : LeasedSimulator =
+  LeasedSimulator { ..sim, workers = map(\(w) -> if w.id == id then WorkerState { ..w, up = up } else w, sim.workers) }
+
+fn mark_pending(run : RunState, status : StepStatus) : RunState =
+  RunState { ..run, steps = map(\(step) -> if step.status == Pending then StepState { ..step, status = status } else step, run.steps) }
+
+-- Lookups and runtime validation, in the published precedence.
+fn find_run(sim : LeasedSimulator, id : String) : Option(RunState) =
+  find(\(run) -> run.id == id, sim.runs)
+
+fn find_step(run : RunState, id : String) : Option(StepState) =
+  find(\(step) -> step.id == id, run.steps)
+
+fn find_definition(workflow : LeasedWorkflow, id : String) : Option(StepDefinition) =
+  find(\(definition) -> definition.id == id, workflow.steps)
+
+fn find_worker(sim : LeasedSimulator, id : String) : Option(WorkerState) =
+  find(\(w) -> w.id == id, sim.workers)
+
+fn worker_up(sim : LeasedSimulator, id : String) : Bool =
+  match find_worker(sim, id) of
+    Some(w) => w.up
+    None => false
+
+fn require_worker(sim : LeasedSimulator, id : String) : Result(WorkerState, String) =
+  match find_worker(sim, id) of
+    Some(w) => Ok(w)
+    None => Err("UNKNOWN_WORKER")
+
+fn require_up(sim : LeasedSimulator, id : String) : Result(WorkerState, String) =
+  let w = require_worker(sim, id)?
+  if w.up then Ok(w) else Err("WORKER_DOWN")
+
+fn find_ticket(sim : LeasedSimulator, id : Int) : Option(Ticket) =
+  find(\(t) -> t.id == id, sim.tickets)
+
+-- Ownership means the ticket's original worker, even after another worker reclaims.
+fn require_owned_ticket(sim : LeasedSimulator, worker : String, id : Int) : Result(Ticket, String) =
+  match find_ticket(sim, id) of
+    None => Err("UNKNOWN_TICKET")
+    Some(t) => if t.worker == worker then Ok(t) else Err("WRONG_WORKER")
+
+fn ticket_step(sim : LeasedSimulator, ticket : Ticket) : Option((RunState, StepState)) =
+  match find_run(sim, ticket.run_id) of
+    None => None
+    Some(run) =>
+      match find_step(run, ticket.step_id) of
+        None => None
+        Some(step) => Some((run, step))
+
+-- Fencing: a ticket acts only while it is the step's current, live lease.
+fn current_live(sim : LeasedSimulator, ticket : Ticket) : Bool =
+  match ticket_step(sim, ticket) of
+    None => false
+    Some(pair) =>
+      let step = snd(pair)
+      step.status == Running && lease_ticket(step.lease) == ticket.id && lease_live(sim.now, step.lease)
+
+fn held_by(now : Int, worker : String, step : StepState) : Bool =
+  match step.lease of
+    Some(l) => step.status == Running && l.worker == worker && now < l.expires
+    None => false
+
+fn worker_busy(sim : LeasedSimulator, worker : String) : Bool =
+  any(\(run) -> any(\(step) -> held_by(sim.now, worker, step), run.steps), sim.runs)
+
+-- Scheduling: expired running work first (any nonterminal run), then ready pending work.
+fn deps_succeeded(run : RunState, definition : StepDefinition) : Bool =
+  all(\(dep) -> any(\(s) -> s.id == dep && s.status == Succeeded, run.steps), definition.needs)
+
+fn select_step(now : Int, expired : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =
+  match (states, definitions) of
+    (Cons(step, more_states), Cons(definition, more_definitions)) =>
+      let ready =
+        if expired then step.status == Running && not(lease_live(now, step.lease))
+        else run.status == RunActive && step.status == Pending && step.ready_at <= now && deps_succeeded(run, definition)
+      if ready then Some(Action { run = run, step = step, definition = definition })
+      else select_step(now, expired, run, more_states, more_definitions)
+    _ => None
+
+fn select_run(now : Int, expired : Bool, runs : List(RunState), definitions : List(StepDefinition)) : Option(Action) =
+  match runs of
+    Nil => None
+    Cons(run, rest) =>
+      match select_step(now, expired, run, run.steps, definitions) of
+        Some(action) => Some(action)
+        None => select_run(now, expired, rest, definitions)
+
+fn select_work(sim : LeasedSimulator, workflow : LeasedWorkflow) : Option(Action) =
+  match select_run(sim.now, true, sim.runs, workflow.steps) of
+    Some(action) => Some(action)
+    None => select_run(sim.now, false, sim.runs, workflow.steps)
+
+fn claim(sim : LeasedSimulator, workflow : LeasedWorkflow, worker : String) : Result((LeasedSimulator, CommandResult), String) =
+  let _ = require_up(sim, worker)?
+  if worker_busy(sim, worker) then Err("WORKER_BUSY")
+  else
+    match select_work(sim, workflow) of
+      None => Ok((sim, RTicket(None)))
+      Some(action) =>
+        let expires = sim.now + workflow.lease_duration
+        if expires > time_limit() then Err("TIME_OVERFLOW")
+        else
+          let id = sim.next_ticket
+          let lease = Some(Lease { worker = worker, ticket = id, expires = expires })
+          -- A new attempt begins durably; a reclaim keeps the attempt number.
+          let running =
+            if action.step.status == Pending then
+              StepState { ..action.step, status = Running, attempts = action.step.attempts + 1, lease = lease }
+            else StepState { ..action.step, lease = lease }
+          let kind = if action.run.status == RunActive then ExecuteCall else LookupCall
+          let ticket = Ticket { id = id, worker = worker, run_id = action.run.id, step_id = running.id,
+            attempt = running.attempts, kind = kind, response = None, delivered = false }
+          let claimed = replace_run(sim, replace_step(action.run, running))
+          Ok((LeasedSimulator { ..claimed, tickets = append(claimed.tickets, [ticket]), next_ticket = id + 1 }, RTicket(Some(id))))
+
+fn renew(sim : LeasedSimulator, workflow : LeasedWorkflow, worker : String, id : Int) : Result((LeasedSimulator, CommandResult), String) =
+  let _ = require_up(sim, worker)?
+  let ticket = require_owned_ticket(sim, worker, id)?
+  if not(current_live(sim, ticket)) then Ok((sim, RRenewed(false)))
+  else
+    let expires = sim.now + workflow.lease_duration
+    if expires > time_limit() then Err("TIME_OVERFLOW")
+    else
+      match ticket_step(sim, ticket) of
+        None => Ok((sim, RRenewed(false)))
+        Some(pair) =>
+          let step = snd(pair)
+          let renewed = StepState { ..step, lease = Some(Lease { worker = ticket.worker, ticket = ticket.id, expires = expires }) }
+          Ok((replace_run(sim, replace_step(fst(pair), renewed)), RRenewed(true)))
+
+-- Call: the first live call invokes the mock once and saves the receipt; later calls replay it.
+fn call(sim : LeasedSimulator, workflow : LeasedWorkflow, worker : String, id : Int) : Result((LeasedSimulator, CommandResult), String) =
+  let _ = require_up(sim, worker)?
+  let ticket = require_owned_ticket(sim, worker, id)?
+  if not(current_live(sim, ticket)) then Ok((sim, RStale))
+  else
+    match ticket.response of
+      Some(outcome) => Ok((sim, RReceipt(ticket.kind, outcome)))
+      None =>
+        match find_definition(workflow, ticket.step_id) of
+          None => Err("INVALID_INPUT")
+          Some(definition) =>
+            let key = ActionKey { run_id = ticket.run_id, step_id = ticket.step_id }
+            let response =
+              if ticket.kind == ExecuteCall then
+                execute_as(sim.service, Some(worker), Some(ticket.id), key, definition.amount, ticket.attempt, definition.failures)
+              else lookup_as(sim.service, Some(worker), Some(ticket.id), key, ticket.attempt)
+            let outcome = snd(response)
+            let saved = replace_ticket(LeasedSimulator { ..sim, service = fst(response) }, Ticket { ..ticket, response = Some(outcome) })
+            Ok((saved, RReceipt(ticket.kind, outcome)))
+
+-- Commit a delivered response to the durable run state.
+fn commit(sim : LeasedSimulator, workflow : LeasedWorkflow, run : RunState, step : StepState, kind : CallKind, outcome : CallOutcome) : Result(RunState, String) =
+  if kind == LookupCall then
+    let cancelling = run.status == RunCancelling
+    let status = if outcome == Found then Succeeded elif cancelling then Cancelled else Blocked
+    let reconciled = replace_step(run, StepState { ..step, status = status })
+    if has_running(reconciled) then Ok(reconciled)
+    else Ok(RunState { ..reconciled, status = if cancelling then RunCancelled else RunFailed })
+  elif outcome == Transient then
+    if step.attempts < workflow.max_attempts then
+      let deadline = sim.now + workflow.retry_delay
+      if deadline > time_limit() then Err("TIME_OVERFLOW")
+      else Ok(replace_step(run, StepState { ..step, status = Pending, ready_at = deadline }))
+    else
+      -- Budget exhausted: block pending work and drain any other in-flight branch by lookup.
+      let failed = mark_pending(replace_step(run, StepState { ..step, status = Failed }), Blocked)
+      if has_running(failed) then Ok(RunState { ..expire_running(sim.now, failed), status = RunFailing })
+      else Ok(RunState { ..failed, status = RunFailed })
+  else
+    let completed = replace_step(run, StepState { ..step, status = Succeeded })
+    if run.status == RunActive && all(\(s) -> s.status == Succeeded, completed.steps) then
+      Ok(RunState { ..completed, status = RunSucceeded })
+    else Ok(completed)
+
+fn deliver(sim : LeasedSimulator, workflow : LeasedWorkflow, id : Int) : Result((LeasedSimulator, CommandResult), String) =
+  match find_ticket(sim, id) of
+    None => Err("UNKNOWN_TICKET")
+    Some(ticket) =>
+      match ticket.response of
+        None => Ok((sim, RCommitted(false)))
+        Some(outcome) =>
+          if ticket.delivered || not(current_live(sim, ticket)) || not(worker_up(sim, ticket.worker)) then
+            Ok((sim, RCommitted(false)))
+          else
+            match ticket_step(sim, ticket) of
+              None => Ok((sim, RCommitted(false)))
+              Some(pair) =>
+                let cleared = StepState { ..snd(pair), lease = None }
+                let committed = commit(sim, workflow, fst(pair), cleared, ticket.kind, outcome)?
+                let updated = replace_ticket(replace_run(sim, committed), Ticket { ..ticket, delivered = true })
+                Ok((updated, RCommitted(true)))
+
+-- First cancellation revokes every running execute lease; later ones are no-ops.
+fn cancel(sim : LeasedSimulator, run : RunState) : LeasedSimulator =
+  if run.status == RunActive then
+    let cancelled = expire_running(sim.now, mark_pending(run, Cancelled))
+    let status = if has_running(cancelled) then RunCancelling else RunCancelled
+    replace_run(sim, RunState { ..cancelled, status = status, cancel_requested = true })
+  else sim
+
+fn new_run(sim : LeasedSimulator, workflow : LeasedWorkflow, id : String) : Result(LeasedSimulator, String) =
+  if any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
+  else
+    let steps = map(\(definition) ->
+      StepState { id = definition.id, status = Pending, attempts = 0, ready_at = sim.now, lease = None }, workflow.steps)
+    let run = RunState { id = id, status = RunActive, cancel_requested = false, steps = steps }
+    Ok(LeasedSimulator { ..sim, runs = append(sim.runs, [run]) })
+
+pub fn apply_leased(sim : LeasedSimulator, workflow : LeasedWorkflow, command : LeasedCommand) : Result((LeasedSimulator, CommandResult), String) =
+  match command of
+    LStart(id) =>
+      let started = new_run(sim, workflow, id)?
+      Ok((started, RNull))
+    LAdvance(by) =>
+      if sim.now + by > time_limit() then Err("TIME_OVERFLOW")
+      else Ok((LeasedSimulator { ..sim, now = sim.now + by }, RNull))
+    LObserve => Ok((sim, RSnapshot(leased_snapshot(sim))))
+    LCrash(worker) =>
+      let w = require_worker(sim, worker)?
+      if not(w.up) then Err("WORKER_DOWN") else Ok((set_worker(sim, worker, false), RNull))
+    LRestart(worker) =>
+      let w = require_worker(sim, worker)?
+      if w.up then Err("WORKER_UP") else Ok((set_worker(sim, worker, true), RNull))
+    LClaim(worker) => claim(sim, workflow, worker)
+    LRenew(worker, id) => renew(sim, workflow, worker, id)
+    LCall(worker, id) => call(sim, workflow, worker, id)
+    LDeliver(id) => deliver(sim, workflow, id)
+    LCancel(id) =>
+      match find_run(sim, id) of
+        None => Err("UNKNOWN_RUN")
+        Some(run) => Ok((cancel(sim, run), RNull))
+
+fn run_leased(sim : LeasedSimulator, workflow : LeasedWorkflow, commands : List(LeasedCommand)) : Result(LeasedSimulator, String) =
+  match commands of
+    Nil => Ok(sim)
+    Cons(command, rest) =>
+      let step = apply_leased(sim, workflow, command)?
+      let next = fst(step)
+      run_leased(LeasedSimulator { ..next, results = append(next.results, [snd(step)]) }, workflow, rest)
+
+pub fn simulate_leased(workflow : LeasedWorkflow) : Result(LeasedSimulator, String) =
+  run_leased(new_leased(workflow), workflow, workflow.commands)

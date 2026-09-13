@@ -143,7 +143,7 @@ fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
   let _ = ensure(all(\(step) -> all(\(dep) -> elem(dep, ids), step.needs), steps), "UNKNOWN_DEPENDENCY")?
   ensure(acyclic(steps, []), "DEPENDENCY_CYCLE")
 
-pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
+fn parse_legacy_workflow(raw : Json) : Result(Workflow, String) =
   let obj = fields(raw, ["steps", "commands"], ["max_attempts", "retry_delay"])?
   let raw_steps = array(get_field(obj, "steps"))?
   let _ = ensure(not(is_nil(raw_steps)), "INVALID_INPUT")?
@@ -155,3 +155,76 @@ pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
   -- No runtime work occurs until every shape/scalar and then the graph is validated.
   let _ = validate_graph(steps)?
   Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay })
+
+-- Leased-mode commands: the old tick/checkpoint vocabulary is not accepted here.
+fn parse_leased_command(raw : Json) : Result(LeasedCommand, String) =
+  match raw of
+    JObj(pairs) =>
+      match get_field(pairs, "op") of
+        JStr(op) =>
+          if op == "start" || op == "cancel" then
+            let obj = fields(raw, ["op", "run"], [])?
+            let id = identifier(get_field(obj, "run"))?
+            Ok(if op == "start" then LStart(id) else LCancel(id))
+          elif op == "advance" then
+            let obj = fields(raw, ["op", "by"], [])?
+            let by = integer(get_field(obj, "by"), 0, time_limit())?
+            Ok(LAdvance(by))
+          elif op == "observe" then
+            let _ = fields(raw, ["op"], [])?
+            Ok(LObserve)
+          elif op == "crash" || op == "restart" || op == "claim" then
+            let obj = fields(raw, ["op", "worker"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            Ok(if op == "crash" then LCrash(worker) elif op == "restart" then LRestart(worker) else LClaim(worker))
+          elif op == "renew" || op == "call" then
+            let obj = fields(raw, ["op", "worker", "ticket"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            let ticket = integer(get_field(obj, "ticket"), 1, time_limit())?
+            Ok(if op == "renew" then LRenew(worker, ticket) else LCall(worker, ticket))
+          elif op == "deliver" then
+            let obj = fields(raw, ["op", "ticket"], [])?
+            let ticket = integer(get_field(obj, "ticket"), 1, time_limit())?
+            Ok(LDeliver(ticket))
+          else Err("INVALID_INPUT")
+        _ => Err("INVALID_INPUT")
+    _ => Err("INVALID_INPUT")
+
+fn parse_leased_commands(xs : List(Json)) : Result(List(LeasedCommand), String) =
+  match xs of
+    Nil => Ok(Nil)
+    Cons(x, rest) =>
+      let command = parse_leased_command(x)?
+      let commands = parse_leased_commands(rest)?
+      Ok(Cons(command, commands))
+
+fn parse_leased_workflow(raw : Json) : Result(LeasedWorkflow, String) =
+  let obj = fields(raw, ["steps", "commands", "workers"], ["max_attempts", "retry_delay", "lease_duration"])?
+  let raw_steps = array(get_field(obj, "steps"))?
+  let _ = ensure(not(is_nil(raw_steps)), "INVALID_INPUT")?
+  let raw_commands = array(get_field(obj, "commands"))?
+  let _ = ensure(length(raw_commands) <= 2000, "INVALID_INPUT")?
+  let raw_workers = array(get_field(obj, "workers"))?
+  let _ = ensure(not(is_nil(raw_workers)), "INVALID_INPUT")?
+  let workers = parse_ids(raw_workers)?
+  let _ = ensure(unique(workers), "INVALID_INPUT")?
+  let steps = parse_steps(raw_steps)?
+  let commands = parse_leased_commands(raw_commands)?
+  let attempts = integer(optional_field(obj, "max_attempts", JInt(3)), 1, 10)?
+  let delay = integer(optional_field(obj, "retry_delay", JInt(2)), 1, 1000000)?
+  let lease = integer(optional_field(obj, "lease_duration", JInt(5)), 1, 1000000)?
+  let _ = validate_graph(steps)?
+  Ok(LeasedWorkflow { steps = steps, commands = commands, workers = workers,
+    max_attempts = attempts, retry_delay = delay, lease_duration = lease })
+
+-- The presence of `workers` selects the leased protocol; otherwise the frozen contract applies.
+pub fn parse_workflow(raw : Json) : Result(Request, String) =
+  match raw of
+    JObj(pairs) =>
+      if any(\(pair) -> fst(pair) == "workers", pairs) then
+        let leased = parse_leased_workflow(raw)?
+        Ok(Leased(leased))
+      else
+        let legacy = parse_legacy_workflow(raw)?
+        Ok(Legacy(legacy))
+    _ => Err("INVALID_INPUT")

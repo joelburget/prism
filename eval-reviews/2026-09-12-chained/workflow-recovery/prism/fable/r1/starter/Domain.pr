@@ -25,13 +25,18 @@ pub type Workflow = Workflow {
 }
 
 pub type StepStatus = Pending | Running | Succeeded | Failed | Blocked | Cancelled deriving (Eq)
-pub type RunStatus = RunActive | RunSucceeded | RunFailed | RunCancelling | RunCancelled deriving (Eq)
+-- RunFailing exists only in leased mode; the legacy runner never produces it.
+pub type RunStatus = RunActive | RunSucceeded | RunFailed | RunCancelling | RunCancelled | RunFailing deriving (Eq)
+
+-- A durable lease held by the worker currently owning a running step (leased mode only).
+pub type Lease = Lease { worker: String, ticket: Int, expires: Int }
 
 pub type StepState = StepState {
   id: String,
   status: StepStatus,
   attempts: Int,
-  ready_at: Int
+  ready_at: Int,
+  lease: Option(Lease)
 }
 
 pub type RunState = RunState {
@@ -47,7 +52,15 @@ pub type ActionKey = ActionKey { run_id: String, step_id: String } deriving (Eq)
 pub type CallKind = ExecuteCall | LookupCall deriving (Eq)
 pub type CallOutcome = Applied | Replayed | Transient | Found | Missing deriving (Eq)
 
-pub type ServiceCall = ServiceCall { kind: CallKind, key: ActionKey, attempt: Int, outcome: CallOutcome }
+-- worker/ticket identify the invoking lease in leased mode; the legacy adapter leaves them None.
+pub type ServiceCall = ServiceCall {
+  worker: Option(String),
+  ticket: Option(Int),
+  kind: CallKind,
+  key: ActionKey,
+  attempt: Int,
+  outcome: CallOutcome
+}
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
 
@@ -63,3 +76,65 @@ pub type Simulator = Simulator {
 pub type Action = Action { run: RunState, step: StepState, definition: StepDefinition }
 
 pub fn time_limit() : Int = 2147483647
+
+-- Leased mode (checkpoint two): workers, tickets and the split claim/call/deliver protocol.
+pub type LeasedCommand
+  = LStart(String)
+  | LAdvance(Int)
+  | LObserve
+  | LCrash(String)
+  | LRestart(String)
+  | LClaim(String)
+  | LRenew(String, Int)
+  | LCall(String, Int)
+  | LDeliver(Int)
+  | LCancel(String)
+
+pub type LeasedWorkflow = LeasedWorkflow {
+  steps: List(StepDefinition),
+  commands: List(LeasedCommand),
+  workers: List(String),
+  max_attempts: Int,
+  retry_delay: Int,
+  lease_duration: Int
+}
+
+-- A request is either the frozen checkpoint-one contract or the leased protocol.
+pub type Request = Legacy(Workflow) | Leased(LeasedWorkflow)
+
+pub type WorkerState = WorkerState { id: String, up: Bool }
+
+-- Ticket metadata survives worker crashes: it models a delayed transport message.
+pub type Ticket = Ticket {
+  id: Int,
+  worker: String,
+  run_id: String,
+  step_id: String,
+  attempt: Int,
+  kind: CallKind,
+  response: Option(CallOutcome),
+  delivered: Bool
+}
+
+pub type LeasedSnapshot = LeasedSnapshot { now: Int, workers: List(WorkerState), runs: List(RunState) }
+
+pub type CommandResult
+  = RNull
+  | RTicket(Option(Int))
+  | RRenewed(Bool)
+  | RReceipt(CallKind, CallOutcome)
+  | RStale
+  | RCommitted(Bool)
+  | RSnapshot(LeasedSnapshot)
+
+pub type LeasedSimulator = LeasedSimulator {
+  now: Int,
+  workers: List(WorkerState),
+  runs: List(RunState),
+  tickets: List(Ticket),
+  next_ticket: Int,
+  service: MockService,
+  results: List(CommandResult)
+}
+
+pub type Outcome = LegacyOutcome(Simulator) | LeasedOutcome(LeasedSimulator)

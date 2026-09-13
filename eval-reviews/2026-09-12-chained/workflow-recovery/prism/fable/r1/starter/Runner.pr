@@ -13,7 +13,7 @@ pub fn snapshot(sim : Simulator) : Snapshot =
   Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
 
 fn new_step(now : Int, definition : StepDefinition) : StepState =
-  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now }
+  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now, lease = None }
 
 fn terminal(status : RunStatus) : Bool =
   status == RunSucceeded || status == RunFailed || status == RunCancelled

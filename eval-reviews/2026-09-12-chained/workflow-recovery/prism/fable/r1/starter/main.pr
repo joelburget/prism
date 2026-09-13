@@ -6,14 +6,21 @@ import Json (..)
 import Domain (..)
 import Validation (..)
 import Runner (simulate)
+import Leased (simulate_leased)
 import Output (response_json)
 
-fn handle_request(line : String) : Result(Simulator, String) =
+fn handle_request(line : String) : Result(Outcome, String) =
   let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
   match request of
     JObj(fields) =>
       let workflow = parse_workflow(get_field(fields, "input"))?
-      simulate(workflow)
+      match workflow of
+        Legacy(legacy) =>
+          let sim = simulate(legacy)?
+          Ok(LegacyOutcome(sim))
+        Leased(leased) =>
+          let sim = simulate_leased(leased)?
+          Ok(LeasedOutcome(sim))
     _ => Err("INVALID_INPUT")
 
 fn main() = println(encode(response_json(handle_request(read_line()))))

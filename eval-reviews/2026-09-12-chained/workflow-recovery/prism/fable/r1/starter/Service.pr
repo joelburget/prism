@@ -6,8 +6,9 @@ import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
-fn audit(service : MockService, kind : CallKind, key : ActionKey, attempt : Int, outcome : CallOutcome) : MockService =
-  MockService { ..service, calls = append(service.calls, [ServiceCall { kind = kind, key = key, attempt = attempt, outcome = outcome }]) }
+fn audit(service : MockService, worker : Option(String), ticket : Option(Int), kind : CallKind, key : ActionKey, attempt : Int, outcome : CallOutcome) : MockService =
+  MockService { ..service, calls = append(service.calls,
+    [ServiceCall { worker = worker, ticket = ticket, kind = kind, key = key, attempt = attempt, outcome = outcome }]) }
 
 fn has_effect(service : MockService, key : ActionKey) : Bool =
   any(\(entry) -> entry.key == key, service.effects)
@@ -19,16 +20,24 @@ fn transient_count(service : MockService, key : ActionKey) : Int =
 
 -- Atomic execute: replay an existing effect, fail transiently while the configured
 -- failure budget remains, otherwise record exactly one effect. Every call is audited.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : (MockService, CallOutcome) =
+-- The worker/ticket pair only labels the audit entry; it never affects the outcome.
+pub fn execute_as(service : MockService, worker : Option(String), ticket : Option(Int), key : ActionKey, amount : Int, attempt : Int, failures : Int) : (MockService, CallOutcome) =
   if has_effect(service, key) then
-    (audit(service, ExecuteCall, key, attempt, Replayed), Replayed)
+    (audit(service, worker, ticket, ExecuteCall, key, attempt, Replayed), Replayed)
   elif transient_count(service, key) < failures then
-    (audit(service, ExecuteCall, key, attempt, Transient), Transient)
+    (audit(service, worker, ticket, ExecuteCall, key, attempt, Transient), Transient)
   else
     let applied = MockService { ..service, effects = append(service.effects, [Effect { key = key, amount = amount }]) }
-    (audit(applied, ExecuteCall, key, attempt, Applied), Applied)
+    (audit(applied, worker, ticket, ExecuteCall, key, attempt, Applied), Applied)
 
 -- Atomic lookup: reports whether an effect exists without ever creating one.
-pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : (MockService, CallOutcome) =
+pub fn lookup_as(service : MockService, worker : Option(String), ticket : Option(Int), key : ActionKey, attempt : Int) : (MockService, CallOutcome) =
   let outcome = if has_effect(service, key) then Found else Missing
-  (audit(service, LookupCall, key, attempt, outcome), outcome)
+  (audit(service, worker, ticket, LookupCall, key, attempt, outcome), outcome)
+
+-- Legacy (checkpoint-one) entry points: unlabelled calls with identical semantics.
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : (MockService, CallOutcome) =
+  execute_as(service, None, None, key, amount, attempt, failures)
+
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : (MockService, CallOutcome) =
+  lookup_as(service, None, None, key, attempt)

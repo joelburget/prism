@@ -6,15 +6,17 @@
   "build": "build.sh",
   "files": [
     ".gitignore",
+    "build.sh",
+    "cc.sh",
     "Domain.pr",
+    "extra_tests.py",
+    "Leased.pr",
+    "main.pr",
     "Output.pr",
     "README.md",
+    "run.sh",
     "Runner.pr",
     "Service.pr",
-    "Validation.pr",
-    "build.sh",
-    "extra_tests.py",
-    "main.pr",
-    "run.sh"
+    "Validation.pr"
   ]
 }
