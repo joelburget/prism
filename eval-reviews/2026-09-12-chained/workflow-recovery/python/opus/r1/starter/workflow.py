@@ -1,9 +1,10 @@
-"""Deterministic in-memory DAG runner; persistence/recovery is the exercise."""
+"""Deterministic in-memory DAG runner with durable execution and recovery."""
 from dataclasses import dataclass, field
 import re
 from typing import Any, Literal
 
 TIME_LIMIT = 2_147_483_647
+TERMINAL_RUN_STATUSES = ("succeeded", "failed", "cancelled")
 
 
 class DomainError(Exception):
@@ -115,7 +116,7 @@ def parse_workflow(raw: Any) -> Workflow:
 @dataclass
 class StepState:
     id: str
-    status: Literal["pending", "running", "succeeded"] = "pending"
+    status: Literal["pending", "running", "succeeded", "failed", "blocked", "cancelled"] = "pending"
     attempts: int = 0
     ready_at: int = 0
 
@@ -124,7 +125,7 @@ class StepState:
 class RunState:
     id: str
     steps: list[StepState]
-    status: Literal["active", "succeeded"] = "active"
+    status: Literal["active", "succeeded", "failed", "cancelling", "cancelled"] = "active"
     cancel_requested: bool = False
 
 
@@ -144,13 +145,33 @@ class Effect:
 
 @dataclass
 class MockService:
+    """Idempotent mock external service; its state survives runner crashes."""
+
     calls: list[ServiceCall] = field(default_factory=list)
     effects: list[Effect] = field(default_factory=list)
+    # Effect keys recorded so far, and per-key count of transient failures served.
+    applied: set[tuple[str, str]] = field(default_factory=set)
+    transients: dict[tuple[str, str], int] = field(default_factory=dict)
 
-    def execute(self, key: tuple[str, str], amount: int, attempt: int) -> None:
-        # Baseline only invokes each action once. Idempotency and failures are extension work.
-        self.calls.append(ServiceCall(key, attempt))
-        self.effects.append(Effect(key, amount))
+    def execute(self, key: tuple[str, str], amount: int, attempt: int, failures: int) -> str:
+        """Atomically replay, fail transiently, or record exactly one effect."""
+        if key in self.applied:
+            outcome = "replayed"
+        elif self.transients.get(key, 0) < failures:
+            self.transients[key] = self.transients.get(key, 0) + 1
+            outcome = "transient"
+        else:
+            self.applied.add(key)
+            self.effects.append(Effect(key, amount))
+            outcome = "applied"
+        self.calls.append(ServiceCall(key, attempt, "execute", outcome))
+        return outcome
+
+    def lookup(self, key: tuple[str, str], attempt: int) -> str:
+        """Report whether this key already has an effect; never records one."""
+        outcome = "found" if key in self.applied else "missing"
+        self.calls.append(ServiceCall(key, attempt, "lookup", outcome))
+        return outcome
 
 
 class Simulator:
@@ -177,33 +198,87 @@ class Simulator:
                     return run, state, definition
         return None
 
-    def tick(self) -> None:
+    def tick(self, crash_at: str | None = None) -> None:
         action = self.select_action()
         if action is None:
-            return
+            return  # No eligible work, so no checkpoint is ever reached.
         run, state, definition = action
+        key = (run.id, state.id)
         if state.status == "pending":
+            # Beginning an attempt is durable and precedes any service call.
             state.status = "running"
             state.attempts += 1
-        self.service.execute((run.id, state.id), definition.amount, state.attempts)
+        if crash_at == "after_begin":
+            self.up = False
+            return
+        if run.status == "cancelling":
+            outcome = self.service.lookup(key, state.attempts)
+            if crash_at == "after_call":
+                self.up = False
+                return
+            state.status = "succeeded" if outcome == "found" else "cancelled"
+            run.status = "cancelled"
+            return
+        outcome = self.service.execute(key, definition.amount, state.attempts, definition.failures)
+        if crash_at == "after_call":
+            self.up = False
+            return
+        if outcome == "transient":
+            self.commit_transient(run, state)
+            return
         state.status = "succeeded"
         if all(step.status == "succeeded" for step in run.steps):
             run.status = "succeeded"
 
+    def commit_transient(self, run: RunState, state: StepState) -> None:
+        """Schedule a retry, or fail the run once the attempt budget is spent."""
+        if state.attempts < self.workflow.max_attempts:
+            deadline = self.now + self.workflow.retry_delay
+            require(deadline <= TIME_LIMIT, "TIME_OVERFLOW")
+            state.status = "pending"
+            state.ready_at = deadline
+            return
+        state.status = "failed"
+        run.status = "failed"
+        for step in run.steps:
+            if step.status == "pending":
+                step.status = "blocked"
+
+    def cancel(self, run_id: str) -> None:
+        run = next((candidate for candidate in self.runs if candidate.id == run_id), None)
+        require(run is not None, "UNKNOWN_RUN")
+        if run.status in TERMINAL_RUN_STATUSES:
+            return  # Terminal runs keep their status and cancellation flag.
+        run.cancel_requested = True
+        for step in run.steps:
+            if step.status == "pending":
+                step.status = "cancelled"
+        running = any(step.status == "running" for step in run.steps)
+        run.status = "cancelling" if running else "cancelled"
+
     def apply(self, command: Command) -> None:
-        if command.op == "start":
-            require(all(run.id != command.run for run in self.runs), "DUPLICATE_RUN")
-            self.runs.append(RunState(command.run, [StepState(step.id, ready_at=self.now)
-                                                   for step in self.workflow.steps]))
-        elif command.op == "tick" and command.crash_at is None:
-            self.tick()
+        if command.op == "observe":
+            self.observations.append(self.snapshot())
         elif command.op == "advance":
             require(self.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW")
             self.now += command.by
-        elif command.op == "observe":
-            self.observations.append(self.snapshot())
-        else:
-            raise DomainError("UNSUPPORTED_FEATURE")
+        elif command.op == "restart":
+            require(not self.up, "PROCESS_UP")
+            self.up = True
+        elif command.op == "start":
+            require(self.up, "PROCESS_DOWN")
+            require(all(run.id != command.run for run in self.runs), "DUPLICATE_RUN")
+            self.runs.append(RunState(command.run, [StepState(step.id, ready_at=self.now)
+                                                   for step in self.workflow.steps]))
+        elif command.op == "tick":
+            require(self.up, "PROCESS_DOWN")
+            self.tick(command.crash_at)
+        elif command.op == "cancel":
+            require(self.up, "PROCESS_DOWN")  # Availability precedes run lookup.
+            self.cancel(command.run)
+        else:  # crash
+            require(self.up, "PROCESS_DOWN")
+            self.up = False  # Only volatile work is lost; the durable store stands.
 
     def snapshot(self) -> dict:
         # New containers at every level keep observations independent of mutable state.
@@ -213,7 +288,6 @@ class Simulator:
                         "ready_at": step.ready_at} for step in run.steps]} for run in self.runs]}
 
     def run(self) -> dict:
-        require(all(step.failures == 0 for step in self.workflow.steps), "UNSUPPORTED_FEATURE")
         for command in self.workflow.commands:
             self.apply(command)
         final = self.snapshot()

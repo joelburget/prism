@@ -9,6 +9,7 @@
     "README.md",
     "main.py",
     "run.sh",
+    "test_workflow.py",
     "workflow.py"
   ]
 }
