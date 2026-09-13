@@ -12,6 +12,7 @@ from model import DomainError, validate
 from parser import Parser
 from binder import bind
 from engine import execute, optimize
+from session import Session
 
 failures = []
 
@@ -25,7 +26,7 @@ def run(database, sql, optimized):
     request = {'protocol_version': 1, 'task': 'query-null',
                'input': {'database': database, 'queries': [{'sql': sql, 'optimize': optimized}]}}
     try:
-        db, queries = validate(request)
+        db, _, _ = validate(request)
         plan = bind(Parser(sql).parse(), db)
         if optimized: plan = optimize(plan)
         return execute(plan), plan
@@ -174,6 +175,183 @@ check('nullable excluded middle is preserved', plan.query.where.op, 'OR')
 _, plan = run(DB, 'SELECT id AS id FROM t AS a WHERE a.id IS NOT NULL', True)
 check('non-nullable IS NOT NULL folds to TRUE', plan.query.where.value, True)
 
+# --- checkpoint two: incrementally maintained views -------------------------
+
+def session(database, commands):
+    """One command-mode request, returned as the list of replies."""
+    request = {'protocol_version': 1, 'task': 'query-null',
+               'input': {'database': database, 'commands': commands}}
+    try:
+        db, mode, items = validate(request)
+        check('command mode selected', mode, 'commands')
+        return Session(db).run(items)
+    except DomainError as e:
+        return str(e)
+
+
+def codes(replies):
+    return [r['error']['code'] if not r['ok'] else r['result'] for r in replies]
+
+
+L = table('l', [('k', 'int', True), ('v', 'int', True)], [[1, 10], [2, 20], [None, 30]])
+R = table('r', [('k', 'int', True), ('w', 'int', True)], [[1, 7], [1, 8], [None, 9]])
+JOIN = 'SELECT l.k AS k, r.w AS w FROM l LEFT JOIN r ON l.k = r.k ORDER BY k NULLS LAST, w NULLS LAST'
+
+# Both optimizer settings must maintain the same view.
+for optimized in (False, True):
+    replies = session([L, R], [
+        {'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': optimized},
+        {'op': 'apply', 'changes': [{'op': 'update', 'table': 'l', 'id': 3, 'row': [1, 30]}]},
+        {'op': 'read', 'view': 'v'}])
+    check(f'update into a join (optimize={optimized})', replies[2]['result']['rows'],
+          [[1, 7], [1, 7], [1, 8], [1, 8], [2, None]])
+
+# A batch that ends where it started still advances the revision.
+replies = session([L, R], [
+    {'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': False},
+    {'op': 'apply', 'changes': [{'op': 'delete', 'table': 'l', 'id': 1},
+                                {'op': 'insert', 'table': 'l', 'id': 4, 'row': [1, 10]}]},
+    {'op': 'read', 'view': 'v'}])
+check('no-op batch advances the revision', replies[2]['result']['revision'], 1)
+check('reinserted row keeps its content', replies[2]['result']['rows'], [[1, 7], [1, 8], [2, None], [None, None]])
+
+# An insert followed by a delete in one batch still burns the identifier.
+replies = session([L, R], [
+    {'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 9, 'row': [5, 1]},
+                                {'op': 'delete', 'table': 'l', 'id': 9}]},
+    {'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 9, 'row': [5, 1]}]}])
+check('insert-then-delete reserves the id', codes(replies), [{'revision': 1}, 'ROW_ID_USED'])
+
+# A failed batch must not consume identifiers or leave view state behind.
+replies = session([L, R], [
+    {'op': 'create', 'view': 'v', 'sql': 'SELECT COUNT(*) AS n, SUM(v) AS s FROM l', 'optimize': True},
+    {'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 4, 'row': [7, 1]},
+                                {'op': 'update', 'table': 'l', 'id': 8, 'row': [7, 1]}]},
+    {'op': 'read', 'view': 'v'},
+    {'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 4, 'row': [7, 1]}]},
+    {'op': 'read', 'view': 'v'}])
+check('rolled back batch', codes(replies)[1], 'UNKNOWN_ROW')
+check('rollback leaves the view intact', replies[2]['result'], {'revision': 0, 'columns': ['n', 's'], 'rows': [[3, 60]]})
+check('rollback frees the id', replies[4]['result'], {'revision': 1, 'columns': ['n', 's'], 'rows': [[4, 61]]})
+
+# Dropping a view releases its state; the name may be rebound to other SQL.
+replies = session([L, R], [
+    {'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': False},
+    {'op': 'drop', 'view': 'v'},
+    {'op': 'drop', 'view': 'v'},
+    {'op': 'read', 'view': 'v'},
+    {'op': 'create', 'view': 'v', 'sql': 'SELECT k AS k FROM l ORDER BY k NULLS LAST', 'optimize': False},
+    {'op': 'read', 'view': 'v'}])
+check('drop lifecycle', codes(replies)[1:4], [{'dropped': 'v'}, 'UNKNOWN_VIEW', 'UNKNOWN_VIEW'])
+check('rebound view', replies[5]['result']['rows'], [[1], [2], [None]])
+
+# Creation reports the earlier errors of the query compiler.
+for sql, code in [('SELECT k FROM l', 'PARSE_ERROR'), ('SELECT k AS k FROM nope', 'UNKNOWN_TABLE'),
+                  ('SELECT k AS k FROM l JOIN r ON l.k = r.k', 'AMBIGUOUS_COLUMN'),
+                  ('SELECT v + s AS x FROM l', 'UNKNOWN_COLUMN'),
+                  ('SELECT k AS k, v AS k FROM l', 'DUPLICATE_ALIAS'),
+                  ('SELECT SUM(k) AS s FROM l GROUP BY k HAVING SUM(SUM(k)) > 1', 'INVALID_AGGREGATION'),
+                  ('SELECT k AS k FROM l WHERE v', 'TYPE_ERROR')]:
+    replies = session([L, R], [{'op': 'create', 'view': 'v', 'sql': sql, 'optimize': True}])
+    check(f'create reports {code}', codes(replies), [code])
+
+replies = session([L, R], [{'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': False},
+                           {'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': False}])
+check('duplicate view', codes(replies)[1], 'VIEW_EXISTS')
+
+# Command and change shapes.
+for command, code in [
+        ({'op': 'nope'}, 'INVALID_COMMAND'),
+        ('create', 'INVALID_COMMAND'),
+        ({'op': 'create', 'view': 'v', 'sql': JOIN}, 'INVALID_COMMAND'),
+        ({'op': 'create', 'view': 'v', 'sql': JOIN, 'optimize': 1}, 'INVALID_COMMAND'),
+        ({'op': 'create', 'view': 'V', 'sql': JOIN, 'optimize': True}, 'INVALID_COMMAND'),
+        ({'op': 'create', 'view': 'a_b', 'sql': JOIN, 'optimize': True}, 'INVALID_COMMAND'),
+        ({'op': 'create', 'view': 'a' * 41, 'sql': JOIN, 'optimize': True}, 'INVALID_COMMAND'),
+        ({'op': 'read', 'view': 'v', 'extra': 1}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': []}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'l', 'id': 1}] * 201}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': {}}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'l', 'id': True}]}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'l', 'id': 0}]}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'L', 'id': 1}]}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 5, 'row': {}}]}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 5}]}, 'INVALID_COMMAND'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'select', 'id': 1}]}, 'UNKNOWN_TABLE'),
+        ({'op': 'apply', 'changes': [{'op': 'delete', 'table': 'gone', 'id': 1}]}, 'UNKNOWN_TABLE'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 5, 'row': [1]}]}, 'INVALID_ROW'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 5, 'row': [True, 1]}]}, 'INVALID_ROW'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 5, 'row': [1, 2000000000]}]}, 'INVALID_ROW'),
+        ({'op': 'apply', 'changes': [{'op': 'update', 'table': 'l', 'id': 1, 'row': [1, 'x']}]}, 'INVALID_ROW'),
+        ({'op': 'apply', 'changes': [{'op': 'insert', 'table': 'l', 'id': 1, 'row': [1, 2]}]}, 'ROW_ID_USED'),
+        ({'op': 'apply', 'changes': [{'op': 'update', 'table': 'l', 'id': 7, 'row': [1, 2]}]}, 'UNKNOWN_ROW')]:
+    check(f'shape {code} for {command}', codes(session([L, R], [command])), [code])
+
+NN = table('n', [('id', 'int', False)], [[1]])
+check('null into a non-nullable column',
+      codes(session([NN], [{'op': 'apply', 'changes': [{'op': 'update', 'table': 'n', 'id': 1, 'row': [None]}]}])),
+      ['INVALID_ROW'])
+
+# The two input forms are exclusive, and neither may be missing.
+for payload in [{'database': [], 'queries': [], 'commands': []}, {'database': []},
+                {'database': [], 'commands': {}}, {'commands': []}]:
+    request = {'protocol_version': 1, 'task': 'query-null', 'input': payload}
+    try:
+        validate(request)
+        check(f'rejects {payload}', 'accepted', 'INVALID_INPUT')
+    except DomainError as e:
+        check(f'rejects {payload}', str(e), 'INVALID_INPUT')
+
+check('empty command list', session([], []), [])
+
+# Incremental maintenance must agree with a fresh batch query at every step.
+def batch(database, sql, optimized):
+    plan = bind(Parser(sql).parse(), {t['name']: t for t in database})
+    return execute(optimize(plan) if optimized else plan)['rows']
+
+
+SQL = [JOIN,
+       'SELECT k AS k, COUNT(*) AS n, COUNT(v) AS c, SUM(v) AS s, MIN(v) AS lo, MAX(v) AS hi FROM l'
+       ' GROUP BY k ORDER BY k NULLS LAST',
+       'SELECT DISTINCT COALESCE(v, 0) AS c FROM l ORDER BY c DESC LIMIT 2 OFFSET 1',
+       'SELECT l.k AS k, r.w AS w FROM l LEFT JOIN r ON l.k = r.k WHERE r.w > 7 ORDER BY k, w',
+       'SELECT COUNT(*) AS n, MIN(v) AS lo FROM l WHERE k IS NULL']
+SCRIPT = [[{'op': 'delete', 'table': 'r', 'id': 1}],
+          [{'op': 'update', 'table': 'l', 'id': 2, 'row': [1, 21]}],
+          [{'op': 'insert', 'table': 'r', 'id': 4, 'row': [2, 4]}, {'op': 'delete', 'table': 'l', 'id': 1}],
+          [{'op': 'delete', 'table': 'r', 'id': 2}, {'op': 'delete', 'table': 'r', 'id': 3},
+           {'op': 'delete', 'table': 'r', 'id': 4}],
+          [{'op': 'update', 'table': 'l', 'id': 3, 'row': [None, None]}],
+          [{'op': 'delete', 'table': 'l', 'id': 2}, {'op': 'delete', 'table': 'l', 'id': 3}]]
+for optimized in (False, True):
+    commands = [{'op': 'create', 'view': 'v%d' % i, 'sql': sql, 'optimize': optimized}
+                for i, sql in enumerate(SQL)]
+    for changes in SCRIPT:
+        commands.append({'op': 'apply', 'changes': changes})
+        commands.extend({'op': 'read', 'view': 'v%d' % i} for i in range(len(SQL)))
+    replies = session([L, R], commands)
+    rows = {'l': [list(r) for r in L['rows']], 'r': [list(r) for r in R['rows']]}
+    ids = {'l': [1, 2, 3], 'r': [1, 2, 3]}
+    at = len(SQL)
+    for changes in SCRIPT:
+        for change in changes:  # replay the same edits against a plain table copy
+            t = change['table']
+            if change['op'] == 'delete':
+                rows[t].pop(ids[t].index(change['id']))
+                ids[t].pop(ids[t].index(change['id']))
+            elif change['op'] == 'update':
+                rows[t][ids[t].index(change['id'])] = change['row']
+            else:
+                rows[t].append(change['row'])
+                ids[t].append(change['id'])
+        database = [table('l', [('k', 'int', True), ('v', 'int', True)], rows['l']),
+                    table('r', [('k', 'int', True), ('w', 'int', True)], rows['r'])]
+        at += 1
+        for i, sql in enumerate(SQL):
+            check(f'view {i} matches a fresh query (optimize={optimized}, after {changes})',
+                  replies[at + i]['result']['rows'], batch(database, sql, optimized))
+        at += len(SQL)
+
 # --- end-to-end wire protocol ----------------------------------------------
 request = {'protocol_version': 1, 'task': 'query-null',
            'input': {'database': [T], 'queries': [{'sql': 'SELECT COUNT(*) AS n FROM t', 'optimize': True}]}}
@@ -182,6 +360,18 @@ process = subprocess.run([sys.executable, 'main.py'], input=json.dumps(request),
 check('subprocess exit status', process.returncode, 0)
 check('subprocess response', json.loads(process.stdout),
       {'ok': True, 'result': {'results': [{'columns': ['n'], 'rows': [[3]]}]}})
+request = {'protocol_version': 1, 'task': 'query-null',
+           'input': {'database': [T], 'commands': [
+               {'op': 'create', 'view': 'live', 'sql': 'SELECT COUNT(*) AS n FROM t', 'optimize': False},
+               {'op': 'apply', 'changes': [{'op': 'delete', 'table': 't', 'id': 1}]},
+               {'op': 'read', 'view': 'live'}]}}
+process = subprocess.run([sys.executable, 'main.py'], input=json.dumps(request),
+                         capture_output=True, text=True)
+check('command-mode response', json.loads(process.stdout), {'ok': True, 'result': {'results': [
+    {'ok': True, 'result': {'view': 'live', 'revision': 0}},
+    {'ok': True, 'result': {'revision': 1}},
+    {'ok': True, 'result': {'revision': 1, 'columns': ['n'], 'rows': [[2]]}}]}})
+
 process = subprocess.run([sys.executable, 'main.py'], input='not json', capture_output=True, text=True)
 check('malformed request exits zero', process.returncode, 0)
 check('malformed request response', json.loads(process.stdout),

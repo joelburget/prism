@@ -5,16 +5,20 @@ from model import DomainError, validate
 from parser import Parser
 from binder import bind
 from engine import optimize, execute
+from session import Session
 
 
 def main():
     try:
         request = json.loads(sys.stdin.read())
-        database, queries = validate(request)
-        results = []
-        for query in queries:
-            plan = bind(Parser(query['sql']).parse(), database)
-            results.append(execute(optimize(plan) if query['optimize'] else plan))
+        database, mode, items = validate(request)
+        if mode == 'queries':
+            results = []
+            for query in items:
+                plan = bind(Parser(query['sql']).parse(), database)
+                results.append(execute(optimize(plan) if query['optimize'] else plan))
+        else:
+            results = Session(database).run(items)
         response = {'ok': True, 'result': {'results': results}}
     except DomainError as e:
         response = {'ok': False, 'error': {'code': str(e)}}

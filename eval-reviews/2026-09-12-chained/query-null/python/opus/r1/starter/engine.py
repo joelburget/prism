@@ -8,14 +8,25 @@ from parser import AGGREGATES
 from binder import walk
 
 
+class Slots(dict):
+    """Precomputed aggregate values, keyed by aggregate node identity.
+
+    Batch execution evaluates an aggregate over the list of rows in its group;
+    incremental maintenance instead keeps a running accumulator per group and
+    hands the finished values to the same expression evaluator through this map.
+    """
+
+
 def evaluate(e, row, group=None):
     op = e.op
     if op == 'lit': return e.value
     if op == 'col': return row[e.index]
     if op == 'COUNT':
+        if type(group) is Slots: return group[id(e)]
         if not e.args: return len(group)
         return sum(1 for r in group if evaluate(e.args[0], r) is not None)
     if op in ('SUM', 'MIN', 'MAX'):
+        if type(group) is Slots: return group[id(e)]
         vs = [v for v in (evaluate(e.args[0], r) for r in group) if v is not None]
         return {'SUM': sum, 'MIN': min, 'MAX': max}[op](vs) if vs else None
     if op == 'COALESCE':
@@ -169,6 +180,15 @@ def execute(plan):
         units = [(g[0] if g else [], g) for g in groups.values()]
     else: units = [(r, None) for r in rows]
     projected = [[evaluate(e, r, g) for e, _ in q.select] for r, g in units if q.having is None or true(evaluate(q.having, r, g))]
+    return finish(q, projected)
+
+
+def finish(q, projected):
+    """DISTINCT, ORDER BY and OFFSET/LIMIT over already projected rows.
+
+    Shared by batch execution and by reads of an incrementally maintained view,
+    so both produce identical ordering.
+    """
     if q.distinct: projected = [list(r) for r in dict.fromkeys(tuple(r) for r in projected)]
     for o in reversed(q.order):
         first = o.descending if o.nulls_first is None else o.nulls_first

@@ -13,6 +13,8 @@
     "model.py",
     "parser.py",
     "run.sh",
-    "tests.py"
+    "session.py",
+    "tests.py",
+    "views.py"
   ]
 }
