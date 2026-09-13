@@ -1,0 +1,16 @@
+{
+  "run_id": "run-cccf0d7a8be0",
+  "checkpoint": 1,
+  "model": "astra",
+  "model_id": "gpt-6-astra",
+  "task": "query-null",
+  "language": "typescript",
+  "source_available": true,
+  "source_sha256": "dd438417f62a0390d68c1b7bad11b06e52394b5b22de98d8a7cde8f4164d4cd6",
+  "passed": true,
+  "seconds": 162.8670900000143,
+  "tool_calls": 7,
+  "flags": [],
+  "result_sha256": "3d5a0ae9b6221d091d4dc132ff4a9aaf819d5506eb112b23775a68e034da00b1",
+  "archive_note": "Exact frozen source"
+}

@@ -6,6 +6,7 @@ interface BoundColumn {
   name: string;
   type: ScalarType;
   source: number;
+  nullable: boolean;
 }
 export function* walk(e: Expr): Generator<Expr> {
   yield e;
@@ -31,6 +32,7 @@ function check(
     e.index = i;
     e.type = c.type;
     e.source = c.source;
+    e.nullable = c.nullable;
   } else if (e.op !== "lit") {
     const agg = aggregates.has(e.op);
     need(!agg || (allow && !inside), "INVALID_AGGREGATION");
@@ -39,28 +41,40 @@ function check(
     if (e.op === "COUNT") e.type = "int";
     else if (["SUM", "+", "-", "*"].includes(e.op)) {
       need(
-        ts.every((t) => t === "int"),
+        ts.every((t) => t === "int" || t === "null"),
         "TYPE_ERROR",
       );
       e.type = "int";
     } else if (["MIN", "MAX"].includes(e.op)) {
-      need(ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
+      need(ts[0] === "int" || ts[0] === "text" || ts[0] === "null", "TYPE_ERROR");
       e.type = ts[0];
     } else if (["NOT", "AND", "OR"].includes(e.op)) {
       need(
-        ts.every((t) => t === "bool"),
+        ts.every((t) => t === "bool" || t === "null"),
         "TYPE_ERROR",
       );
       e.type = "bool";
+    } else if (e.op === "IS NULL" || e.op === "IS NOT NULL") {
+      e.type = "bool";
+    } else if (e.op === "COALESCE") {
+      const types = new Set(ts.filter((t) => t !== "null"));
+      need(types.size <= 1, "TYPE_ERROR");
+      e.type = types.values().next().value ?? "null";
     } else {
+      const common = ts.find((t) => t !== "null") ?? "null";
       need(
-        ts[0] === ts[1] && (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
+        ts.every((t) => t === "null" || t === common) &&
+          (common !== "bool" || ["=", "<>"].includes(e.op)),
         "TYPE_ERROR",
       );
       e.type = "bool";
     }
+    e.nullable = e.op === "COUNT" || e.op.startsWith("IS ") ? false
+      : e.op === "COALESCE" ? e.args.every((a) => a.nullable)
+      : aggregates.has(e.op) || e.args.some((a) => a.nullable);
   }
-  need(!predicate || e.type === "bool", "TYPE_ERROR");
+  if (e.op === "lit") e.nullable = e.value === null;
+  need(!predicate || e.type === "bool" || e.type === "null", "TYPE_ERROR");
 }
 function grouped(e: Expr, keys: Set<number>): void {
   if (aggregates.has(e.op)) return;
@@ -80,7 +94,9 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     const t = database.get(name);
     need(t, "UNKNOWN_TABLE");
     tables.push(t);
-    columns.push(...t.columns.map((c) => ({ ...c, qualifier, source })));
+    columns.push(...t.columns.map((c) => ({ ...c, qualifier, source,
+      nullable: c.nullable || (source > 0 && q.leftJoins[source - 1]),
+    })));
     if (source) check(q.joins[source - 1], columns, false, false, true);
   });
   q.groups.forEach((e) => check(e, columns, false));
@@ -95,15 +111,10 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     q.groups.length > 0 || nodes.some((e) => aggregates.has(e.op));
   need(!q.having || aggregate, "INVALID_AGGREGATION");
   if (aggregate) roots.forEach((e) => grouped(e, keys));
-  need(
-    q.groups.length > 0 ||
-      !nodes.some((e) => ["SUM", "MIN", "MAX"].includes(e.op)),
-    "UNSUPPORTED_FEATURE",
-  );
-  q.order = q.order.map(([a, d]) => {
+  q.order = q.order.map(([a, d, first]) => {
     const i = aliases.indexOf(a as string);
     need(i >= 0, "UNKNOWN_COLUMN");
-    return [i, d];
+    return [i, d, first];
   });
   return { query: q, tables, filters: tables.map(() => []), aggregate };
 }

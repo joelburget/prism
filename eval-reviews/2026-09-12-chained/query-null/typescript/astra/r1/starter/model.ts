@@ -1,6 +1,6 @@
 /** Syntax tree, typed logical plan, and protocol validation. */
-export type Value = number | string | boolean;
-export type ScalarType = "int" | "text" | "bool";
+export type Value = number | string | boolean | null;
+export type ScalarType = "int" | "text" | "bool" | "null";
 export interface Column {
   name: string;
   type: ScalarType;
@@ -22,15 +22,17 @@ export interface Expr {
   type?: ScalarType;
   index?: number;
   source?: number;
+  nullable?: boolean;
 }
 export interface Query {
   select: [Expr, string][];
   sources: [string, string][];
   joins: Expr[];
+  leftJoins: boolean[];
   where?: Expr;
   groups: Expr[];
   having?: Expr;
-  order: [string | number, boolean][];
+  order: [string | number, boolean, boolean][];
   distinct: boolean;
   limit?: number;
   offset: number;
@@ -93,15 +95,14 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       requireThat(identifier(c.name) && !names.has(c.name));
       requireThat(c.type === "int" || c.type === "text" || c.type === "bool");
       requireThat(typeof c.nullable === "boolean");
-      requireThat(!c.nullable, "UNSUPPORTED_FEATURE");
       names.add(c.name);
-      columns.push({ name: c.name, type: c.type, nullable: false });
+      columns.push({ name: c.name, type: c.type, nullable: c.nullable });
     }
     for (const row of item.rows as unknown[]) {
       requireThat(Array.isArray(row) && row.length === columns.length);
       row.forEach((v: unknown, i: number) =>
         requireThat(
-          columns[i].type === "int"
+          v === null ? columns[i].nullable : columns[i].type === "int"
             ? typeof v === "number" && Number.isInteger(v)
             : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
         ),
