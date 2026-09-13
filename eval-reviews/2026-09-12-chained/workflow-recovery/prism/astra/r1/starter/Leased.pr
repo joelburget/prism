@@ -1,0 +1,223 @@
+import Data.List (..)
+import Data.Foldable (..)
+import Data.Result (..)
+import Json (..)
+import Domain (..)
+import Service (..)
+import Output (step_status, run_status, key_json, effect_json)
+
+type Worker = Worker { id: String, up: Bool }
+-- Transport records outlive leases and worker crashes. Ticket identity is independent
+-- of the logical service key and the durable attempt number.
+type Ticket = Ticket { id: Int, worker: String, run_id: String, step_id: String,
+  kind: String, response: Option(String), delivered: Bool }
+type State = State { now: Int, workers: List(Worker), runs: List(RunState),
+  tickets: List(Ticket), service: MockService, calls: List(Json), results: List(Json) }
+
+fn lease_json(value : Option(Lease)) : Json =
+  match value of
+    None => JNull
+    Some(l) => JObj([("worker", JStr(l.worker)), ("ticket", JInt(l.ticket)), ("expires", JInt(l.expires))])
+
+fn step_json(s : StepState) : Json =
+  JObj([("id", JStr(s.id)), ("status", JStr(step_status(s.status))),
+    ("attempts", JInt(s.attempts)), ("ready_at", JInt(s.ready_at)), ("lease", lease_json(s.lease))])
+
+fn run_json(r : RunState) : Json =
+  JObj([("id", JStr(r.id)), ("status", JStr(run_status(r.status))),
+    ("cancel_requested", JBool(r.cancel_requested)), ("steps", JArr(map(step_json, r.steps)))])
+
+fn snapshot_fields(s : State) : List((String, Json)) =
+  [("now", JInt(s.now)), ("workers", JArr(map(\(w) -> JObj([("id", JStr(w.id)), ("up", JBool(w.up))]), s.workers))),
+    ("runs", JArr(map(run_json, s.runs)))]
+
+fn answer(s : State, value : Json) : Result(State, String) =
+  Ok(State { ..s, results = append(s.results, [value]) })
+
+fn flag(name : String, value : Bool) : Json = JObj([(name, JBool(value))])
+fn receipt(t : Ticket, outcome : String) : Json = JObj([("kind", JStr(t.kind)), ("outcome", JStr(outcome))])
+fn put_run(s : State, r : RunState) : State =
+  State { ..s, runs = map(\(old) -> if old.id == r.id then r else old, s.runs) }
+fn put_step(r : RunState, step : StepState) : RunState =
+  RunState { ..r, steps = map(\(old) -> if old.id == step.id then step else old, r.steps) }
+fn put_ticket(s : State, t : Ticket) : State =
+  State { ..s, tickets = map(\(old) -> if old.id == t.id then t else old, s.tickets) }
+fn running(r : RunState) : Bool = any(\(step) -> step.status == Running, r.steps)
+fn live(now : Int, step : StepState) : Bool =
+  match step.lease of
+    Some(l) => now < l.expires
+    None => false
+fn current(s : State, t : Ticket, step : StepState) : Bool =
+  match step.lease of
+    Some(l) => l.ticket == t.id && l.worker == t.worker && s.now < l.expires && step.status == Running
+    None => false
+fn expire(step : StepState, now : Int) : StepState =
+  match step.lease of
+    Some(l) => StepState { ..step, lease = Some(Lease { ..l, expires = now }) }
+    None => step
+
+fn select_steps(s : State, w : Workflow, r : RunState, steps : List(StepState), recovery : Bool) : Option((RunState, StepState)) =
+  match steps of
+    Nil => None
+    Cons(step, rest) =>
+      let eligible = if recovery then step.status == Running && not(live(s.now, step))
+        else r.status == Active && step.status == Pending && step.ready_at <= s.now
+          && any(\(d) -> d.id == step.id && all(\(dep) -> any(\(other) -> other.id == dep && other.status == Succeeded, r.steps), d.needs), w.steps)
+      if eligible then Some((r, step)) else select_steps(s, w, r, rest, recovery)
+fn select_runs(s : State, w : Workflow, runs : List(RunState), recovery : Bool) : Option((RunState, StepState)) =
+  match runs of
+    Nil => None
+    Cons(r, rest) =>
+      match select_steps(s, w, r, r.steps, recovery) of
+        Some(a) => Some(a)
+        None => select_runs(s, w, rest, recovery)
+
+fn owned_live(step : StepState, worker : String, now : Int) : Bool =
+  match step.lease of
+    Some(l) => l.worker == worker && now < l.expires
+    None => false
+
+fn claim(s : State, w : Workflow, worker : String) : Result(State, String) =
+  let busy = any(\(r) -> any(\(step) -> owned_live(step, worker, s.now), r.steps), s.runs)
+  if busy then Err("WORKER_BUSY")
+  else
+    let selected = match select_runs(s, w, s.runs, true) of
+      Some(a) => Some(a)
+      None => select_runs(s, w, s.runs, false)
+    match selected of
+      None => answer(s, JObj([("ticket", JNull)]))
+      Some((r, step)) =>
+        if s.now + w.lease_duration > time_limit() then Err("TIME_OVERFLOW")
+        else
+          let id = length(s.tickets) + 1
+          let lease = Lease { worker = worker, ticket = id, expires = s.now + w.lease_duration }
+          let begun = StepState { ..step, status = Running, lease = Some(lease),
+            attempts = if step.status == Pending then step.attempts + 1 else step.attempts }
+          let t = Ticket { id = id, worker = worker, run_id = r.id, step_id = step.id,
+            kind = if r.status == Active then "execute" else "lookup", response = None, delivered = false }
+          let updated = put_run(s, put_step(r, begun))
+          answer(State { ..updated, tickets = append(s.tickets, [t]) }, JObj([("ticket", JInt(id))]))
+
+fn get_ticket(s : State, id : Int) : Result(Ticket, String) =
+  match find(\(t) -> t.id == id, s.tickets) of
+    None => Err("UNKNOWN_TICKET")
+    Some(t) => Ok(t)
+fn ticket_step(s : State, t : Ticket) : Result((RunState, StepState), String) =
+  match find(\(r) -> r.id == t.run_id, s.runs) of
+    None => Err("UNKNOWN_RUN")
+    Some(r) =>
+      match find(\(step) -> step.id == t.step_id, r.steps) of
+        None => Err("UNKNOWN_TICKET")
+        Some(step) => Ok((r, step))
+
+fn call(s : State, w : Workflow, t : Ticket, step : StepState) : Result(State, String) =
+  if not(current(s, t, step)) then answer(s, JObj([("outcome", JStr("stale"))]))
+  else
+    match t.response of
+      Some(outcome) => answer(s, receipt(t, outcome))
+      None =>
+        match find(\(d) -> d.id == step.id, w.steps) of
+          None => Err("UNKNOWN_TICKET")
+          Some(d) =>
+            let key = ActionKey { run_id = t.run_id, step_id = t.step_id }
+            let (service, outcome) = call_service(s.service, key, d.amount, step.attempts, d.failures, t.kind == "lookup")
+            let audit = JObj([("worker", JStr(t.worker)), ("ticket", JInt(t.id)), ("kind", JStr(t.kind)),
+              ("key", key_json(key)), ("attempt", JInt(step.attempts)), ("outcome", JStr(outcome))])
+            let updated = put_ticket(s, Ticket { ..t, response = Some(outcome) })
+            answer(State { ..updated, service = service, calls = append(s.calls, [audit]) }, receipt(t, outcome))
+
+-- Both the call and commit boundaries enforce the current live lease.
+fn deliver(s : State, w : Workflow, id : Int) : Result(State, String) =
+  let t = get_ticket(s, id)?
+  let (r, step) = ticket_step(s, t)?
+  let available = any(\(worker) -> worker.id == t.worker && worker.up, s.workers)
+  if t.delivered || not(current(s, t, step)) || not(available) then answer(s, flag("committed", false))
+  else
+    match t.response of
+      None => answer(s, flag("committed", false))
+      Some(outcome) =>
+        let cleared = StepState { ..step, lease = None }
+        let updated_run =
+          if t.kind == "lookup" then
+            let done = put_step(r, StepState { ..cleared, status = if outcome == "found" then Succeeded elif r.status == Cancelling then Cancelled else Blocked })
+            Ok(if running(done) then done else RunState { ..done, status = if r.status == Cancelling then RunCancelled else RunFailed })
+          elif outcome == "transient" then
+            if step.attempts < w.max_attempts then
+              if s.now + w.retry_delay > time_limit() then Err("TIME_OVERFLOW")
+              else Ok(put_step(r, StepState { ..cleared, status = Pending, ready_at = s.now + w.retry_delay }))
+            else
+              let failed = put_step(r, StepState { ..cleared, status = Failed })
+              let drained = RunState { ..failed, steps = map(\(other) ->
+                if other.status == Pending then StepState { ..other, status = Blocked }
+                elif other.status == Running then expire(other, s.now) else other, failed.steps) }
+              Ok(RunState { ..drained, status = if running(drained) then Failing else RunFailed })
+          else
+            let done = put_step(r, StepState { ..cleared, status = Succeeded })
+            Ok(if all(\(other) -> other.status == Succeeded, done.steps) then RunState { ..done, status = Completed } else done)
+        let committed = updated_run?
+        answer(put_ticket(put_run(s, committed), Ticket { ..t, delivered = true }), flag("committed", true))
+
+fn cancel(s : State, id : String) : Result(State, String) =
+  match find(\(r) -> r.id == id, s.runs) of
+    None => Err("UNKNOWN_RUN")
+    Some(r) =>
+      if r.status /= Active then answer(s, JNull)
+      else
+        let drained = RunState { ..r, cancel_requested = true, steps = map(\(step) ->
+          if step.status == Pending then StepState { ..step, status = Cancelled }
+          elif step.status == Running then expire(step, s.now) else step, r.steps) }
+        answer(put_run(s, RunState { ..drained, status = if running(drained) then Cancelling else RunCancelled }), JNull)
+
+fn worker_command(s : State, w : Workflow, op : String, id : String, ticket : Int) : Result(State, String) =
+  match find(\(worker) -> worker.id == id, s.workers) of
+    None => Err("UNKNOWN_WORKER")
+    Some(worker) =>
+      if op == "restart" then
+        if worker.up then Err("WORKER_UP")
+        else answer(State { ..s, workers = map(\(old) -> if old.id == id then Worker { ..old, up = true } else old, s.workers) }, JNull)
+      elif not(worker.up) then Err("WORKER_DOWN")
+      elif op == "crash" then
+        answer(State { ..s, workers = map(\(old) -> if old.id == id then Worker { ..old, up = false } else old, s.workers) }, JNull)
+      elif op == "claim" then claim(s, w, id)
+      else
+        let t = get_ticket(s, ticket)?
+        if t.worker /= id then Err("WRONG_WORKER")
+        else
+          let (r, step) = ticket_step(s, t)?
+          if op == "call" then call(s, w, t, step)
+          elif not(current(s, t, step)) then answer(s, flag("renewed", false))
+          elif s.now + w.lease_duration > time_limit() then Err("TIME_OVERFLOW")
+          else
+            let renewed = StepState { ..step, lease = Some(Lease { worker = id, ticket = ticket, expires = s.now + w.lease_duration }) }
+            answer(put_run(s, put_step(r, renewed)), flag("renewed", true))
+
+fn apply(s : State, w : Workflow, command : Command) : Result(State, String) =
+  match command of
+    Start(id) =>
+      if any(\(r) -> r.id == id, s.runs) then Err("DUPLICATE_RUN")
+      else
+        let r = RunState { id = id, status = Active, cancel_requested = false,
+          steps = map(\(d) -> StepState { id = d.id, status = Pending, attempts = 0, ready_at = s.now, lease = None }, w.steps) }
+        answer(State { ..s, runs = append(s.runs, [r]) }, JNull)
+    Advance(by) =>
+      if s.now + by > time_limit() then Err("TIME_OVERFLOW")
+      else answer(State { ..s, now = s.now + by }, JNull)
+    Observe => answer(s, JObj(snapshot_fields(s)))
+    Cancel(id) => cancel(s, id)
+    WorkerCommand(op, worker, ticket) => worker_command(s, w, op, worker, ticket)
+    Deliver(ticket) => deliver(s, w, ticket)
+    _ => Err("INVALID_INPUT")
+
+fn commands(s : State, w : Workflow, remaining : List(Command)) : Result(State, String) =
+  match remaining of
+    Nil => Ok(s)
+    Cons(command, rest) =>
+      let next = apply(s, w, command)?
+      commands(next, w, rest)
+
+pub fn simulate(w : Workflow) : Result(Json, String) =
+  let initial = State { now = 0, workers = map(\(id) -> Worker { id = id, up = true }, w.workers),
+    runs = [], tickets = [], service = new_service(), calls = [], results = [] }
+  let s = commands(initial, w, w.commands)?
+  let final = JObj(append(snapshot_fields(s), [("calls", JArr(s.calls)), ("effects", JArr(map(effect_json, s.service.effects)))]))
+  Ok(JObj([("results", JArr(s.results)), ("final", final)]))

@@ -6,7 +6,7 @@ import Json (..)
 import Domain (..)
 import Runner (snapshot)
 
-fn step_status(status : StepStatus) : String =
+pub fn step_status(status : StepStatus) : String =
   match status of
     Pending => "pending"
     Running => "running"
@@ -15,8 +15,9 @@ fn step_status(status : StepStatus) : String =
     Blocked => "blocked"
     Cancelled => "cancelled"
 
-fn run_status(status : RunStatus) : String =
+pub fn run_status(status : RunStatus) : String =
   match status of
+    Failing => "failing"
     Active => "active"
     Completed => "succeeded"
     RunFailed => "failed"
@@ -36,13 +37,13 @@ fn snapshot_fields(state : Snapshot) : List((String, Json)) =
 
 fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))
 
-fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
+pub fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
 
 fn call_json(call : ServiceCall) : Json =
   JObj([("kind", JStr(call.kind)), ("key", key_json(call.key)),
     ("attempt", JInt(call.attempt)), ("outcome", JStr(call.outcome))])
 
-fn effect_json(entry : Effect) : Json =
+pub fn effect_json(entry : Effect) : Json =
   JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
 
 pub fn result_json(sim : Simulator) : Json =

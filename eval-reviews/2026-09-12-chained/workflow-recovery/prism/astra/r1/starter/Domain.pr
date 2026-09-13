@@ -16,22 +16,29 @@ pub type Command
   | Crash
   | Restart
   | Cancel(String)
+  | WorkerCommand(String, String, Int)
+  | Deliver(Int)
 
 pub type Workflow = Workflow {
   steps: List(StepDefinition),
   commands: List(Command),
   max_attempts: Int,
-  retry_delay: Int
+  retry_delay: Int,
+  workers: List(String),
+  lease_duration: Int
 }
 
 pub type StepStatus = Pending | Running | Succeeded | Failed | Blocked | Cancelled deriving (Eq)
-pub type RunStatus = Active | Completed | RunFailed | Cancelling | RunCancelled deriving (Eq)
+pub type RunStatus = Active | Completed | RunFailed | Cancelling | RunCancelled | Failing deriving (Eq)
+
+pub type Lease = Lease { worker: String, ticket: Int, expires: Int }
 
 pub type StepState = StepState {
   id: String,
   status: StepStatus,
   attempts: Int,
-  ready_at: Int
+  ready_at: Int,
+  lease: Option(Lease)
 }
 
 pub type RunState = RunState {

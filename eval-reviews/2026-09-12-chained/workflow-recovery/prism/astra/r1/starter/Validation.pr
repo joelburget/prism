@@ -119,12 +119,12 @@ fn parse_command(raw : Json) : Result(Command, String) =
         _ => Err("INVALID_INPUT")
     _ => Err("INVALID_INPUT")
 
-fn parse_commands(xs : List(Json)) : Result(List(Command), String) =
+fn parse_commands(xs : List(Json), leased : Bool) : Result(List(Command), String) =
   match xs of
     Nil => Ok(Nil)
     Cons(x, rest) =>
-      let command = parse_command(x)?
-      let commands = parse_commands(rest)?
+      let command = (if leased then parse_leased_command(x) else parse_command(x))?
+      let commands = parse_commands(rest, leased)?
       Ok(Cons(command, commands))
 
 -- Kahn's algorithm permits forward references while detecting self and multi-step cycles.
@@ -144,17 +144,29 @@ fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
   ensure(acyclic(steps, []), "DEPENDENCY_CYCLE")
 
 pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
-  let obj = fields(raw, ["steps", "commands"], ["max_attempts", "retry_delay"])?
+  let leased = match raw of
+    JObj(pairs) => any(\(pair) -> fst(pair) == "workers", pairs)
+    _ => false
+  let obj = fields(raw, ["steps", "commands"], if leased then ["max_attempts", "retry_delay", "workers", "lease_duration"] else ["max_attempts", "retry_delay"])?
+  let worker_result =
+    if leased then
+      let values = array(get_field(obj, "workers"))?
+      parse_ids(values)
+    else Ok([])
+  let workers = worker_result?
+  let _ = ensure(not(leased) || (not(is_nil(workers)) && unique(workers)), "INVALID_INPUT")?
+  let duration = (if leased then integer(optional_field(obj, "lease_duration", JInt(5)), 1, 1000000) else Ok(5))?
   let raw_steps = array(get_field(obj, "steps"))?
   let _ = ensure(not(is_nil(raw_steps)), "INVALID_INPUT")?
   let raw_commands = array(get_field(obj, "commands"))?
   let steps = parse_steps(raw_steps)?
-  let commands = parse_commands(raw_commands)?
+  let _ = ensure(not(leased) || length(raw_commands) <= 2000, "INVALID_INPUT")?
+  let commands = parse_commands(raw_commands, leased)?
   let attempts = integer(optional_field(obj, "max_attempts", JInt(3)), 1, 10)?
   let delay = integer(optional_field(obj, "retry_delay", JInt(2)), 1, 1000000)?
   -- No runtime work occurs until every shape/scalar and then the graph is validated.
   let _ = validate_graph(steps)?
-  Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay })
+  Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay, workers = workers, lease_duration = duration })
 
 pub fn parse_request(raw : Json) : Result(Workflow, String) =
   let obj = fields(raw, ["protocol_version", "task", "input"], [])?
@@ -164,3 +176,23 @@ pub fn parse_request(raw : Json) : Result(Workflow, String) =
     _ => false
   let _ = ensure(valid_task, "INVALID_INPUT")?
   parse_workflow(get_field(obj, "input"))
+
+fn parse_leased_command(raw : Json) : Result(Command, String) =
+  match raw of
+    JObj(pairs) =>
+      match get_field(pairs, "op") of
+        JStr(op) =>
+          if elem(op, ["start", "cancel", "advance", "observe"]) then parse_command(raw)
+          elif op == "deliver" then
+            let obj = fields(raw, ["op", "ticket"], [])?
+            let ticket = integer(get_field(obj, "ticket"), 1, time_limit())?
+            Ok(Deliver(ticket))
+          elif elem(op, ["claim", "crash", "restart", "renew", "call"]) then
+            let needs_ticket = op == "renew" || op == "call"
+            let obj = fields(raw, if needs_ticket then ["op", "worker", "ticket"] else ["op", "worker"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            let ticket = (if needs_ticket then integer(get_field(obj, "ticket"), 1, time_limit()) else Ok(0))?
+            Ok(WorkerCommand(op, worker, ticket))
+          else Err("INVALID_INPUT")
+        _ => Err("INVALID_INPUT")
+    _ => Err("INVALID_INPUT")

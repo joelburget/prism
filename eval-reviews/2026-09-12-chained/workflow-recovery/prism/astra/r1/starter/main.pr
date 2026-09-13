@@ -6,11 +6,19 @@ import Json (..)
 import Domain (..)
 import Validation (..)
 import Runner (simulate)
-import Output (response_json)
+import Output (result_json)
+import Leased
 
-fn handle_request(line : String) : Result(Simulator, String) =
+fn handle_request(line : String) : Result(Json, String) =
   let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
   let workflow = parse_request(request)?
-  simulate(workflow)
+  if is_nil(workflow.workers) then
+    let sim = simulate(workflow)?
+    Ok(result_json(sim))
+  else Leased.simulate(workflow)
 
-fn main() = println(encode(response_json(handle_request(read_line()))))
+fn main() =
+  let response = match handle_request(read_line()) of
+    Ok(result) => JObj([("ok", JBool(true)), ("result", result)])
+    Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+  println(encode(response))

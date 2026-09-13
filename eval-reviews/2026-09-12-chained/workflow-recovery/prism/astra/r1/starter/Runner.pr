@@ -13,7 +13,7 @@ pub fn snapshot(sim : Simulator) : Snapshot =
   Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
 
 fn new_step(now : Int, definition : StepDefinition) : StepState =
-  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now }
+  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now, lease = None }
 
 fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =
   match (states, definitions) of
@@ -116,6 +116,8 @@ pub fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : 
     Advance(by) =>
       if sim.now + by > time_limit() then Err("TIME_OVERFLOW")
       else Ok(Simulator { ..sim, now = sim.now + by })
+    WorkerCommand(_, _, _) => Err("INVALID_INPUT")
+    Deliver(_) => Err("INVALID_INPUT")
     Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })
 
 fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
