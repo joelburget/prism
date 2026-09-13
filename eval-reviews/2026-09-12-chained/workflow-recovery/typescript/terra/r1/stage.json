@@ -1,16 +1,16 @@
 {
-  "run_id": "run-82f0c490cddc",
-  "checkpoint": 1,
+  "run_id": "run-34cca0164eaa",
+  "checkpoint": 2,
   "model": "terra",
   "model_id": "gpt-5.6-terra",
   "task": "workflow-recovery",
   "language": "typescript",
   "source_available": true,
-  "source_sha256": "42f022d76616b7b0481c7ea2e320968d9ee3991aed321f65e72d461791049b22",
+  "source_sha256": "dc78db1ea0086b353a1843436050c838048078ae59b89422b3db8e3c3e1fca7d",
   "passed": true,
-  "seconds": 132.43964762496762,
+  "seconds": 122.03574683394982,
   "tool_calls": 9,
   "flags": [],
-  "result_sha256": "512fdbbf1560b8a2a4f30dc4843b2e2d37e900108b015fffe9f58dcde15fc83b",
+  "result_sha256": "1a135858a3d0dc61352fe99abd09aa3df146629fb5b73961f04da8c398ddf098",
   "archive_note": "Exact frozen source"
 }

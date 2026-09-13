@@ -127,3 +127,78 @@ export class Simulator {
   snapshot(): Snapshot { return { now: this.now, up: this.up, runs: this.runs.map(r => ({ ...r, steps: r.steps.map(s => ({ ...s })) })) }; }
   run(): SimulationResult { for (const command of this.workflow.commands) this.apply(command); return { observations: this.observations, final: { ...this.snapshot(), calls: this.service.calls, effects: this.service.effects } }; }
 }
+
+// Checkpoint two deliberately has its own model: the old single-process model
+// above remains byte-for-byte compatible when `workers` is absent.
+type LStepStatus = StepStatus;
+type LRunStatus = RunStatus | "failing";
+interface Lease { worker: string; ticket: number; expires: number; }
+interface LStep { id: string; status: LStepStatus; attempts: number; ready_at: number; lease: Lease | null; }
+interface LRun { id: string; status: LRunStatus; cancel_requested: boolean; steps: LStep[]; }
+type Receipt = { kind: "execute" | "lookup"; outcome: "applied" | "replayed" | "transient" | "found" | "missing" };
+interface Ticket { id: number; worker: string; run: LRun; step: LStep; def: StepDefinition; kind: "execute" | "lookup"; receipt?: Receipt; delivered: boolean; }
+export interface LeasedWorkflow { steps: readonly StepDefinition[]; commands: Record<string, unknown>[]; workers: string[]; maxAttempts: number; retryDelay: number; leaseDuration: number; }
+
+function leasedCommand(raw: unknown): Record<string, unknown> {
+  require(raw !== null && typeof raw === "object" && !Array.isArray(raw)); const o = raw as Record<string, unknown>;
+  const op = o.op;
+  if (op === "start" || op === "cancel") { fields(raw, ["op", "run"]); identifier(o.run); }
+  else if (op === "advance") { fields(raw, ["op", "by"]); integer(o.by, 0, TIME_LIMIT); }
+  else if (op === "observe") fields(raw, ["op"]);
+  else if (op === "crash" || op === "restart") { fields(raw, ["op", "worker"]); identifier(o.worker); }
+  else if (op === "claim") { fields(raw, ["op", "worker"]); identifier(o.worker); }
+  else if (op === "renew" || op === "call") { fields(raw, ["op", "worker", "ticket"]); identifier(o.worker); integer(o.ticket, 1, TIME_LIMIT); }
+  else if (op === "deliver") { fields(raw, ["op", "ticket"]); integer(o.ticket, 1, TIME_LIMIT); }
+  else throw new DomainError("INVALID_INPUT");
+  return o;
+}
+export function parseLeasedWorkflow(raw: unknown): LeasedWorkflow {
+  const o = fields(raw, ["steps", "commands", "workers"], ["max_attempts", "retry_delay", "lease_duration"]);
+  require(Array.isArray(o.steps) && o.steps.length && Array.isArray(o.commands) && o.commands.length <= 2000 && Array.isArray(o.workers) && o.workers.length > 0 && o.workers.length <= 100);
+  const workers = o.workers.map(identifier); require(new Set(workers).size === workers.length);
+  const w = { steps: o.steps.map(parseStep), commands: o.commands.map(leasedCommand), workers,
+    maxAttempts: integer(Object.hasOwn(o,"max_attempts") ? o.max_attempts : 3,1,10), retryDelay: integer(Object.hasOwn(o,"retry_delay") ? o.retry_delay : 2,1,1_000_000), leaseDuration: integer(Object.hasOwn(o,"lease_duration") ? o.lease_duration : 5,1,1_000_000) };
+  validateGraph(w.steps); return w;
+}
+
+export class LeasedSimulator {
+  now=0; readonly runs:LRun[]=[]; readonly results:unknown[]=[]; readonly tickets=new Map<number,Ticket>(); nextTicket=1;
+  readonly workers: {id:string;up:boolean}[]; readonly calls:unknown[]=[]; readonly effects:unknown[]=[];
+  private readonly effectMap=new Map<string, Set<string>>(); private readonly counts=new Map<string,number>();
+  readonly workflow: LeasedWorkflow;
+  constructor(workflow:LeasedWorkflow) { this.workflow=workflow; this.workers=workflow.workers.map(id=>({id,up:true})); }
+  private worker(id:string, needed=true) { const w=this.workers.find(x=>x.id===id); require(w,"UNKNOWN_WORKER"); if(needed) require(w.up,"WORKER_DOWN"); return w!; }
+  private key(t:Ticket): [string,string] { return [t.run.id,t.step.id]; }
+  private has(key:[string,string]) { return this.effectMap.get(key[0])?.has(key[1]) ?? false; }
+  private live(t:Ticket) { return t.step.lease?.ticket===t.id && this.now<t.step.lease.expires; }
+  private overflow(n:number) { require(n<=TIME_LIMIT,"TIME_OVERFLOW"); return n; }
+  private lookupKind(r:LRun) { return r.status === "cancelling" || r.status === "failing" ? "lookup" as const : "execute" as const; }
+  private action(r:LRun,i:number) { return {run:r,step:r.steps[i]!,def:this.workflow.steps[i]!}; }
+  private claim(worker:string): unknown {
+    const w=this.worker(worker); if(this.ticketsLiveFor(worker)) throw new DomainError("WORKER_BUSY");
+    let a: ReturnType<LeasedSimulator["action"]>|undefined;
+    for(const r of this.runs) { const i=r.steps.findIndex(s=>s.status==="running" && s.lease!==null && this.now>=s.lease.expires); if(i>=0){a=this.action(r,i);break;} }
+    if(!a) for(const r of this.runs) if(r.status==="active") { const good=new Set(r.steps.filter(s=>s.status==="succeeded").map(s=>s.id)); for(let i=0;i<r.steps.length;i++){const s=r.steps[i]!,d=this.workflow.steps[i]!;if(s.status==="pending"&&s.ready_at<=this.now&&d.needs.every(x=>good.has(x))){a=this.action(r,i);break;}} if(a)break; }
+    if(!a)return {ticket:null};
+    const id=this.nextTicket++; const expires=this.overflow(this.now+this.workflow.leaseDuration); if(a.step.status==="pending"){a.step.status="running";a.step.attempts++;}
+    a.step.lease={worker:w.id,ticket:id,expires}; const t:Ticket={id,worker:w.id,...a,kind:this.lookupKind(a.run),delivered:false}; this.tickets.set(id,t); return {ticket:id};
+  }
+  private ticketsLiveFor(worker:string) { for(const t of this.tickets.values()) if(t.worker===worker&&this.live(t)) return true; return false; }
+  private call(worker:string,id:number):unknown { this.worker(worker); const t=this.ticketFor(worker,id); if(!this.live(t))return {outcome:"stale"}; if(t.receipt)return {...t.receipt};
+    const key=this.key(t); let receipt:Receipt;
+    if(t.kind==="lookup") receipt={kind:"lookup",outcome:this.has(key)?"found":"missing"};
+    else if(this.has(key)) receipt={kind:"execute",outcome:"replayed"};
+    else { const n=(this.counts.get(key.join("\u0000"))??0)+1; this.counts.set(key.join("\u0000"),n); if(n<=t.def.failures) receipt={kind:"execute",outcome:"transient"}; else { receipt={kind:"execute",outcome:"applied"}; let set=this.effectMap.get(key[0]);if(!set){set=new Set;this.effectMap.set(key[0],set);}set.add(key[1]);this.effects.push({key,amount:t.def.amount}); } }
+    t.receipt=receipt; this.calls.push({worker,ticket:id,kind:receipt.kind,key,attempt:t.step.attempts,outcome:receipt.outcome}); return {...receipt}; }
+  private ticketFor(worker:string,id:number) { const t=this.tickets.get(id);require(t,"UNKNOWN_TICKET");require(t.worker===worker,"WRONG_WORKER");return t!; }
+  private finishRun(r:LRun) { if(r.status==="cancelling" && !r.steps.some(s=>s.status==="running"))r.status="cancelled"; if(r.status==="failing"&&!r.steps.some(s=>s.status==="running"))r.status="failed"; if(r.status==="active"&&r.steps.every(s=>s.status==="succeeded"))r.status="succeeded"; }
+  private fail(r:LRun,s:LStep) { s.status="failed";for(const x of r.steps)if(x.status==="pending")x.status="blocked";if(r.steps.some(x=>x.status==="running")){r.status="failing";for(const x of r.steps)if(x.status==="running"&&x.lease)x.lease.expires=this.now;}else r.status="failed"; }
+  private deliver(id:number):unknown { const t=this.tickets.get(id);require(t,"UNKNOWN_TICKET"); if(!t.receipt||t.delivered||!this.live(t)||!this.worker(t.worker,false).up)return {committed:false};
+    const out=t.receipt.outcome; t.delivered=true;t.step.lease=null;
+    if(t.kind==="lookup"){t.step.status=out==="found"?"succeeded":t.run.status==="cancelling"?"cancelled":"blocked";this.finishRun(t.run);return {committed:true};}
+    if(out==="transient"){if(t.step.attempts<this.workflow.maxAttempts){t.step.status="pending";t.step.ready_at=this.overflow(this.now+this.workflow.retryDelay);}else this.fail(t.run,t.step);}else {t.step.status="succeeded";this.finishRun(t.run);} return {committed:true}; }
+  private cancel(id:string) { const r=this.runs.find(x=>x.id===id);require(r,"UNKNOWN_RUN");if(r.status==="succeeded"||r.status==="failed"||r.status==="cancelled"||r.status==="failing")return;if(r.status==="cancelling")return;r.cancel_requested=true;for(const s of r.steps){if(s.status==="pending")s.status="cancelled";if(s.status==="running"&&s.lease)s.lease.expires=this.now;}r.status=r.steps.some(s=>s.status==="running")?"cancelling":"cancelled"; }
+  private snapshot(){return {now:this.now,workers:this.workers.map(w=>({...w})),runs:this.runs.map(r=>({id:r.id,status:r.status,cancel_requested:r.cancel_requested,steps:r.steps.map(s=>({...s,lease:s.lease?{...s.lease}:null}))}))};}
+  private apply(o:Record<string,unknown>):unknown { switch(o.op) { case "start": {const id=o.run as string;require(!this.runs.some(r=>r.id===id),"DUPLICATE_RUN");this.runs.push({id,status:"active",cancel_requested:false,steps:this.workflow.steps.map(s=>({id:s.id,status:"pending",attempts:0,ready_at:this.now,lease:null}))});return null;} case "advance":this.now=this.overflow(this.now+(o.by as number));return null;case "observe":return this.snapshot();case "crash":{this.worker(o.worker as string);this.worker(o.worker as string).up=false;return null;}case "restart":{const w=this.worker(o.worker as string,false);require(!w.up,"WORKER_UP");w.up=true;return null;}case "claim":return this.claim(o.worker as string);case "renew":{this.worker(o.worker as string);const t=this.ticketFor(o.worker as string,o.ticket as number);if(this.live(t)){t.step.lease!.expires=this.overflow(this.now+this.workflow.leaseDuration);return {renewed:true};}return {renewed:false};}case "call":return this.call(o.worker as string,o.ticket as number);case "deliver":return this.deliver(o.ticket as number);case "cancel":this.cancel(o.run as string);return null;} }
+  run(){for(const c of this.workflow.commands)this.results.push(this.apply(c));return {results:this.results,final:{...this.snapshot(),calls:this.calls,effects:this.effects}};}
+}

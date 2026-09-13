@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { DomainError, parseWorkflow, Simulator } from "./workflow.ts";
+import { DomainError, parseWorkflow, Simulator, parseLeasedWorkflow, LeasedSimulator } from "./workflow.ts";
 
 let response: unknown;
 try {
@@ -23,9 +23,11 @@ try {
     (request as Record<string, unknown>).protocol_version !== 1 ||
     (request as Record<string, unknown>).task !== "workflow-recovery"
   ) throw new DomainError("INVALID_INPUT");
+  const input = (request as Record<string, unknown>).input;
+  const leased = input !== null && typeof input === "object" && !Array.isArray(input) && Object.hasOwn(input, "workers");
   response = {
     ok: true,
-    result: new Simulator(parseWorkflow((request as Record<string, unknown>).input)).run(),
+    result: leased ? new LeasedSimulator(parseLeasedWorkflow(input)).run() : new Simulator(parseWorkflow(input)).run(),
   };
 } catch (error) {
   if (error instanceof DomainError)
