@@ -1,45 +1,53 @@
-"""Run briefing examples with the pinned image or a supplied, supported Prism release binary."""
+"""Check frozen tutorial content and opt-in native execution of its examples."""
+import json
 import os
 from pathlib import Path
-import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
-CONTEXT=Path(__file__).resolve().parents[1]/'experiments/context'
-EDITIONS={
-    'prism 0.18.0': ('prism-0.18.md', ['5\n2\n', '4\n6\n']),
-    'prism 0.22.0': ('prism-0.22.md', ['5\n2\n', '5\n2\n', '4\n6\n']),
-}
-TASK_IMAGE='sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39'
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from experiments.context.update_tutorial import CHAPTERS, MARKER, render
+from experiments.context.verify_briefing import BRIEFING, verify
+from experiments.native_task_setup import DEFAULT_IMAGE
 
-class PrismBriefingExamples(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get('PRISM_EVAL_DOCKER_TESTS')=='1' or os.environ.get('PRISM_BRIEFING_COMPILER'),'opt-in Prism toolchain')
-    def test_complete_examples_compile_and_match_documented_output(self):
-        compiler=os.environ.get('PRISM_BRIEFING_COMPILER')
-        version='prism 0.18.0'  # The Docker task image remains pinned.
+
+class PrismBriefingTests(unittest.TestCase):
+    def test_full_tutorial_is_frozen_from_pinned_compiler_source(self):
+        tutorial, sources = render(ROOT.parents[1])
+        manifest = json.loads(BRIEFING.with_name('TUTORIAL_SOURCES.json').read_text())
+        self.assertEqual(len(CHAPTERS), 9)
+        self.assertEqual(sources, manifest['sources_sha256'])
+        self.assertEqual(BRIEFING.read_text().split(MARKER)[1].lstrip(), tutorial)
+        self.assertNotIn('{{#tab', tutorial)
+        self.assertNotIn('\n# type Reading', tutorial)
+
+    @unittest.skipUnless(os.environ.get('PRISM_EVAL_DOCKER_TESTS') == '1' or os.environ.get('PRISM_BRIEFING_COMPILER'), 'opt-in Prism toolchain')
+    def test_examples_compile_and_match_documented_output(self):
+        compiler = os.environ.get('PRISM_BRIEFING_COMPILER')
         if compiler:
-            version=subprocess.run([compiler,'--version'],capture_output=True,text=True,check=True).stdout.strip()
-        self.assertIn(version,EDITIONS,'No verified briefing edition for this compiler')
-        filename,expected=EDITIONS[version]
-        blocks=re.findall(r'```prism\n(.*?)```',(CONTEXT/filename).read_text(),re.S)
-        self.assertEqual(len(blocks),len(expected))
-        with tempfile.TemporaryDirectory(prefix='prism-briefing-check-') as temporary:
-            for number,(code,answer) in enumerate(zip(blocks,expected),1):
-                with self.subTest(example=number):
-                    path=Path(temporary)/'example.pr';path.write_text(code);path.chmod(0o644)
-                    if compiler:
-                        executable=Path(temporary)/'briefing-example'
-                        compiled=subprocess.run([compiler,str(path),'-o',str(executable)],capture_output=True,text=True,timeout=90)
-                        self.assertEqual(compiled.returncode,0,compiled.stderr)
-                        result=subprocess.run([str(executable)],capture_output=True,text=True,timeout=10)
-                    else:
-                        result=subprocess.run(['docker','run','--rm','--network','none','--memory','2g',
-                        '--cpus','2','--pids-limit','128','--cap-drop','ALL','--security-opt','no-new-privileges',
-                        '--mount',f'type=bind,source={temporary},target=/work,readonly',TASK_IMAGE,
-                        'sh','-c','prism /work/example.pr -o /tmp/briefing-example && /tmp/briefing-example'],
-                        capture_output=True,text=True,timeout=90)
-                    self.assertEqual(result.returncode,0,result.stderr)
-                    self.assertEqual(result.stdout,answer)
+            receipt = verify(compiler)
+        else:
+            # Bind only the public briefing and verifier, never the repository.
+            with tempfile.TemporaryDirectory(prefix='prism-context-docker-') as temporary:
+                for path in (BRIEFING, BRIEFING.with_name('verify_briefing.py')):
+                    shutil.copyfile(path, Path(temporary) / path.name)
+                result = subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--memory', '2g',
+                    '--cpus', '2', '--pids-limit', '128', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+                    '--mount', f'type=bind,source={temporary},target=/work,readonly',
+                    os.environ.get('PRISM_EVAL_NATIVE_TASK_IMAGE', DEFAULT_IMAGE),
+                    'python3', '/work/verify_briefing.py'], capture_output=True, text=True, timeout=600)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                receipt = json.loads(result.stdout)
+        self.assertEqual(receipt['compiler_version'], 'prism 0.22.0')
+        self.assertGreaterEqual(sum(e['status'] == 'executed' for e in receipt['examples']), 25)
+        self.assertGreaterEqual(sum(e['status'] == 'expected_compile_failure' for e in receipt['examples']), 5)
+        # The only excluded fragments are the upstream multi-file import and typed hole.
+        self.assertEqual(sum(e['status'] == 'excluded' for e in receipt['examples']), 2)
 
-if __name__=='__main__':unittest.main()
+
+if __name__ == '__main__':
+    unittest.main()

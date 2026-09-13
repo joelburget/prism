@@ -15,8 +15,8 @@ from followups.evaluator.freeze import snapshot as followup_snapshot
 
 HARNESS = 'subscription-native-chain-v1'
 TASKS = ('query-null', 'workflow-recovery')
-PRISM_BRIEFING = Path(__file__).with_name('context') / 'prism-0.18.md'
-BRIEFING_PROFILE = 'prism-brief-v1'
+PRISM_BRIEFING = Path(__file__).with_name('context') / 'prism-0.22.md'
+BRIEFING_PROFILE = 'prism-tutorial-v2'
 QUESTIONS = {
     'query-null': 'Explain how one atomic batch updates both sides of a join, preserves duplicates, and retracts the last match. Identify where unaffected views avoid recomputation.',
     'workflow-recovery': 'Trace an expired execute response racing with cancellation and a replacement lookup. Explain the roles of the action key, attempt number and lease ticket, citing the commit checks.',
@@ -201,7 +201,7 @@ def main():
     plan.add_argument('--model',action='append'); plan.add_argument('--task',choices=TASKS,action='append')
     plan.add_argument('--language',choices=native.LANGUAGES,action='append'); plan.add_argument('--seed',type=int,default=1730)
     plan.add_argument('--repetitions',type=int,default=1); plan.add_argument('--performance-calibration',type=Path)
-    plan.add_argument('--prism-briefing',action='store_true',help='Prepend the frozen Prism 0.18 briefing to both Prism checkpoints; other languages retain baseline prompts')
+    plan.add_argument('--prism-briefing',action='store_true',help='Prepend the frozen Prism 0.22 briefing and tutorial to both Prism checkpoints; other languages retain baseline prompts')
     run=sub.add_parser('run'); run.add_argument('--results',type=Path,required=True); run.add_argument('--limit',type=int)
     status=sub.add_parser('status'); status.add_argument('--results',type=Path,required=True)
     a=p.parse_args()

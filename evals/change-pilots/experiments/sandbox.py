@@ -135,9 +135,10 @@ def image_identity(image: str) -> dict:
 
 
 def _limits():
+    # Prism 0.22 native linking opens more stdlib objects than the old 256-FD cap allows.
     return ["--network", "none", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
             "--pids-limit", "128", "--memory", "2g", "--memory-swap", "2g", "--cpus", "2",
-            "--ulimit", "nofile=256:256", "--ulimit", "fsize=67108864:67108864",
+            "--ulimit", "nofile=1024:1024", "--ulimit", "fsize=67108864:67108864",
             "--user", "1000:1000", "--workdir", "/work", "--env", "HOME=/tmp/home",
             "--env", "PYTHONDONTWRITEBYTECODE=1", "--entrypoint", "/bin/sh"]
 

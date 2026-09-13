@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg ca-c
 ENV LLVM_SYS_221_PREFIX=/usr/lib/llvm-22 PRISM_CC=/usr/lib/llvm-22/bin/clang
 WORKDIR /src
 COPY compiler/ ./
-RUN cargo build --release --locked && target/release/prism --version | grep '^prism 0.18.0$'
+RUN cargo build --release --locked && target/release/prism --version | grep '^prism 0.22.0$'
 
 FROM node:25.2.1-bookworm-slim AS node
 FROM python:3.14.7-slim-bookworm AS runtime
@@ -26,6 +26,9 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY --from=compiler /src/target/release/prism /usr/local/bin/prism
 COPY compiler/docs/src/spec.md /opt/prism-docs/spec.md
 COPY compiler/docs/src/stdlib /opt/prism-docs/stdlib
+COPY compiler/docs/src/compiler.md compiler/docs/src/tutorial.md /opt/prism-docs/
+COPY compiler/docs/src/tutorial /opt/prism-docs/tutorial
+COPY compiler/docs/examples /opt/prism-docs/examples
 COPY compiler/lib/std /opt/prism-lib/std
 COPY provenance.json /opt/prism-toolchain-provenance.json
 ENV PRISM_CC=/usr/lib/llvm-22/bin/clang HOME=/tmp/home PYTHONDONTWRITEBYTECODE=1

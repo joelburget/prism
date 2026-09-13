@@ -1,5 +1,8 @@
 # Repeated programming-agent experiments
 
+Current runtime: Prism **0.22.0**. See [migration checks](VALIDATION-0.22.md)
+and the [full tutorial/context profile](context/README.md) for new cohorts.
+
 This evaluator-side package supplies a shared OpenAI/Anthropic API agent loop,
 isolated Docker workspaces, frozen experiment plans, cost scenarios, source and
 trace capture, external grading, and a local human-review interface. It is never
@@ -32,8 +35,8 @@ From the repository root:
 python3 evals/change-pilots/experiments/build_image.py
 ```
 
-The build script exports only allowlisted compiler files from pinned Prism 0.18.0
-commit `2cfe818bc17d91c2a5fb452901cb40b8e8bee564`; neither Git nor evaluation files
+The build script exports only allowlisted compiler files from pinned Prism 0.22.0
+commit `b643c4acfd371ba37d13fdedf0742154e5b69806`; neither Git nor evaluation files
 enter its build context. It installs Python 3.14.7, Node 25.2.1, TypeScript 5.9.3,
 Node types 25.0.3, LLVM 22, and offline Prism documentation. Package/base-image tags
 are not fully reproducible at rebuild time; each experiment records and reuses the

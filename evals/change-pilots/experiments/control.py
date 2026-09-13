@@ -26,7 +26,7 @@ from export_public import export_public
 from experiments.costs import estimate, format_estimate, select_models
 from experiments.results import ResultStore
 
-DEFAULT_IMAGE = "prism-change-pilots:0.18.0-py3.14.7-node25.2.1"
+DEFAULT_IMAGE = "prism-change-pilots:0.22.0-py3.14.7-node25.2.1"
 COMPREHENSION = {
     "query-null": "Explain how this change handles an unmatched left-join row and a NULL predicate, including whether optimization preserves the result. Cite the relevant functions.",
     "workflow-recovery": "Explain what happens if execution crashes after an external effect but before recording completion. How does this implementation avoid duplicate effects on restart? Cite the relevant functions.",

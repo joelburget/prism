@@ -208,7 +208,7 @@ def run_inside(client, model_id, timeout=60, effort=None):
             "auth_status": "not_checked", "real_inference_requests": 0, "canary_expected": CANARY}
 
 
-def run_offline_probe(client, model_id, *, effort=None, task_image="prism-change-pilots:0.18.0-py3.14.7-node25.2.1", timeout=90):
+def run_offline_probe(client, model_id, *, effort=None, task_image="prism-change-pilots:0.22.0-py3.14.7-node25.2.1", timeout=90):
     """Controller-side end-to-end proof using a real disposable task container.
 
     The caller owns a fresh offline client and its blank auth volume. Refuse

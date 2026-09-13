@@ -1,5 +1,5 @@
 # Build with native_setup.py build: its context contains only allowlisted native helpers.
-FROM prism-change-pilots:0.18.0-py3.14.7-node25.2.1
+FROM prism-change-pilots:0.22.0-py3.14.7-node25.2.1
 USER 0:0
 RUN npm install --global --registry=https://registry.npmjs.org \
       @openai/codex@0.154.0 @anthropic-ai/claude-code@2.1.257 \

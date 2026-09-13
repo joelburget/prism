@@ -68,7 +68,7 @@ projects include pinned development dependencies, a lockfile, and a strict
 dependencies are for checking rather than execution. See each language README
 for toolchain and build instructions.
 
-The tested toolchain is Prism 0.18.0, Python 3.14.7, Node 25.2.1, and TypeScript
+The tested toolchain is Prism 0.22.0, Python 3.14.7, Node 25.2.1, and TypeScript
 5.9.3 with `@types/node` 25.0.3. The TypeScript adapters use Node's JSON reviver
 source context to preserve the distinction between integer and floating-point
 tokens. Use the tested Node version rather than a runtime without that facility.

@@ -1,4 +1,9 @@
 [package]
 name = "query_scaling_control"
+version = "0.1.0"
+authors = ["Prism evaluation contributors"]
+maintainers = ["Prism evaluation contributors"]
+license = "MIT"
+
 [bin]
 entry = "main.pr"

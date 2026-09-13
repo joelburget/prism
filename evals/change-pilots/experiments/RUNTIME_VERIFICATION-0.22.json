@@ -1,0 +1,135 @@
+{
+  "toolchain": {
+    "prism_commit": "b643c4acfd371ba37d13fdedf0742154e5b69806",
+    "prism_version": "0.22.0",
+    "compiler_archive_sha256": "409dfb94a2b2a154a71fc7c1c79f94485021974230f3411db6ebe63293cc621c",
+    "python_version": "3.14.7",
+    "node_version": "25.2.1",
+    "typescript_version": "5.9.3",
+    "node_types_version": "25.0.3",
+    "rust_version": "1.96.0",
+    "llvm_major": 22,
+    "reproducibility": "Source commit and language versions pinned; Debian/LLVM apt packages and base-image tags are not digest-pinned."
+  },
+  "images": {
+    "image": "prism-change-pilots:0.22.0-native-tools-v2",
+    "image_id": "sha256:6e48c61358a291af0027ee2522778127f908178a9c6a850db96889850c206770",
+    "inputs": {
+      "toolchain": "sha256:89b6809abb2e4a54bcba2d4d718ea38473bdca5d6e8e7019b763432df3337ec6",
+      "native": "sha256:12f4e9145b5ce9e168c5088d43eb1b7ff416bbc7a486de19ea73e1cdb3b2d623"
+    },
+    "patch_version": "0.154.0",
+    "auth_requests": 0,
+    "inference_requests": 0
+  },
+  "starters": {
+    "verified_at": "2026-09-13T20:49:12.262979+00:00",
+    "task_image_id": "sha256:6e48c61358a291af0027ee2522778127f908178a9c6a850db96889850c206770",
+    "variants": [
+      {
+        "task": "query-null",
+        "language": "prism",
+        "starter_sha256": "49bedf8567b2653ecb279e6d058fefa73cd883fc3ae629a9d675e02e95a1f056",
+        "public": 21,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "query-null",
+        "language": "python",
+        "starter_sha256": "12cc12085423f864102bc338d47a6693b5512c877785e8178d5029838d548aa7",
+        "public": 21,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "query-null",
+        "language": "typescript",
+        "starter_sha256": "8c7b0b7bd6384e5a5fb5703cec1b8363a4a57916417b3f47d2be2aadcc0a93f4",
+        "public": 21,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "workflow-recovery",
+        "language": "prism",
+        "starter_sha256": "6ba123b334739f6ee85781ce1b0e23fef09e2148b12686877589a917a6534c79",
+        "public": 19,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "workflow-recovery",
+        "language": "python",
+        "starter_sha256": "08821804769a009e005872bcde846a26c666d91a460f89680783e815c15e953f",
+        "public": 19,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "workflow-recovery",
+        "language": "typescript",
+        "starter_sha256": "dc478f115dc990276c5b95a2cffbe0b85ab2730186f75ab47b5ff70a03939b17",
+        "public": 19,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "ledger-refunds",
+        "language": "prism",
+        "starter_sha256": "b32d8dc2713de08b026fc05f67646b1c01c5c483bbbdfe3a48d886b9d1da1fb6",
+        "public": 24,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "ledger-refunds",
+        "language": "python",
+        "starter_sha256": "5c9d411d039ad4fa48ab40d59de9ccc0d0e928ca240d1abb4a0b8f6e426bda19",
+        "public": 24,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      },
+      {
+        "task": "ledger-refunds",
+        "language": "typescript",
+        "starter_sha256": "3687fdf65cd6fe8e0f51fa1debe8019660f06be407ed3c27562824905e731de5",
+        "public": 24,
+        "heldout": 5,
+        "extension_remains_unimplemented": true
+      }
+    ],
+    "model_inference_requests": 0,
+    "passed": true
+  },
+  "model_inference_requests": 0,
+  "planning": {
+    "passed": true,
+    "cells": 12,
+    "prism_cells_with_full_context": 4,
+    "language_context": {
+      "profile": "prism-tutorial-v2",
+      "prism_briefing_sha256": "f93d4d48234bebd924455b79de78221e4c3f61212470d024c8715a075636a2c4"
+    },
+    "task_image_id": "sha256:6e48c61358a291af0027ee2522778127f908178a9c6a850db96889850c206770",
+    "native_image_id": "sha256:12f4e9145b5ce9e168c5088d43eb1b7ff416bbc7a486de19ea73e1cdb3b2d623",
+    "wrong_image_calibration_rejected": true,
+    "model_inference_requests": 0
+  },
+  "performance_calibration_sha256": "e3958440b65d9f3edb77587c1665dedb3f54aa44d150417fcd97d0eded4054cc",
+  "tests": {
+    "harness_with_docker": {
+      "passed": 189,
+      "skipped": 0
+    },
+    "followups": {
+      "passed": 35
+    },
+    "heldout_maintenance": {
+      "passed": 9
+    },
+    "analysis": {
+      "passed": 4
+    }
+  }
+}

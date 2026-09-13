@@ -44,7 +44,7 @@ class NativeTaskIntegrationTests(unittest.TestCase):
                     result = sandbox.execute("apply_patch <<'PATCH'\n" + patch_text + "\nPATCH\n")
                     self.assertEqual(result["exit_code"], 0, result)
                     self.assertEqual(sandbox.execute(check)["exit_code"], 0)
-                for command, expected in (("prism --version", "prism 0.18.0"),
+                for command, expected in (("prism --version", "prism 0.22.0"),
                                           ("python3 --version", "Python 3.14.7"),
                                           ("node --version", "v25.2.1"),
                                           ("tsc --version", "Version 5.9.3"),

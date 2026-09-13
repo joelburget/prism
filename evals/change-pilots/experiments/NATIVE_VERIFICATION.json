@@ -1,12 +1,1477 @@
 {
-  "schema_version": 2,
-  "verified_at": "2026-09-12T21:05:55.264580+00:00",
-  "image_id": "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a",
-  "task_image_id": "sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39",
-  "native_workspace_permission": "workspace-write",
-  "filesystem_boundary": "read-only native container root; writable temporary /work; no host binds; commands execute in separate network-disabled task container",
-  "real_inference_requests": 0,
-  "offline_fixture_authentication": "empty temporary homes and volumes; no real credentials",
+  "verified_at": "2026-09-13T20:49:53.339140+00:00",
+  "image_id": "sha256:12f4e9145b5ce9e168c5088d43eb1b7ff416bbc7a486de19ea73e1cdb3b2d623",
+  "task_image_id": "sha256:6e48c61358a291af0027ee2522778127f908178a9c6a850db96889850c206770",
+  "model_checks": [
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-luna",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 5
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 7
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource"
+      ],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "responses"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a09c88-9f1b-7981-bf1d-67c492d3f9fb\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Under-development features enabled: skip_host_skill_discovery. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning = true` in /tmp/probe-home/.codex/config.toml.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":null,\"error\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.042518416012171656, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}],\"structured_content\":null},\"error\":null,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Offline probe complete.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/probe-home/.codex\"))\nReading prompt from stdin...\n",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.042518416012171656, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-terra",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 5
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 7
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource"
+      ],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "responses"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a09c88-ac16-7510-9aeb-d03cafaec1cb\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Under-development features enabled: skip_host_skill_discovery. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning = true` in /tmp/probe-home/.codex/config.toml.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":null,\"error\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.039218417019583285, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}],\"structured_content\":null},\"error\":null,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Offline probe complete.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/probe-home/.codex\"))\nReading prompt from stdin...\n",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.039218417019583285, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-5.6-sol",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 5
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 7
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource"
+      ],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "responses"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a09c88-b8c6-73e3-bdb4-1ac19584d735\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Under-development features enabled: skip_host_skill_discovery. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning = true` in /tmp/probe-home/.codex/config.toml.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":null,\"error\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.039992749982047826, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}],\"structured_content\":null},\"error\":null,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Offline probe complete.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/probe-home/.codex\"))\nReading prompt from stdin...\n",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.039992749982047826, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "codex",
+      "cli_version": "codex-cli 0.154.0",
+      "model_id": "gpt-6-astra",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 5
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/responses",
+          "protocol": "responses",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "input": {
+              "type": "list",
+              "count": 7
+            },
+            "tool_choice": {
+              "type": "str",
+              "count": null
+            },
+            "parallel_tool_calls": {
+              "type": "bool",
+              "count": null
+            },
+            "reasoning": {
+              "type": "dict",
+              "count": 2
+            },
+            "store": {
+              "type": "bool",
+              "count": null
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            },
+            "include": {
+              "type": "list",
+              "count": 1
+            },
+            "prompt_cache_key": {
+              "type": "str",
+              "count": null
+            },
+            "text": {
+              "type": "dict",
+              "count": 1
+            },
+            "client_metadata": {
+              "type": "dict",
+              "count": 7
+            }
+          },
+          "tool_names": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource",
+            "mcp__pilot.execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot.execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [
+            "functions.list_mcp_resource_templates",
+            "functions.list_mcp_resources",
+            "functions.read_mcp_resource"
+          ],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource",
+        "mcp__pilot.execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot.execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [
+        "functions.list_mcp_resource_templates",
+        "functions.list_mcp_resources",
+        "functions.read_mcp_resource"
+      ],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "responses"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a09c88-c5f5-7672-adb9-02b6aa1b8bbc\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"error\",\"message\":\"Under-development features enabled: skip_host_skill_discovery. Under-development features are incomplete and may behave unpredictably. To suppress this warning, set `suppress_unstable_features_warning = true` in /tmp/probe-home/.codex/config.toml.\"}}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":null,\"error\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"mcp_tool_call\",\"server\":\"pilot\",\"tool\":\"execute\",\"arguments\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10},\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.039649416983593255, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}],\"structured_content\":null},\"error\":null,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Offline probe complete.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"/tmp/probe-home/.codex\"))\nReading prompt from stdin...\n",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.039649416983593255, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-haiku-4-5-20251001",
+      "effort": null,
+      "fixture_requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 1
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 2
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 3
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 2
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "messages"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"system\",\"subtype\":\"init\",\"cwd\":\"/work\",\"session_id\":\"a2c7d5c4-8e11-48d5-9288-e133fe6ca78a\",\"tools\":[\"mcp__pilot__execute\"],\"mcp_servers\":[{\"name\":\"pilot\",\"status\":\"connected\"}],\"model\":\"claude-haiku-4-5-20251001\",\"permissionMode\":\"dontAsk\",\"slash_commands\":[],\"apiKeySource\":\"ANTHROPIC_API_KEY\",\"claude_code_version\":\"2.1.257\",\"output_style\":\"default\",\"agents\":[\"claude\",\"Explore\",\"general-purpose\",\"Plan\",\"statusline-setup\"],\"skills\":[],\"plugins\":[],\"capabilities\":[\"interrupt_receipt_v1\",\"interrupt_cancel_queued_v1\",\"msg_lifecycle_v1\"],\"analytics_disabled\":true,\"product_feedback_disabled\":true,\"uuid\":\"a84e3a36-b82e-47c1-868e-ab279f7ee2e0\",\"messaging_socket_path\":\"/tmp/cc-socks/22.sock\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\"}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5-20251001\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_offline\",\"name\":\"mcp__pilot__execute\",\"input\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10}}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"a2c7d5c4-8e11-48d5-9288-e133fe6ca78a\",\"uuid\":\"a7c1d408-65be-4b95-8830-08a017955a93\",\"timestamp\":\"2026-09-13T20:50:08.025Z\",\"tool_use_meta\":[{\"id\":\"toolu_offline\",\"display_name\":\"Execute\",\"server_display_name\":\"change-pilots-execute\"}]}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_offline\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.040213749976828694, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}]},\"parent_tool_use_id\":null,\"session_id\":\"a2c7d5c4-8e11-48d5-9288-e133fe6ca78a\",\"uuid\":\"f9856157-f332-4d6b-8cc7-9b7d0bb74df2\",\"timestamp\":\"2026-09-13T20:50:08.074Z\",\"tool_use_result\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.040213749976828694, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5-20251001\",\"content\":[{\"type\":\"text\",\"text\":\"Offline probe complete.\"}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"a2c7d5c4-8e11-48d5-9288-e133fe6ca78a\",\"uuid\":\"55e33153-f052-4f07-9c51-6884c53fb895\",\"timestamp\":\"2026-09-13T20:50:08.081Z\"}\n{\"duration_api_ms\":21,\"stop_reason\":\"end_turn\",\"session_id\":\"a2c7d5c4-8e11-48d5-9288-e133fe6ca78a\",\"total_cost_usd\":0.000011999999999999999,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":2,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":2,\"outputTokens\":2,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000011999999999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"thinkingTokens\":0,\"canonicalModel\":\"claude-haiku-4-5\",\"provider\":\"firstParty\",\"costBasis\":\"list\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"is_error\":false,\"num_turns\":2,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Offline probe complete.\",\"ttft_ms\":26,\"type\":\"result\",\"duration_ms\":89,\"uuid\":\"770efc11-f983-435f-a307-056358b6fece\",\"ttft_stream_ms\":25,\"time_to_request_ms\":22,\"queued_turn_count\":0}\n",
+      "stderr": "",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.040213749976828694, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-sonnet-5",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 2
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 5
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "messages"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"system\",\"subtype\":\"init\",\"cwd\":\"/work\",\"session_id\":\"793de101-c39b-4fdf-9cd5-8f9949f4ee28\",\"tools\":[\"mcp__pilot__execute\"],\"mcp_servers\":[{\"name\":\"pilot\",\"status\":\"connected\"}],\"model\":\"claude-sonnet-5\",\"permissionMode\":\"dontAsk\",\"slash_commands\":[],\"apiKeySource\":\"ANTHROPIC_API_KEY\",\"claude_code_version\":\"2.1.257\",\"output_style\":\"default\",\"agents\":[\"claude\",\"Explore\",\"general-purpose\",\"Plan\",\"statusline-setup\"],\"skills\":[],\"plugins\":[],\"capabilities\":[\"interrupt_receipt_v1\",\"interrupt_cancel_queued_v1\",\"msg_lifecycle_v1\"],\"analytics_disabled\":true,\"product_feedback_disabled\":true,\"uuid\":\"565b1560-b8b6-4854-bb73-7b9b32041fcd\",\"messaging_socket_path\":\"/tmp/cc-socks/22.sock\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\"}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-5\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_offline\",\"name\":\"mcp__pilot__execute\",\"input\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10}}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"793de101-c39b-4fdf-9cd5-8f9949f4ee28\",\"uuid\":\"5ae17e95-d03b-4b0c-9129-372e5a05bd43\",\"timestamp\":\"2026-09-13T20:50:11.860Z\",\"tool_use_meta\":[{\"id\":\"toolu_offline\",\"display_name\":\"Execute\",\"server_display_name\":\"change-pilots-execute\"}]}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_offline\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.04881929198745638, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}]},\"parent_tool_use_id\":null,\"session_id\":\"793de101-c39b-4fdf-9cd5-8f9949f4ee28\",\"uuid\":\"5dfda7a4-98dc-4b22-ad1a-ca72745105dc\",\"timestamp\":\"2026-09-13T20:50:11.918Z\",\"tool_use_result\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.04881929198745638, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-5\",\"content\":[{\"type\":\"text\",\"text\":\"Offline probe complete.\"}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"793de101-c39b-4fdf-9cd5-8f9949f4ee28\",\"uuid\":\"a34e9a39-69d4-4205-a89c-44c18678323c\",\"timestamp\":\"2026-09-13T20:50:11.924Z\"}\n{\"duration_api_ms\":21,\"stop_reason\":\"end_turn\",\"session_id\":\"793de101-c39b-4fdf-9cd5-8f9949f4ee28\",\"total_cost_usd\":0.000023999999999999997,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":2,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-sonnet-5\":{\"inputTokens\":2,\"outputTokens\":2,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000023999999999999997,\"contextWindow\":200000,\"maxOutputTokens\":64000,\"thinkingTokens\":0,\"canonicalModel\":\"claude-sonnet-5\",\"provider\":\"firstParty\",\"costBasis\":\"list\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"is_error\":false,\"num_turns\":2,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Offline probe complete.\",\"ttft_ms\":31,\"type\":\"result\",\"duration_ms\":101,\"uuid\":\"4f279468-25af-4eb1-97a7-bb4ed01647ef\",\"ttft_stream_ms\":30,\"time_to_request_ms\":26,\"queued_turn_count\":0}\n",
+      "stderr": "",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.04881929198745638, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-opus-5",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 2
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 5
+            },
+            "system": {
+              "type": "list",
+              "count": 3
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "messages"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"system\",\"subtype\":\"init\",\"cwd\":\"/work\",\"session_id\":\"7e24c1fa-9f38-43bd-8255-2b553ee92c5d\",\"tools\":[\"mcp__pilot__execute\"],\"mcp_servers\":[{\"name\":\"pilot\",\"status\":\"connected\"}],\"model\":\"claude-opus-5\",\"permissionMode\":\"dontAsk\",\"slash_commands\":[],\"apiKeySource\":\"ANTHROPIC_API_KEY\",\"claude_code_version\":\"2.1.257\",\"output_style\":\"default\",\"agents\":[\"claude\",\"Explore\",\"general-purpose\",\"Plan\",\"statusline-setup\"],\"skills\":[],\"plugins\":[],\"capabilities\":[\"interrupt_receipt_v1\",\"interrupt_cancel_queued_v1\",\"msg_lifecycle_v1\"],\"analytics_disabled\":true,\"product_feedback_disabled\":true,\"uuid\":\"075483f2-491b-47fc-be09-400e645a46f3\",\"messaging_socket_path\":\"/tmp/cc-socks/22.sock\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\"}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-opus-5\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_offline\",\"name\":\"mcp__pilot__execute\",\"input\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10}}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"7e24c1fa-9f38-43bd-8255-2b553ee92c5d\",\"uuid\":\"f007eda5-5246-4ba4-9d5a-81c085fb4ca3\",\"timestamp\":\"2026-09-13T20:50:15.539Z\",\"tool_use_meta\":[{\"id\":\"toolu_offline\",\"display_name\":\"Execute\",\"server_display_name\":\"change-pilots-execute\"}]}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_offline\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.04120520799187943, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}]},\"parent_tool_use_id\":null,\"session_id\":\"7e24c1fa-9f38-43bd-8255-2b553ee92c5d\",\"uuid\":\"1480a351-3aa0-4577-aa36-2823124e168e\",\"timestamp\":\"2026-09-13T20:50:15.590Z\",\"tool_use_result\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.04120520799187943, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-opus-5\",\"content\":[{\"type\":\"text\",\"text\":\"Offline probe complete.\"}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"7e24c1fa-9f38-43bd-8255-2b553ee92c5d\",\"uuid\":\"607acab6-9770-448d-b78b-8db17727d295\",\"timestamp\":\"2026-09-13T20:50:15.601Z\"}\n{\"duration_api_ms\":24,\"stop_reason\":\"end_turn\",\"session_id\":\"7e24c1fa-9f38-43bd-8255-2b553ee92c5d\",\"total_cost_usd\":0.000059999999999999995,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":2,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-opus-5\":{\"inputTokens\":2,\"outputTokens\":2,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000059999999999999995,\"contextWindow\":200000,\"maxOutputTokens\":64000,\"thinkingTokens\":0,\"canonicalModel\":\"claude-opus-5\",\"provider\":\"firstParty\",\"costBasis\":\"list\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"is_error\":false,\"num_turns\":2,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Offline probe complete.\",\"ttft_ms\":19,\"type\":\"result\",\"duration_ms\":89,\"uuid\":\"d4df9be1-97c3-493b-8ba1-f5799c769f5c\",\"ttft_stream_ms\":19,\"time_to_request_ms\":16,\"queued_turn_count\":0}\n",
+      "stderr": "",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.04120520799187943, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    },
+    {
+      "client": "claude",
+      "cli_version": "2.1.257 (Claude Code)",
+      "model_id": "claude-fable-5-1",
+      "effort": "medium",
+      "fixture_requests": [
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 2
+            },
+            "system": {
+              "type": "list",
+              "count": 4
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        },
+        {
+          "path": "/v1/messages?beta=true",
+          "protocol": "messages",
+          "request_shape": {
+            "model": {
+              "type": "str",
+              "count": null
+            },
+            "messages": {
+              "type": "list",
+              "count": 5
+            },
+            "system": {
+              "type": "list",
+              "count": 4
+            },
+            "tools": {
+              "type": "list",
+              "count": 1
+            },
+            "metadata": {
+              "type": "dict",
+              "count": 1
+            },
+            "max_tokens": {
+              "type": "int",
+              "count": null
+            },
+            "thinking": {
+              "type": "dict",
+              "count": 1
+            },
+            "context_management": {
+              "type": "dict",
+              "count": 1
+            },
+            "output_config": {
+              "type": "dict",
+              "count": 1
+            },
+            "stream": {
+              "type": "bool",
+              "count": null
+            }
+          },
+          "tool_names": [
+            "mcp__pilot__execute"
+          ],
+          "execute_tools": [
+            "mcp__pilot__execute"
+          ],
+          "unexpected_tools": [],
+          "benign_tools": [],
+          "inventory_ok": true
+        }
+      ],
+      "tool_names": [
+        "mcp__pilot__execute"
+      ],
+      "execute_tools": [
+        "mcp__pilot__execute"
+      ],
+      "unexpected_tools": [],
+      "benign_tools": [],
+      "inventory_ok": true,
+      "tool_call_issued": true,
+      "protocol": [
+        "messages"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"type\":\"system\",\"subtype\":\"init\",\"cwd\":\"/work\",\"session_id\":\"b8afe423-79e3-4edc-b9e8-3c87344e07c4\",\"tools\":[\"mcp__pilot__execute\"],\"mcp_servers\":[{\"name\":\"pilot\",\"status\":\"connected\"}],\"model\":\"claude-fable-5-1\",\"permissionMode\":\"dontAsk\",\"slash_commands\":[],\"apiKeySource\":\"ANTHROPIC_API_KEY\",\"claude_code_version\":\"2.1.257\",\"output_style\":\"default\",\"agents\":[\"claude\",\"Explore\",\"general-purpose\",\"Plan\",\"statusline-setup\"],\"skills\":[],\"plugins\":[],\"capabilities\":[\"interrupt_receipt_v1\",\"interrupt_cancel_queued_v1\",\"msg_lifecycle_v1\"],\"analytics_disabled\":true,\"product_feedback_disabled\":true,\"uuid\":\"f292cde5-67ab-4a05-a02e-305a551aeb26\",\"messaging_socket_path\":\"/tmp/cc-socks/22.sock\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\"}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-fable-5-1\",\"content\":[{\"type\":\"tool_use\",\"id\":\"toolu_offline\",\"name\":\"mcp__pilot__execute\",\"input\":{\"command\":\"test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\\\n' > /work/native-offline-canary && cat /work/native-offline-canary\",\"timeout_seconds\":10}}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"b8afe423-79e3-4edc-b9e8-3c87344e07c4\",\"uuid\":\"06839f29-091f-4454-84ad-34d463cd67b8\",\"timestamp\":\"2026-09-13T20:50:19.518Z\",\"tool_use_meta\":[{\"id\":\"toolu_offline\",\"display_name\":\"Execute\",\"server_display_name\":\"change-pilots-execute\"}]}\n{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_offline\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.050868499965872616, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}]},\"parent_tool_use_id\":null,\"session_id\":\"b8afe423-79e3-4edc-b9e8-3c87344e07c4\",\"uuid\":\"cd35cad5-3cbb-4dea-ad64-389ddef54d66\",\"timestamp\":\"2026-09-13T20:50:19.580Z\",\"tool_use_result\":[{\"type\":\"text\",\"text\":\"{\\\"exit_code\\\": 0, \\\"stdout_invalid_utf8\\\": false, \\\"stdout\\\": \\\"native-offline-canary-ok\\\\n\\\", \\\"stderr\\\": \\\"\\\", \\\"elapsed_seconds\\\": 0.050868499965872616, \\\"timed_out\\\": false, \\\"output_limited\\\": false}\"}]}\n{\"type\":\"assistant\",\"message\":{\"id\":\"msg_offline\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-fable-5-1\",\"content\":[{\"type\":\"text\",\"text\":\"Offline probe complete.\"}],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0},\"context_management\":null},\"parent_tool_use_id\":null,\"session_id\":\"b8afe423-79e3-4edc-b9e8-3c87344e07c4\",\"uuid\":\"b278ac72-fa02-4687-97d1-24bbb3015d92\",\"timestamp\":\"2026-09-13T20:50:19.587Z\"}\n{\"duration_api_ms\":26,\"stop_reason\":\"end_turn\",\"session_id\":\"b8afe423-79e3-4edc-b9e8-3c87344e07c4\",\"total_cost_usd\":0.00011999999999999999,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":2,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{\"claude-fable-5-1\":{\"inputTokens\":2,\"outputTokens\":2,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.00011999999999999999,\"contextWindow\":200000,\"maxOutputTokens\":64000,\"thinkingTokens\":0,\"canonicalModel\":\"claude-fable-5-1\",\"provider\":\"firstParty\",\"costBasis\":\"list\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"is_error\":false,\"num_turns\":2,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Offline probe complete.\",\"ttft_ms\":27,\"type\":\"result\",\"duration_ms\":105,\"uuid\":\"b30e751b-6723-4830-b578-2d751573c013\",\"ttft_stream_ms\":27,\"time_to_request_ms\":22,\"queued_turn_count\":0}\n",
+      "stderr": "",
+      "auth_status": "not_checked",
+      "real_inference_requests": 0,
+      "canary_expected": "native-offline-canary-ok",
+      "canary_verified": true,
+      "mcp_tool_calls": 1,
+      "mcp_methods": [
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
+        "tools/call"
+      ],
+      "relay_error": null,
+      "events": [
+        {
+          "event": "tool_call",
+          "call_id": 2,
+          "command": "test ! -e /Users/joel && test ! -e /evaluator && test ! -S /var/run/docker.sock && printf 'native-offline-canary-ok\\n' > /work/native-offline-canary && cat /work/native-offline-canary",
+          "timeout_seconds": 10
+        },
+        {
+          "event": "tool_result",
+          "call_id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"exit_code\": 0, \"stdout_invalid_utf8\": false, \"stdout\": \"native-offline-canary-ok\\n\", \"stderr\": \"\", \"elapsed_seconds\": 0.050868499965872616, \"timed_out\": false, \"output_limited\": false}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      ],
+      "network_mode": "none",
+      "mcp_protocol": "2024-11-05",
+      "verified": true
+    }
+  ],
   "boundary_checks": [
     {
       "provider": "openai",
@@ -34,7 +1499,7 @@
           "proxy_hardened": true,
           "auth_volume_no_driver_options": true
         },
-        "image_id": "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a"
+        "image_id": "sha256:12f4e9145b5ce9e168c5088d43eb1b7ff416bbc7a486de19ea73e1cdb3b2d623"
       },
       "network": {
         "passed": true,
@@ -81,7 +1546,7 @@
           "proxy_hardened": true,
           "auth_volume_no_driver_options": true
         },
-        "image_id": "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a"
+        "image_id": "sha256:12f4e9145b5ce9e168c5088d43eb1b7ff416bbc7a486de19ea73e1cdb3b2d623"
       },
       "network": {
         "passed": true,
@@ -105,204 +1570,22 @@
       }
     }
   ],
-  "model_checks": [
-    {
-      "client": "codex",
-      "cli_version": "codex-cli 0.154.0",
-      "model_id": "gpt-5.6-luna",
-      "effort": "medium",
-      "tool_names": [
-        "functions.list_mcp_resource_templates",
-        "functions.list_mcp_resources",
-        "functions.read_mcp_resource",
-        "mcp__pilot.execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "responses"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "codex",
-      "cli_version": "codex-cli 0.154.0",
-      "model_id": "gpt-5.6-terra",
-      "effort": "medium",
-      "tool_names": [
-        "functions.list_mcp_resource_templates",
-        "functions.list_mcp_resources",
-        "functions.read_mcp_resource",
-        "mcp__pilot.execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "responses"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "codex",
-      "cli_version": "codex-cli 0.154.0",
-      "model_id": "gpt-5.6-sol",
-      "effort": "medium",
-      "tool_names": [
-        "functions.list_mcp_resource_templates",
-        "functions.list_mcp_resources",
-        "functions.read_mcp_resource",
-        "mcp__pilot.execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "responses"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "codex",
-      "cli_version": "codex-cli 0.154.0",
-      "model_id": "gpt-6-astra",
-      "effort": "medium",
-      "tool_names": [
-        "functions.list_mcp_resource_templates",
-        "functions.list_mcp_resources",
-        "functions.read_mcp_resource",
-        "mcp__pilot.execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "responses"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "claude",
-      "cli_version": "2.1.257 (Claude Code)",
-      "model_id": "claude-haiku-4-5-20251001",
-      "effort": null,
-      "tool_names": [
-        "mcp__pilot__execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "messages"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "claude",
-      "cli_version": "2.1.257 (Claude Code)",
-      "model_id": "claude-sonnet-5",
-      "effort": "medium",
-      "tool_names": [
-        "mcp__pilot__execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "messages"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "claude",
-      "cli_version": "2.1.257 (Claude Code)",
-      "model_id": "claude-opus-5",
-      "effort": "medium",
-      "tool_names": [
-        "mcp__pilot__execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "messages"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    },
-    {
-      "client": "claude",
-      "cli_version": "2.1.257 (Claude Code)",
-      "model_id": "claude-fable-5-1",
-      "effort": "medium",
-      "tool_names": [
-        "mcp__pilot__execute"
-      ],
-      "unexpected_tools": [],
-      "canary_verified": true,
-      "mcp_tool_calls": 1,
-      "protocol": [
-        "messages"
-      ],
-      "mcp_protocol": "2024-11-05",
-      "network_mode": "none",
-      "verified": true
-    }
-  ],
-  "task_tooling_checks": {
-    "image_id": "sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39",
-    "test_command": "PRISM_EVAL_DOCKER_TESTS=1 python3 -m unittest discover -s evals/change-pilots/tests -p test_native_task_tools.py",
-    "tests_passed": 4,
-    "genuine_codex_apply_patch_stdin_add_update_delete": true,
-    "npx_available": true,
-    "runtime_versions_unchanged": true,
-    "ledger_public_baseline_cases_passed": 72,
-    "ledger_public_baseline_cases_per_language": 24,
-    "languages": [
-      "prism",
-      "python",
-      "typescript"
-    ],
-    "nul_command_rejected_without_freezing_task": true
-  },
-  "isolated_subscription_status": {
-    "openai": "ChatGPT subscription login and live model access passed earlier preflight; current offline checks use no credentials",
-    "anthropic": "Claude Max subscription login and live model access passed earlier preflight; current offline checks use no credentials"
-  },
-  "not_verified": [
-    "remaining subscription quota and provider-side accounting",
-    "server-side model identity when native CLI does not expose it"
-  ],
+  "real_inference_requests": 0,
+  "subscription_access_verified": false,
   "source_sha256": {
-    "native.py": "af893264373d4edd2ff52f6f197e0a21caf097a4696509dac599970b0d12a0f1",
-    "native_batch.py": "b149e6a15938b358b26983e453ecfd4ee12c472175c03fcedcc25527c19e063b",
     "native_bridge.py": "ff8fc9096d45f1093b02cb39be07439cc42bc8c6992d7ef71e3c3a29424f140d",
-    "native_check.py": "5a85a5523f494d74b81e3c790ebf02ad3920067127a895436c258826b6c015ec",
     "native_config.py": "b3cdf8a28998daa8dc13eef4a1603efcb2d0978b49961bdfa7a58650bc96e0aa",
-    "native_probe.py": "f91761f44160c120e7b4642e8c8369af7bbb64c5d2e6174509068812b608cf8c",
+    "native_probe.py": "3dab94f0148a5c765a366cb9ac51f36318c54350e6925a209d7e11d90480d3dc",
     "native_proxy.py": "ecf2d330d7ec2ea53305a7f1dcfb28a79e4eb7ac778d2b784dfdd11c423efe9f",
     "native_relay.py": "60602248b947812becdb286b28a1bcb4b1551b57c6ade9f7bef7aea4d8e20cbf",
     "native_session.py": "6ffaf511e9b6763e7783029949a30140b8740bf70947f3718b31bfad8e49ae3c",
-    "native_setup.py": "b4dcc51bc7311cca122ae0eee7f1996247b1dd2545a297075c8ff9ee01795a57",
-    "native_task_setup.py": "7148ac2861a7a49df59e60ce192f727098e295942889a4d9d2c61b0d11df6df5"
-  },
-  "task_build_source_sha256": {
+    "native_setup.py": "a7e9ceb37c0136b64dfa5ab2a982909bd8435f328f7a297850f96823523d82e9",
+    "native_check.py": "2bff0a72c15bf109745b26ac3dca4aa8fabc041aaec12e46715a101363bbb21c",
+    "native_task_setup.py": "aaf5a2dffc29731d0bfb393cdc6f2dabda56e887f9aff025d49c5b715db14534",
+    "sandbox.py": "3b7f7e0c29f08324d914748c4a5dd43cb29efc273844d70bffebd09641f8dad0",
+    "build_image.py": "9208675e734d2b4474f6ce4ac51ed8d0252c88fef2f989916567d7ca48cdacf1",
+    "Dockerfile": "d50f4abf6f1d440aad1cf3b5cec23b736b6ae661bbe772afc0f15ecdd681f8d0",
+    "NativeDockerfile": "ab4933de0febbd6561e0d1fd8dd2ca2eb92687e90751bdde0dc41c6dbb5eefb9",
     "NativeTaskDockerfile": "dd6b460a1bf4e17dd79bb1a4b6676e789615d4358bc091c362e4ca720e557783"
-  },
-  "prior_live_calibration": "24 ledger runs completed with these client/task image identities; routing rechecked offline after extracting shared per-cell execution for chained scheduling.",
-  "repair_verification": "Recovered Codex reconnect followed by terminal completion passes fixture tests; unknown errors, failed turns, unfinished turns, nonzero exits and relay errors remain failures. All eight model/effort routing probes and both provider boundaries passed fresh offline verification. No model inference used for repair verification. Prior real-container task-tool checks remain applicable to the unchanged task image and tooling."
+  }
 }

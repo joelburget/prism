@@ -1,6 +1,6 @@
 # Prism invoice ledger baseline
 
-Requires Prism 0.18.0 and its native build toolchain. From this directory, run
+Requires Prism 0.22.0 and its native build toolchain. From this directory, run
 `./build.sh` once, then `./run.sh`. Set `PRISM=/path/to/prism` to select a compiler.
 The build writes the native executable and lineage data into ignored `.build/`.
 The launcher only executes the existing binary; it never compiles per request.

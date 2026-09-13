@@ -70,7 +70,7 @@ def export(root,output,compiler):
             else:(out/'diff.log').write_text(p.stderr)
         records[c['run_id']]=receipt
         print(c['run_id'],{k:v['available'] for k,v in receipt.items()},flush=True)
-    value={'compiler_version':version,'compiler_sha256':sha(compiler),'purpose':'Review-only projection. Original runs used pinned Prism 0.18.0; indexes use this newer viewer-compatible compiler. Missing hashes and parse errors are retained, not repaired. No new model calls or grading.',
+    value={'compiler_version':version,'compiler_sha256':sha(compiler),'purpose':'Review-only projection. Original compiler/image identities remain in each run plan; indexes use the compiler identified here. Missing hashes and parse errors are retained, not repaired. No new model calls or grading.',
            'synthetic_manifest':MANIFEST,'runs':records}
     (target/'manifest.json').write_text(json.dumps(value,indent=2)+'\n')
     return value

@@ -7,6 +7,8 @@ Run from evals/change-pilots: python3 -m experiments.native_check --help.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -41,6 +43,31 @@ def verify(provider, model_id, image=DEFAULT_IMAGE, effort=None, task_image=TASK
         docker("volume", "rm", volume, check=False)
 
 
+def verify_all(image=DEFAULT_IMAGE, task_image=TASK_IMAGE):
+    """Refresh the planner receipt using every configured model's offline fixture."""
+    from .costs import select_models
+    identity, task_id = image_id(image), image_id(task_image)
+    report = {"verified_at": datetime.now(timezone.utc).isoformat(), "image_id": identity,
+              "task_image_id": task_id, "model_checks": [], "boundary_checks": [],
+              "real_inference_requests": 0, "subscription_access_verified": False}
+    for model in select_models(None):
+        effort = model.get("reasoning") if model["provider"] == "openai" else model.get("effort")
+        checked = verify(model["provider"], model["model_id"], identity, effort, task_id)
+        if not checked["isolation_and_routing_verified"]:
+            raise ValueError(f"Offline routing verification failed for {model['key']}")
+        report["model_checks"].append(checked["inventory"])
+        if not any(b["provider"] == model["provider"] for b in report["boundary_checks"]):
+            report["boundary_checks"].append({"provider": model["provider"],
+                "container": checked["boundary"], "network": checked["network"]})
+        print(f"Verified offline route: {model['key']}", flush=True)
+    directory = Path(__file__).resolve().parent
+    report["source_sha256"] = {name: hashlib.sha256((directory / name).read_bytes()).hexdigest()
+        for name in ("native_bridge.py", "native_config.py", "native_probe.py", "native_proxy.py",
+                     "native_relay.py", "native_session.py", "native_setup.py", "native_check.py",
+                     "native_task_setup.py", "sandbox.py", "build_image.py", "Dockerfile", "NativeDockerfile", "NativeTaskDockerfile")}
+    return report
+
+
 def import_codex_cache(client):
     """Documented headless auth-cache copy; never decode, print or export tokens."""
     if client.provider != "openai" or not inspect_boundary(client)["passed"]:
@@ -56,15 +83,19 @@ def import_codex_cache(client):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("verify", "status", "login", "import-codex-login"))
-    parser.add_argument("--provider", choices=("openai", "anthropic"), required=True)
+    parser.add_argument("command", choices=("verify", "verify-all", "status", "login", "import-codex-login"))
+    parser.add_argument("--provider", choices=("openai", "anthropic"))
     parser.add_argument("--model-id")
     parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh", "max"))
     parser.add_argument("--image", default=DEFAULT_IMAGE)
     parser.add_argument("--task-image", default=TASK_IMAGE)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.command == "verify":
+    if args.command != "verify-all" and not args.provider:
+        parser.error("--provider is required for this command")
+    if args.command == "verify-all":
+        report = verify_all(args.image, args.task_image)
+    elif args.command == "verify":
         if not args.model_id:
             parser.error("verify requires --model-id (tool inventory can depend on the model)")
         report = verify(args.provider, args.model_id, args.image, args.effort, args.task_image)

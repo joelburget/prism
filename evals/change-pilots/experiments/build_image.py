@@ -10,12 +10,13 @@ import subprocess
 import tarfile
 import tempfile
 
-PRISM_COMMIT = "2cfe818bc17d91c2a5fb452901cb40b8e8bee564"  # v0.18.0
-DEFAULT_IMAGE = "prism-change-pilots:0.18.0-py3.14.7-node25.2.1"
+PRISM_COMMIT = "b643c4acfd371ba37d13fdedf0742154e5b69806"  # v0.22.0
+DEFAULT_IMAGE = "prism-change-pilots:0.22.0-py3.14.7-node25.2.1"
 # Deliberately list compiler inputs; never archive the repository root.
 COMPILER_INPUTS = ("Cargo.toml", "Cargo.lock", "build.rs", "rust-toolchain.toml",
                    "README.md", "LICENSE", "src", "bin", "crates", "runtime", "lib",
-                   "benches", "packages/tc", "docs/src/spec.md", "docs/src/stdlib")
+                   "benches", "packages/tc", "packages/lint", "docs/src/spec.md", "docs/src/stdlib", "docs/src/compiler.md",
+                   "docs/src/tutorial.md", "docs/src/tutorial", "docs/examples")
 
 
 def prepare_context(repository: Path, destination: Path) -> dict:
@@ -40,7 +41,7 @@ def prepare_context(repository: Path, destination: Path) -> dict:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(archive.extractfile(member).read())
                 target.chmod(0o755 if member.mode & 0o111 else 0o644)
-    provenance = {"prism_commit": PRISM_COMMIT, "prism_version": "0.18.0",
+    provenance = {"prism_commit": PRISM_COMMIT, "prism_version": "0.22.0",
                   "compiler_archive_sha256": hashlib.sha256(data).hexdigest(),
                   "python_version": "3.14.7", "node_version": "25.2.1",
                   "typescript_version": "5.9.3", "node_types_version": "25.0.3",

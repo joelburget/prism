@@ -1,6 +1,6 @@
 # Query engine baseline — Prism
 
-Prism 0.18.0 with its standard library and native toolchain. Run `./build.sh` once to compile `.build/query-null`; subsequent requests use the compiled executable.
+Prism 0.22.0 with its standard library and native toolchain. Run `./build.sh` once to compile `.build/query-null`; subsequent requests use the compiled executable.
 
 Run `./run.sh`. It reads one protocol-v1 `query-null` JSON request from stdin and writes one JSON response. Every request starts a fresh process. Domain errors exit zero and contain only the fixed error code. No SQL library or external query engine is used.
 

@@ -18,7 +18,7 @@ import uuid
 
 from .native_proxy import ALLOWED_HOSTS
 
-DEFAULT_IMAGE = "prism-native-clients:codex0.154.0-claude2.1.257"
+DEFAULT_IMAGE = "prism-native-clients:prism0.22.0-codex0.154.0-claude2.1.257"
 AUTH_DIRS = {"openai": "/home/native/.codex", "anthropic": "/home/native/.claude"}
 
 

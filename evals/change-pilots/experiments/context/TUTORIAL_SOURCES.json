@@ -1,0 +1,21 @@
+{
+  "upstream_commit": "b643c4acfd371ba37d13fdedf0742154e5b69806",
+  "sources_sha256": {
+    "docs/src/tutorial.md": "065efc7c92bde8c1f159a6f4b977fc05b5f3322731a7ab951fed28b57a3a22ee",
+    "docs/src/tutorial/functions.md": "135922feeada7eea873e30588d73950b94485775bb938b8eb6e8d2beb685ac97",
+    "docs/src/tutorial/data.md": "f851e5003033392a355d69dcc14ac98cc3268ef781bb8734932dde777da95f5e",
+    "docs/src/tutorial/effects.md": "26eb30b3854513c522edcec67ce11584dffd689b9460aeccd517c7e410b32b81",
+    "docs/src/tutorial/continuations.md": "c579016e0b4e6259a903376187a31ecf2833bc189371c36ea676fc11030323a7",
+    "docs/src/tutorial/coeffects.md": "521ba7d69dc9d951febe1b593d568f77647890ac1a0eba1a6000bfccd61bc77c",
+    "docs/src/tutorial/lenses-streams.md": "3e6f6ae53ae54c61bdff6c774a70ca65d202155b063e272524f7c1952c94d2a8",
+    "docs/src/tutorial/projects-identity.md": "ef7615de55c8ead50789f52219436b73da525b466c0457ba551b724822600085",
+    "docs/src/tutorial/prism-way.md": "eff343c9d1f737d91a68a489649b7c6c2ac7a476c30aa0aa29ed3f2e4acae676"
+  },
+  "tutorial_sha256": "2d37276d67a05fd316150114c3887c4dd40537886b60b7606d6f7a2b02c76ddd",
+  "transformations": [
+    "Expand hidden Prism scaffolding",
+    "Remove mdBook tab directives",
+    "Resolve relative links to /opt/prism-docs",
+    "Use native Show output for the string-list example"
+  ]
+}

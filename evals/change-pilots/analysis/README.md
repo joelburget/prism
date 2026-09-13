@@ -32,7 +32,7 @@ that `starter/` is the predecessor, not a captured submission. No replacement ru
 can recover that missing historical snapshot. The output manifest maps run IDs
 to immutable commit URLs. Publishing the branch is a separate `git push`.
 
-Prism needs the newer `prism index` command, absent from the evaluation's 0.18.0
+Prism needs `prism index` (included in 0.22), absent from the original calibration's 0.18.0
 compiler. Export from copies using a specified viewer-compatible binary:
 
 ```sh

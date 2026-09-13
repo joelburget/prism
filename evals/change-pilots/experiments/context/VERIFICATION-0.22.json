@@ -1,31 +1,572 @@
 {
-  "verified_at": "2026-09-13T19:06:05.516223+00:00",
-  "briefing_sha256": "bf3a0841bac2572ddab8dc9090501837225e097c8f48312eaa131b61a0f4de88",
+  "verified_at": "2026-09-13T20:43:57.847950+00:00",
+  "profile": "prism-tutorial-v2",
+  "briefing_sha256": "f93d4d48234bebd924455b79de78221e4c3f61212470d024c8715a075636a2c4",
   "compiler_version": "prism 0.22.0",
-  "upstream_source_commit": "b643c4acfd371ba37d13fdedf0742154e5b69806",
   "compiler_binary_sha256": "ac0e17bc24e5abb460bf114dc687391d01c3eea72644b232e377408506e1598b",
-  "compiler_source": "Installed Homebrew binary",
-  "platform": "aarch64-apple-darwin",
   "examples": [
     {
       "index": 1,
       "source_sha256": "ce38f553e929dba1c5cf65741b66719709d3f66c8e4f8d55a12e96a14054c708",
-      "compiled": true,
-      "stdout": "5\n2\n"
+      "status": "executed",
+      "stdout": "5\n2\n",
+      "output_checked": true
     },
     {
       "index": 2,
       "source_sha256": "1bdf826fc71e8ee739b8e1a96ec35688f21d76cffe382ad7dc3007d7f421ab19",
-      "compiled": true,
-      "stdout": "5\n2\n"
+      "status": "executed",
+      "stdout": "5\n2\n",
+      "output_checked": true
     },
     {
       "index": 3,
       "source_sha256": "fc382d291f6f7e8a21206b497f567d16a39aec4e17842b8074561e97d7abaf3f",
-      "compiled": true,
-      "stdout": "4\n6\n"
+      "status": "executed",
+      "stdout": "4\n6\n",
+      "output_checked": true
+    },
+    {
+      "index": 4,
+      "source_sha256": "3578e1b5f12f738430861ee56dc99371e3ccae5d60c61fc53b517853e4dea990",
+      "status": "executed",
+      "stdout": "Welcome, Python programmer. Taste the Rainbow!\n",
+      "output_checked": true
+    },
+    {
+      "index": 5,
+      "source_sha256": "92716925f17787ee503bd77b9519503288be9f1a209df8ae09cb9cca32b3dec5",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 6,
+      "source_sha256": "1fab5e6fb1514fb93101b2b2afc91d0df19024ec4da2861515652281455360b8",
+      "status": "executed",
+      "stdout": "area = 36\n",
+      "output_checked": true
+    },
+    {
+      "index": 7,
+      "source_sha256": "2e9ad41e47d16e94adfe768537b4d5ba7021a1df65f0b1f13d7ab4d60f1adaa2",
+      "status": "typechecked"
+    },
+    {
+      "index": 8,
+      "source_sha256": "c2bc1cdadb73d08cdd85df7825e8a3893d878870011dee5f6ffc2f0209b3d517",
+      "status": "executed",
+      "stdout": "49\n",
+      "output_checked": true
+    },
+    {
+      "index": 9,
+      "source_sha256": "ae2058770c3485c8209d7feb0cb717776806405a406bc2716c405dae757fe501",
+      "status": "executed",
+      "stdout": "mild\n",
+      "output_checked": true
+    },
+    {
+      "index": 10,
+      "source_sha256": "8690f26c97fcdd9796653e92d1feedfd220194a371fc9121d362c9dcba70cd2b",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 11,
+      "source_sha256": "347a33d826e7e692a1a2a4bdb0e01d3f7af6d52961bad3bc4964a4a5f21afe66",
+      "status": "executed",
+      "stdout": "16\n",
+      "output_checked": true
+    },
+    {
+      "index": 12,
+      "source_sha256": "2d6b66e4cee85f459f298a0ff4da231cf5c6c62e487f4fb13944e75c4cc43638",
+      "status": "executed",
+      "stdout": "[1, 2, 3, 4]\n[1, 4, 9, 16]\n",
+      "output_checked": true
+    },
+    {
+      "index": 13,
+      "source_sha256": "e7263f359a341e52b2a1ebafcd70385696813fb47bbae44667feee2e8375585f",
+      "status": "executed",
+      "stdout": "41\n41\n",
+      "output_checked": true
+    },
+    {
+      "index": 14,
+      "source_sha256": "126d9e9c553d517174b60ca9424cc2bfcf7e65822f8a60322d2ed6dd9bd2e683",
+      "status": "executed",
+      "stdout": "violet: 42\n[\"red\", \"green\", \"blue\"]\n",
+      "output_checked": true
+    },
+    {
+      "index": 15,
+      "source_sha256": "577615612a4b22e4884940e11892505c1169377673801a5fe45a87042d39cb28",
+      "status": "executed",
+      "stdout": "[1, 4, 9, 16, 25]\n",
+      "output_checked": true
+    },
+    {
+      "index": 16,
+      "source_sha256": "a482acb3ae1d24535d5b286fb42366a8ce80d83578468496e52671ef1afdb42a",
+      "status": "executed",
+      "stdout": "violet: 400nm\nviolet: 405nm\n",
+      "output_checked": true
+    },
+    {
+      "index": 17,
+      "source_sha256": "541854354a1dc864b98b514f60f8671350373bdfe20b81335cdf8ae4490d6e51",
+      "status": "executed",
+      "stdout": "red at 700nm\ninfrared at 900nm\ninvalid reading\n",
+      "output_checked": true
+    },
+    {
+      "index": 18,
+      "source_sha256": "36759997d047129d2843e36dc9ab83d5d313e48160eddbe62c3c87fad6e5b80a",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 19,
+      "source_sha256": "50a9904b959a1a1e48b942b878c8e5797d43a0c1c3f6488737bf93c4d294cdbb",
+      "status": "executed",
+      "stdout": "9\n3\n",
+      "output_checked": true
+    },
+    {
+      "index": 20,
+      "source_sha256": "da5d3065273fea406c0258df9499fa0b1d02fd5d60326c259d0856cdd6a27522",
+      "status": "typechecked"
+    },
+    {
+      "index": 21,
+      "source_sha256": "8aae9d93dfe02e4dfc47874d50ddaa68be779344d0d215a0197a28fe5ca4d9c6",
+      "status": "executed",
+      "stdout": "green\nunknown\n",
+      "output_checked": true
+    },
+    {
+      "index": 22,
+      "source_sha256": "93959e2765b0ae4ba653ef9483ee2b6b72d2fce71e0e9b38e48c35f033feeea9",
+      "status": "executed",
+      "stdout": "530nm is green\n",
+      "output_checked": true
+    },
+    {
+      "index": 23,
+      "source_sha256": "ce79dca25723707192bbf0dc24faa5f28fc46ab6c6d376c6d95d69f428420cfb",
+      "status": "executed",
+      "stdout": "visible: 550nm\noutside the visible range: 900\n",
+      "output_checked": true
+    },
+    {
+      "index": 24,
+      "source_sha256": "8440c69c76c5cfdd92b80aef74b747568dd084ad62506b450e75438856798f8f",
+      "status": "executed",
+      "stdout": "Continuations are programmable!\n",
+      "output_checked": true
+    },
+    {
+      "index": 25,
+      "source_sha256": "5927d2cc41eb00ce0f024709f0da7478d8441e0457909eb71b98a6fb08ac2610",
+      "status": "executed",
+      "stdout": "42\n42\n",
+      "output_checked": true
+    },
+    {
+      "index": 26,
+      "source_sha256": "71a1372ea01f3fd863f4d19eec52e02410b245ddd8effc49a7f4084fc20c8c56",
+      "status": "executed",
+      "stdout": "41\n",
+      "output_checked": true
+    },
+    {
+      "index": 27,
+      "source_sha256": "fa61ff248e1b91be00e73148d2367f3ade0a4b9d1309fcecd033ae24437675aa",
+      "status": "executed",
+      "stdout": "hello Ada\ninvalid: empty name\n",
+      "output_checked": true
+    },
+    {
+      "index": 28,
+      "source_sha256": "1fd78a2e575b0d069ce85a1187db496caedcafaf93f7fd0fcea9cb1a6eaec1d5",
+      "status": "executed",
+      "stdout": "[10, 20]\n",
+      "output_checked": true
+    },
+    {
+      "index": 29,
+      "source_sha256": "a558862c59f1db564b20cbb993320f438573d02493bef81e8fbc1c423ecd348d",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 30,
+      "source_sha256": "db3200f33bed1b5b4c0cd39586f45fd45ff24ba674ae65459c3692a29d2e4674",
+      "status": "executed",
+      "stdout": "6\n",
+      "output_checked": true
+    },
+    {
+      "index": 31,
+      "source_sha256": "cf39a6ea287c9293b0ab6da188a453476e63177f4d16d075cd75f78560d22077",
+      "status": "executed",
+      "stdout": "42\n",
+      "output_checked": true
+    },
+    {
+      "index": 32,
+      "source_sha256": "601e425669059a3820a0616090da1bf960cd2a698f24a0f440c347ba7f7cf719",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 33,
+      "source_sha256": "f8ccd1a2f6e852d93f2f3bc96b3398fd40443c715788624f10112befc28c1f3d",
+      "status": "executed",
+      "stdout": "42\n",
+      "output_checked": true
+    },
+    {
+      "index": 34,
+      "source_sha256": "c27b3a5cfc8f272859bd58899a5df8eb53c99b00967c49214ceec8fa543d7333",
+      "status": "expected_compile_failure"
+    },
+    {
+      "index": 35,
+      "source_sha256": "fd22eed4f38d7874c90bf6727b350df18bc0371cb950333d08aa7da7f3d08bbb",
+      "status": "executed",
+      "stdout": "9\n15\n1\n",
+      "output_checked": true
+    },
+    {
+      "index": 36,
+      "source_sha256": "0f47cc5b991bea274f47c7f546a3bf5a65667ad9be44c034b20952dc1a58873e",
+      "status": "executed",
+      "stdout": "3\n12\n",
+      "output_checked": true
+    },
+    {
+      "index": 37,
+      "source_sha256": "a18f13adb8f1f6831cffb0e6ff9d26c5f23f0cbe435241bbd3231c3f7539f760",
+      "status": "executed",
+      "stdout": "[40, 50]\n",
+      "output_checked": true
+    },
+    {
+      "index": 38,
+      "source_sha256": "383fad20aa2ab0ec47f5f5d257313f047b6e13e82b33f36c2b3ee445d39b5ce4",
+      "status": "executed",
+      "stdout": "220\n",
+      "output_checked": true
+    },
+    {
+      "index": 39,
+      "source_sha256": "cd54ec7a9d85a1d1d6027a67f1cb44895c0e93012d2014b3722575629ad32c1e",
+      "status": "executed",
+      "stdout": "[3, 6, 9, 12]\n",
+      "output_checked": true
+    },
+    {
+      "index": 40,
+      "source_sha256": "c4a9373abf35c84935c1129f31998c96d09378b5bf592ea9c83cbf2ded1a87d0",
+      "status": "typechecked"
+    },
+    {
+      "index": 41,
+      "source_sha256": "707f322cab7119d5300763af7f6c7e2d2b3cc661c1342bbc58f5763fd6d17285",
+      "status": "excluded",
+      "reason": "Explicit upstream project-dependent/typed-hole fragment"
+    },
+    {
+      "index": 42,
+      "source_sha256": "8a4cddb1e524cac961175a4cff55ddcd8faa5d6316c3ec218d8f90a38a5f85fb",
+      "status": "excluded",
+      "reason": "Explicit upstream project-dependent/typed-hole fragment"
     }
   ],
   "model_inference_requests": 0,
-  "limitation": "Verified with the installed macOS 0.22.0 compiler. Evaluation Docker images and their 0.18 briefing profile remain pinned to 0.18.0; no 0.22 Docker verification or performance calibration was performed."
+  "platform": "aarch64-apple-darwin",
+  "upstream_source_commit": "b643c4acfd371ba37d13fdedf0742154e5b69806",
+  "linux_verification": {
+    "verified_at": "2026-09-13T20:48:14.570805+00:00",
+    "profile": "prism-tutorial-v2",
+    "briefing_sha256": "f93d4d48234bebd924455b79de78221e4c3f61212470d024c8715a075636a2c4",
+    "compiler_version": "prism 0.22.0",
+    "compiler_binary_sha256": "34b0e7b7608a4c8ad3603265b16d60b4f73f3a8a3c247d1c300ddf104a4a3dd9",
+    "examples": [
+      {
+        "index": 1,
+        "source_sha256": "ce38f553e929dba1c5cf65741b66719709d3f66c8e4f8d55a12e96a14054c708",
+        "status": "executed",
+        "stdout": "5\n2\n",
+        "output_checked": true
+      },
+      {
+        "index": 2,
+        "source_sha256": "1bdf826fc71e8ee739b8e1a96ec35688f21d76cffe382ad7dc3007d7f421ab19",
+        "status": "executed",
+        "stdout": "5\n2\n",
+        "output_checked": true
+      },
+      {
+        "index": 3,
+        "source_sha256": "fc382d291f6f7e8a21206b497f567d16a39aec4e17842b8074561e97d7abaf3f",
+        "status": "executed",
+        "stdout": "4\n6\n",
+        "output_checked": true
+      },
+      {
+        "index": 4,
+        "source_sha256": "3578e1b5f12f738430861ee56dc99371e3ccae5d60c61fc53b517853e4dea990",
+        "status": "executed",
+        "stdout": "Welcome, Python programmer. Taste the Rainbow!\n",
+        "output_checked": true
+      },
+      {
+        "index": 5,
+        "source_sha256": "92716925f17787ee503bd77b9519503288be9f1a209df8ae09cb9cca32b3dec5",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 6,
+        "source_sha256": "1fab5e6fb1514fb93101b2b2afc91d0df19024ec4da2861515652281455360b8",
+        "status": "executed",
+        "stdout": "area = 36\n",
+        "output_checked": true
+      },
+      {
+        "index": 7,
+        "source_sha256": "2e9ad41e47d16e94adfe768537b4d5ba7021a1df65f0b1f13d7ab4d60f1adaa2",
+        "status": "typechecked"
+      },
+      {
+        "index": 8,
+        "source_sha256": "c2bc1cdadb73d08cdd85df7825e8a3893d878870011dee5f6ffc2f0209b3d517",
+        "status": "executed",
+        "stdout": "49\n",
+        "output_checked": true
+      },
+      {
+        "index": 9,
+        "source_sha256": "ae2058770c3485c8209d7feb0cb717776806405a406bc2716c405dae757fe501",
+        "status": "executed",
+        "stdout": "mild\n",
+        "output_checked": true
+      },
+      {
+        "index": 10,
+        "source_sha256": "8690f26c97fcdd9796653e92d1feedfd220194a371fc9121d362c9dcba70cd2b",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 11,
+        "source_sha256": "347a33d826e7e692a1a2a4bdb0e01d3f7af6d52961bad3bc4964a4a5f21afe66",
+        "status": "executed",
+        "stdout": "16\n",
+        "output_checked": true
+      },
+      {
+        "index": 12,
+        "source_sha256": "2d6b66e4cee85f459f298a0ff4da231cf5c6c62e487f4fb13944e75c4cc43638",
+        "status": "executed",
+        "stdout": "[1, 2, 3, 4]\n[1, 4, 9, 16]\n",
+        "output_checked": true
+      },
+      {
+        "index": 13,
+        "source_sha256": "e7263f359a341e52b2a1ebafcd70385696813fb47bbae44667feee2e8375585f",
+        "status": "executed",
+        "stdout": "41\n41\n",
+        "output_checked": true
+      },
+      {
+        "index": 14,
+        "source_sha256": "126d9e9c553d517174b60ca9424cc2bfcf7e65822f8a60322d2ed6dd9bd2e683",
+        "status": "executed",
+        "stdout": "violet: 42\n[\"red\", \"green\", \"blue\"]\n",
+        "output_checked": true
+      },
+      {
+        "index": 15,
+        "source_sha256": "577615612a4b22e4884940e11892505c1169377673801a5fe45a87042d39cb28",
+        "status": "executed",
+        "stdout": "[1, 4, 9, 16, 25]\n",
+        "output_checked": true
+      },
+      {
+        "index": 16,
+        "source_sha256": "a482acb3ae1d24535d5b286fb42366a8ce80d83578468496e52671ef1afdb42a",
+        "status": "executed",
+        "stdout": "violet: 400nm\nviolet: 405nm\n",
+        "output_checked": true
+      },
+      {
+        "index": 17,
+        "source_sha256": "541854354a1dc864b98b514f60f8671350373bdfe20b81335cdf8ae4490d6e51",
+        "status": "executed",
+        "stdout": "red at 700nm\ninfrared at 900nm\ninvalid reading\n",
+        "output_checked": true
+      },
+      {
+        "index": 18,
+        "source_sha256": "36759997d047129d2843e36dc9ab83d5d313e48160eddbe62c3c87fad6e5b80a",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 19,
+        "source_sha256": "50a9904b959a1a1e48b942b878c8e5797d43a0c1c3f6488737bf93c4d294cdbb",
+        "status": "executed",
+        "stdout": "9\n3\n",
+        "output_checked": true
+      },
+      {
+        "index": 20,
+        "source_sha256": "da5d3065273fea406c0258df9499fa0b1d02fd5d60326c259d0856cdd6a27522",
+        "status": "typechecked"
+      },
+      {
+        "index": 21,
+        "source_sha256": "8aae9d93dfe02e4dfc47874d50ddaa68be779344d0d215a0197a28fe5ca4d9c6",
+        "status": "executed",
+        "stdout": "green\nunknown\n",
+        "output_checked": true
+      },
+      {
+        "index": 22,
+        "source_sha256": "93959e2765b0ae4ba653ef9483ee2b6b72d2fce71e0e9b38e48c35f033feeea9",
+        "status": "executed",
+        "stdout": "530nm is green\n",
+        "output_checked": true
+      },
+      {
+        "index": 23,
+        "source_sha256": "ce79dca25723707192bbf0dc24faa5f28fc46ab6c6d376c6d95d69f428420cfb",
+        "status": "executed",
+        "stdout": "visible: 550nm\noutside the visible range: 900\n",
+        "output_checked": true
+      },
+      {
+        "index": 24,
+        "source_sha256": "8440c69c76c5cfdd92b80aef74b747568dd084ad62506b450e75438856798f8f",
+        "status": "executed",
+        "stdout": "Continuations are programmable!\n",
+        "output_checked": true
+      },
+      {
+        "index": 25,
+        "source_sha256": "5927d2cc41eb00ce0f024709f0da7478d8441e0457909eb71b98a6fb08ac2610",
+        "status": "executed",
+        "stdout": "42\n42\n",
+        "output_checked": true
+      },
+      {
+        "index": 26,
+        "source_sha256": "71a1372ea01f3fd863f4d19eec52e02410b245ddd8effc49a7f4084fc20c8c56",
+        "status": "executed",
+        "stdout": "41\n",
+        "output_checked": true
+      },
+      {
+        "index": 27,
+        "source_sha256": "fa61ff248e1b91be00e73148d2367f3ade0a4b9d1309fcecd033ae24437675aa",
+        "status": "executed",
+        "stdout": "hello Ada\ninvalid: empty name\n",
+        "output_checked": true
+      },
+      {
+        "index": 28,
+        "source_sha256": "1fd78a2e575b0d069ce85a1187db496caedcafaf93f7fd0fcea9cb1a6eaec1d5",
+        "status": "executed",
+        "stdout": "[10, 20]\n",
+        "output_checked": true
+      },
+      {
+        "index": 29,
+        "source_sha256": "a558862c59f1db564b20cbb993320f438573d02493bef81e8fbc1c423ecd348d",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 30,
+        "source_sha256": "db3200f33bed1b5b4c0cd39586f45fd45ff24ba674ae65459c3692a29d2e4674",
+        "status": "executed",
+        "stdout": "6\n",
+        "output_checked": true
+      },
+      {
+        "index": 31,
+        "source_sha256": "cf39a6ea287c9293b0ab6da188a453476e63177f4d16d075cd75f78560d22077",
+        "status": "executed",
+        "stdout": "42\n",
+        "output_checked": true
+      },
+      {
+        "index": 32,
+        "source_sha256": "601e425669059a3820a0616090da1bf960cd2a698f24a0f440c347ba7f7cf719",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 33,
+        "source_sha256": "f8ccd1a2f6e852d93f2f3bc96b3398fd40443c715788624f10112befc28c1f3d",
+        "status": "executed",
+        "stdout": "42\n",
+        "output_checked": true
+      },
+      {
+        "index": 34,
+        "source_sha256": "c27b3a5cfc8f272859bd58899a5df8eb53c99b00967c49214ceec8fa543d7333",
+        "status": "expected_compile_failure"
+      },
+      {
+        "index": 35,
+        "source_sha256": "fd22eed4f38d7874c90bf6727b350df18bc0371cb950333d08aa7da7f3d08bbb",
+        "status": "executed",
+        "stdout": "9\n15\n1\n",
+        "output_checked": true
+      },
+      {
+        "index": 36,
+        "source_sha256": "0f47cc5b991bea274f47c7f546a3bf5a65667ad9be44c034b20952dc1a58873e",
+        "status": "executed",
+        "stdout": "3\n12\n",
+        "output_checked": true
+      },
+      {
+        "index": 37,
+        "source_sha256": "a18f13adb8f1f6831cffb0e6ff9d26c5f23f0cbe435241bbd3231c3f7539f760",
+        "status": "executed",
+        "stdout": "[40, 50]\n",
+        "output_checked": true
+      },
+      {
+        "index": 38,
+        "source_sha256": "383fad20aa2ab0ec47f5f5d257313f047b6e13e82b33f36c2b3ee445d39b5ce4",
+        "status": "executed",
+        "stdout": "220\n",
+        "output_checked": true
+      },
+      {
+        "index": 39,
+        "source_sha256": "cd54ec7a9d85a1d1d6027a67f1cb44895c0e93012d2014b3722575629ad32c1e",
+        "status": "executed",
+        "stdout": "[3, 6, 9, 12]\n",
+        "output_checked": true
+      },
+      {
+        "index": 40,
+        "source_sha256": "c4a9373abf35c84935c1129f31998c96d09378b5bf592ea9c83cbf2ded1a87d0",
+        "status": "typechecked"
+      },
+      {
+        "index": 41,
+        "source_sha256": "707f322cab7119d5300763af7f6c7e2d2b3cc661c1342bbc58f5763fd6d17285",
+        "status": "excluded",
+        "reason": "Explicit upstream project-dependent/typed-hole fragment"
+      },
+      {
+        "index": 42,
+        "source_sha256": "8a4cddb1e524cac961175a4cff55ddcd8faa5d6316c3ec218d8f90a38a5f85fb",
+        "status": "excluded",
+        "reason": "Explicit upstream project-dependent/typed-hole fragment"
+      }
+    ],
+    "model_inference_requests": 0,
+    "task_image_id": "sha256:6e48c61358a291af0027ee2522778127f908178a9c6a850db96889850c206770",
+    "platform": "aarch64-unknown-linux-gnu"
+  }
 }

@@ -1,3 +1,6 @@
+> These are the original 0.18 results. Current 0.22 container checks are recorded in
+> [runtime validation](../experiments/VALIDATION-0.22.md).
+
 # Starter validation
 
 Validated on 2026-09-11. All nine variants were built (where needed) and run from

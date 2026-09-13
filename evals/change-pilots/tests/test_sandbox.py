@@ -97,6 +97,7 @@ class SandboxUnitTests(unittest.TestCase):
         self.assertNotIn("--volume", arguments)
         self.assertNotIn("--mount", arguments)
         self.assertIn("no-new-privileges", arguments)
+        self.assertIn("nofile=1024:1024", arguments)
 
     def test_frozen_sandbox_rejects_shell(self):
         sandbox = DockerSandbox("unused", Path("unused"))
@@ -113,8 +114,10 @@ class SandboxUnitTests(unittest.TestCase):
             self.assertTrue(paths)
             self.assertTrue(all("evals" not in p and ".git" not in p for p in paths))
             self.assertEqual(provenance["prism_commit"], PRISM_COMMIT)
-            self.assertIn('version = "0.18.0"', (context / "compiler/Cargo.toml").read_text())
-            self.assertTrue((context / "compiler/docs/src/spec.md").is_file())
+            self.assertIn('version = "0.22.0"', (context / "compiler/Cargo.toml").read_text())
+            for path in ("docs/src/spec.md", "docs/src/compiler.md", "docs/src/tutorial.md",
+                         "docs/src/tutorial/effects.md", "packages/lint/src/Lint.pr"):
+                self.assertTrue((context / "compiler" / path).is_file(), path)
 
 
 @unittest.skipUnless(os.environ.get("PRISM_EVAL_DOCKER_TESTS") == "1", "opt-in Docker tests")

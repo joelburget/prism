@@ -1,4 +1,7 @@
-# Experiment infrastructure validation
+# Historical experiment infrastructure validation
+
+For the current 0.22 images and checks, see [0.22 validation](VALIDATION-0.22.md).
+The observations below describe the earlier 0.18 calibration environment.
 
 Initial infrastructure checks on 2026-09-11 used no authenticated model inference.
 The subsequent live subscription preflight is described below. These checks
@@ -38,7 +41,7 @@ Its pinned compiler source is Prism v0.18.0 commit
 Node 25.2.1, Prism 0.18.0 and TypeScript 5.9.3. Rebuilding with mutable base/apt
 repositories may produce a different image; the experiment records its actual ID.
 
-Current native image: `sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a`,
+Historical native image: `sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a`,
 containing Codex 0.154.0 and Claude Code 2.1.257. Both provider containers passed
 20 Docker configuration checks each; OpenAI passed 11 and Anthropic 13 network
 checks. All eight model configurations passed real-CLI offline inventory and

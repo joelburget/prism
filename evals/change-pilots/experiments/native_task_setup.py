@@ -15,11 +15,10 @@ import shutil
 import tempfile
 import uuid
 
-from .native_setup import docker, image_id
+from .native_setup import docker, image_id, DEFAULT_IMAGE as NATIVE_IMAGE
+from .build_image import DEFAULT_IMAGE as TOOLCHAIN_IMAGE
 
-DEFAULT_IMAGE = "prism-change-pilots:0.18.0-native-tools-v2"
-TOOLCHAIN_IMAGE_ID = "sha256:d97c8d248720917885ae7394258fc373b417a22207864071ea3e14f5f8d7c742"
-NATIVE_IMAGE_ID = "sha256:c779522ccf7a871137c7245df2a3c8eb5f697286b03707f1ba634bdaf970926a"
+DEFAULT_IMAGE = "prism-change-pilots:0.22.0-native-tools-v2"
 
 
 def prepare_context(destination: Path) -> None:
@@ -29,7 +28,7 @@ def prepare_context(destination: Path) -> None:
 
 
 def build_image(image: str = DEFAULT_IMAGE) -> dict:
-    inputs = {"toolchain": TOOLCHAIN_IMAGE_ID, "native": NATIVE_IMAGE_ID}
+    inputs = {"toolchain": image_id(TOOLCHAIN_IMAGE), "native": image_id(NATIVE_IMAGE)}
     tags = {name: f"prism-native-task-input-{uuid.uuid4().hex}:{name}" for name in inputs}
     try:
         for name, expected in inputs.items():
@@ -43,8 +42,8 @@ def build_image(image: str = DEFAULT_IMAGE) -> dict:
                    str(context / "NativeTaskDockerfile"), "--build-arg",
                    f"TOOLCHAIN_IMAGE={tags['toolchain']}", "--build-arg",
                    f"NATIVE_IMAGE={tags['native']}", "--label",
-                   f"prism.task.toolchain-image={TOOLCHAIN_IMAGE_ID}", "--label",
-                   f"prism.task.patch-source-image={NATIVE_IMAGE_ID}",
+                   f"prism.task.toolchain-image={inputs['toolchain']}", "--label",
+                   f"prism.task.patch-source-image={inputs['native']}",
                    "--label", "prism.task.patch-version=0.154.0", "-t", image,
                    str(context), timeout=600)
         for name, expected in inputs.items():

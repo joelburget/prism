@@ -11,8 +11,10 @@ All eight passed their offline tool inventory and task-container canary checks.
 From `evals/change-pilots`:
 
 ```sh
+python3 experiments/build_image.py
 python3 -m experiments.native_setup build
 python3 -m experiments.native_task_setup
+python3 -m experiments.native_check verify-all --output experiments/NATIVE_VERIFICATION.json
 python3 -m experiments.native_check verify --provider openai \
   --model-id gpt-5.6-luna --effort medium --output reports/native-openai.json
 python3 -m experiments.native_check verify --provider anthropic \
@@ -53,7 +55,14 @@ explicitly describes the writable remote workspace and available editor.
 The task image includes the public Codex binary because its `apply_patch` invocation
 selects the patch parser. It has no authentication/configuration files, network or
 host mounts. Both inputs are pinned by immutable image ID; its build context
-contains only `NativeTaskDockerfile`. Language runtimes and Prism compiler are unchanged.
+contains only `NativeTaskDockerfile`. Current builds use Prism 0.22.0; Python, Node,
+TypeScript, Codex, and Claude Code remain at their existing pinned versions.
+See [0.22 migration validation](VALIDATION-0.22.md) for image identities, baseline
+checks, tutorial verification, and fresh performance calibration.
+
+`verify-all` refreshes the planner receipt for all eight configured model/effort
+pairs using offline fixtures and verifies both provider boundaries. It makes no
+real model inference requests. The previous receipt cannot authorize a new image.
 
 Verification uses a disposable blank authentication volume and a fake provider
 inside a network-disabled container. It captures the actual CLI tool inventory,
