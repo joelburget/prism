@@ -46,6 +46,7 @@ class Plan:
 
 def validate(request):
     require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
+    require(set(request) == {'protocol_version', 'task', 'input'})
     data = request.get('input')
     fields(data, {'database', 'queries'})
     require(isinstance(data['database'], list) and isinstance(data['queries'], list))
@@ -59,11 +60,11 @@ def validate(request):
             fields(c, {'name', 'type', 'nullable'})
             require(identifier(c['name']) and c['name'] not in names and c['type'] in ('int', 'text', 'bool') and type(c['nullable']) is bool)
             names.add(c['name'])
-            require(not c['nullable'], 'UNSUPPORTED_FEATURE')
         for row in t['rows']:
             require(isinstance(row, list) and len(row) == len(t['columns']))
             for v, c in zip(row, t['columns']):
-                require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                require(v is None or type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                require(v is not None or c['nullable'])
         database[t['name']] = t
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})

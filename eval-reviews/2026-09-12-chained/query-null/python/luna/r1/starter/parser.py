@@ -39,9 +39,12 @@ class Parser:
 
     def expr(self, minimum=1):
         t = self.pop()
-        if t in ('NULL', 'COALESCE'):
-            raise DomainError('UNSUPPORTED_FEATURE')
-        if t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
+        if t == 'NULL': left = Expr('lit', None)
+        elif t == 'COALESCE':
+            self.need('('); args=[self.expr()]
+            while self.take(','): args.append(self.expr())
+            require(len(args)>=2, 'PARSE_ERROR'); self.need(')'); left=Expr('COALESCE',args=args)
+        elif t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
         elif t == '(':
             left = self.expr()
             self.need(')')
@@ -68,7 +71,10 @@ class Parser:
             right = self.expr(p + 1)
             left = Expr(op, args=[left, right])
             if p == 4: compared = True
-        if self.peek() == 'IS': raise DomainError('UNSUPPORTED_FEATURE')
+        if self.take('IS'):
+            neg=self.take('NOT'); self.need('NULL'); left=Expr('ISNOTNULL' if neg else 'ISNULL',args=[left])
+            while PRECEDENCE.get(self.peek(), 0) >= minimum:
+                op=self.pop(); right=self.expr(PRECEDENCE[op]+1); left=Expr(op,args=[left,right])
         return left
 
     def source(self):
@@ -87,12 +93,13 @@ class Parser:
         self.need('FROM')
         q.sources.append(self.source())
         while self.peek() in ('INNER', 'JOIN', 'LEFT'):
-            if self.take('LEFT'): raise DomainError('UNSUPPORTED_FEATURE')
+            left=self.take('LEFT')
+            if left: self.take('OUTER')
             self.take('INNER')
             self.need('JOIN')
             q.sources.append(self.source())
             self.need('ON')
-            q.joins.append(self.expr())
+            q.joins.append((self.expr(), left))
         if self.take('WHERE'): q.where = self.expr()
         if self.take('GROUP'):
             self.need('BY')
@@ -106,8 +113,10 @@ class Parser:
                 alias = self.name()
                 desc = self.take('DESC')
                 if not desc: self.take('ASC')
-                if self.peek() == 'NULLS': raise DomainError('UNSUPPORTED_FEATURE')
-                q.order.append((alias, desc))
+                nulls=None
+                if self.take('NULLS'):
+                    require(self.peek() in ('FIRST','LAST'),'PARSE_ERROR'); nulls=self.pop()=='FIRST'
+                q.order.append((alias, desc, nulls))
                 if not self.take(','): break
         if self.take('LIMIT'):
             q.limit = self.natural()
