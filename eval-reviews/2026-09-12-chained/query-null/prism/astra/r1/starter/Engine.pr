@@ -31,35 +31,54 @@ pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
   elif op == "col" then
     at(row, e.index)
   elif agg(op) then
-    if op == "COUNT" then
+    if op == "COUNT" && length(e.args) == 0 then
       JInt(length(group))
     else
-      let vs = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
-      if op == "SUM" then
+      let vs = filter(\(v) -> not(is_null(v)), map(\(r) -> evaluate(at(e.args, 0), r, []), group))
+      if op == "COUNT" then
+        JInt(length(vs))
+      elif length(vs) == 0 then
+        JNull
+      elif op == "SUM" then
         JInt(sum(map(integer, vs)))
       else
         extremum(vs, op == "MIN")
+  elif op == "COALESCE" then
+    coalesce(e.args, row, group)
   else
     let a = evaluate(at(e.args, 0), row, group)
-    if op == "NOT" then
-      JBool(not(truth(a)))
+    if op == "IS NULL" then
+      JBool(is_null(a))
+    elif op == "IS NOT NULL" then
+      JBool(not(is_null(a)))
+    elif op == "NOT" then
+      if is_null(a) then JNull else JBool(not(truth(a)))
     else
       let b = evaluate(at(e.args, 1), row, group)
-      if op == "+" then
+      if op == "AND" then
+        if is_false(a) || is_false(b) then JBool(false) elif is_null(a) || is_null(b) then JNull else JBool(true)
+      elif op == "OR" then
+        if truth(a) || truth(b) then JBool(true) elif is_null(a) || is_null(b) then JNull else JBool(false)
+      elif is_null(a) || is_null(b) then
+        JNull
+      elif op == "+" then
         JInt(integer(a) + integer(b))
       elif op == "-" then
         JInt(integer(a) - integer(b))
       elif op == "*" then
         JInt(integer(a) * integer(b))
-      elif op == "AND" then
-        JBool(truth(a) && truth(b))
-      elif op == "OR" then
-        JBool(truth(a) || truth(b))
       else
         let c = compare_value(a, b)
         JBool(
             if op == "=" then c == 0 elif op == "<>" then c /= 0 elif op == "<" then c < 0 elif op == ">" then c > 0 elif op == "<=" then c <= 0 else c >= 0,
           )
+
+fn coalesce(args : List(Expr), row : List(Json), group : List(List(Json))) : Json =
+  match args of
+    Nil => JNull
+    Cons(e, rest) =>
+      let v = evaluate(e, row, group)
+      if is_null(v) then coalesce(rest, row, group) else v
 
 fn extremum(vs : List(Json), minimum : Bool) : Json =
   match vs of
@@ -77,7 +96,7 @@ pub fn fold_constants(e : Expr) : Expr =
   if (not(agg(n.op))
       && not(elem(n.op, ["lit", "col"]))
       && all(\(a) -> a.op == "lit", n.args)) then
-    literal(evaluate(n, [], []))
+    Expr { ..literal(evaluate(n, [], [])), kind = n.kind }
   else
     n
 
@@ -99,12 +118,13 @@ fn combine(es : List(Expr)) : Expr =
     Cons(e, Nil) => e
     Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool" }
 
--- Push a conjunct only when every referenced slot belongs to one inner-join
--- input. Slot numbers remain global; scan predicates receive a prefix padding.
+-- Push single-source conjuncts through inner joins. With outer joins, retain
+-- WHERE above the joins: filtering a nullable input can create new padded rows.
+-- Folding only literal operands avoids nullable identities such as x = x.
 pub fn optimize(plan : Plan) : Plan =
   let q = plan.query
   let terms = conjuncts(fold_constants(q.predicate))
-  let pushable = \(e) -> let ss = sources(e) in length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
+  let pushable = \(e) -> let ss = sources(e) in not(elem(true, q.left_joins)) && length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
   let fs = map(
       \(i) -> filter(\(e) -> pushable(e) && at(sources(e), 0) == i, terms),
       range(0, length(plan.tables)),
@@ -122,11 +142,13 @@ pub fn optimize(plan : Plan) : Plan =
 fn join_rows(
   left : List(List(Json)),
   right : List(List(Json)),
-  on : Expr
+  on : Expr,
+  outer : Bool,
+  width : Int
 ) : List(List(Json)) =
   flatten(
       map(
-          \(l) -> filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)),
+          \(l) -> let matches = filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)) in if outer && length(matches) == 0 then [append(l, replicate(width, JNull))] else matches,
           left,
         ),
     )
@@ -178,15 +200,19 @@ fn distinct_rows(
 fn row_compare(
   a : List(Json),
   b : List(Json),
-  order : List((Int, Bool))
+  order : List((Int, (Bool, Bool)))
 ) : Int =
   match order of
     Nil => 0
-    Cons((i, desc), rest) =>
-      let c = compare_value(at(a, i), at(b, i))
+    Cons((i, (desc, first)), rest) =>
+      let x = at(a, i)
+      let y = at(b, i)
+      let has_null = is_null(x) || is_null(y)
+      let c =
+        if is_null(x) && is_null(y) then 0 elif is_null(x) then (if first then -1 else 1) elif is_null(y) then (if first then 1 else -1) else compare_value(x, y)
       if c == 0 then
         row_compare(a, b, rest)
-      elif desc then
+      elif desc && not(has_null) then
         -c
       else
         c
@@ -194,7 +220,7 @@ fn row_compare(
 fn insert_row(
   r : List(Json),
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, (Bool, Bool)))
 ) : List(List(Json)) =
   match rows of
     Nil => [r]
@@ -206,7 +232,7 @@ fn insert_row(
 
 fn sort_rows(
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, (Bool, Bool)))
 ) : List(List(Json)) =
   match rows of
     Nil => []
@@ -228,7 +254,7 @@ pub fn execute(plan : Plan) : Json =
     offset += length(t.columns)
   var rows := at(scans, 0)
   for i in srange(0, length(q.joins)) do
-    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i))
+    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i), at(q.left_joins, i), length(at(plan.tables, i + 1).columns))
   let filtered = filter(\(r) -> truth(evaluate(q.predicate, r, [])), rows)
   let projected =
     if plan.aggregate then

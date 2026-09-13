@@ -93,12 +93,14 @@ pub fn value_type(v : Json) : String =
     JInt(_) => "int"
     JBool(_) => "bool"
     JStr(_) => "text"
+    JNull => "null"
     _ => "invalid"
 
 pub type Column = Column {
   name: String,
   kind: String,
   qualifier: String,
+  nullable: Bool,
   source: Int,
   index: Int
 }
@@ -149,11 +151,12 @@ pub type Query = Query {
   select: List((Expr, String)),
   sources: List((String, String)),
   joins: List(Expr),
+  left_joins: List(Bool),
   predicate: Expr,
   groups: List(Expr),
   having: Expr,
   has_having: Bool,
-  order: List((String, Bool)),
+  order: List((String, (Bool, Bool))),
   distinct: Bool,
   limit: Int,
   offset: Int
@@ -164,7 +167,7 @@ pub type Plan = Plan {
   tables: List(Table),
   filters: List(List(Expr)),
   aggregate: Bool,
-  order: List((Int, Bool))
+  order: List((Int, (Bool, Bool)))
 }
 
 pub fn validate_table(j : Json) : Table =
@@ -178,7 +181,7 @@ pub fn validate_table(j : Json) : Table =
   for row in sof(rows) do
     demand(length(row) == length(cs), "INVALID_INPUT")
     for i in srange(0, length(cs)) do
-      demand(value_type(at(row, i)) == at(cs, i).kind, "INVALID_INPUT")
+      demand(value_type(at(row, i)) == at(cs, i).kind || is_null(at(row, i)) && at(cs, i).nullable, "INVALID_INPUT")
   Table { name = n, columns = cs, rows = rows }
 
 fn validate_column(j : Json) : Column =
@@ -187,11 +190,12 @@ fn validate_column(j : Json) : Column =
   let t = text(getfield(j, "type"))
   demand(name_ok(n) && elem(t, ["int", "text", "bool"]), "INVALID_INPUT")
   match getfield(j, "nullable") of
-    JBool(b) => demand(not(b), "UNSUPPORTED_FEATURE")
+    JBool(_) => ()
     _ => reject("INVALID_INPUT")
   Column {
     name = n,
     kind = t,
+    nullable = truth(getfield(j, "nullable")),
     qualifier = "",
     source = 0,
     index = 0
@@ -206,3 +210,13 @@ pub fn elem(x : a, xs : List(a)) : Bool given Eq(a) =
   match xs of
     Nil => false
     Cons(y, rest) => x == y || elem(x, rest)
+
+pub fn is_null(v : Json) : Bool =
+  match v of
+    JNull => true
+    _ => false
+
+pub fn is_false(v : Json) : Bool =
+  match v of
+    JBool(b) => not(b)
+    _ => false
