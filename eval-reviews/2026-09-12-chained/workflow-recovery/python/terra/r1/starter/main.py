@@ -7,7 +7,7 @@ from workflow import DomainError, Simulator, parse_workflow
 def main() -> None:
     try:
         request = json.load(sys.stdin)
-        result = Simulator(parse_workflow(request["input"])).run()
+        result = parse_workflow(request["input"]).run()
         response = {"ok": True, "result": result}
     except DomainError as error:
         response = {"ok": False, "error": {"code": error.code}}
