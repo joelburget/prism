@@ -13,7 +13,7 @@ pub fn snapshot(sim : Simulator) : Snapshot =
   Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
 
 fn new_step(now : Int, definition : StepDefinition) : StepState =
-  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now }
+  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now, lease = None }
 
 fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =
   match (states, definitions) of
@@ -93,8 +93,9 @@ pub fn tick(sim : Simulator, workflow : Workflow, checkpoint : Option(Checkpoint
         _ =>
           let key = ActionKey { run_id = action.run.id, step_id = running.id }
           let response =
-            if action.run.status == Cancelling then lookup(begun.service, key, running.attempts)
-            else execute(begun.service, key, action.definition.amount, running.attempts, action.definition.failures)
+            if action.run.status == Cancelling then lookup(begun.service, local_caller(), key, running.attempts)
+            else execute(begun.service, local_caller(), key, action.definition.amount, running.attempts,
+              action.definition.failures)
           -- The service and its audit survive crashes separately from the runner.
           let called = Simulator { ..begun, service = response.service }
           match checkpoint of
@@ -150,3 +151,317 @@ fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) 
 
 pub fn simulate(workflow : Workflow) : Result(Simulator, String) =
   run_commands(new_simulator(), workflow, workflow.commands)
+
+
+-- Leased mode keeps the baseline durable store and adds worker availability,
+-- lease fencing and transport tickets. Claim, call and deliver are separate
+-- commands, so every interleaving of acquisition, response and commit is
+-- expressible without any real concurrency.
+
+pub fn new_world(spec : Leased) : World =
+  World { now = 0, workers = map(\(id) -> Worker { id = id, up = true }, spec.workers),
+    runs = [], service = new_service(), tickets = [], next_ticket = 1, results = [] }
+
+pub fn world_snapshot(world : World) : LSnapshot =
+  -- Persistent values keep every recorded result independent of later updates.
+  LSnapshot { now = world.now, workers = world.workers, runs = world.runs }
+
+fn emit(world : World, value : CmdResult) : Result(World, String) =
+  Ok(World { ..world, results = append(world.results, [value]) })
+
+fn definition_of(spec : Leased, id : String) : StepDefinition =
+  match find(\(step) -> step.id == id, spec.steps) of
+    Some(definition) => definition
+    None => StepDefinition { id = id, needs = [], amount = 0, failures = 0 }
+
+fn find_worker(world : World, id : String) : Option(Worker) =
+  find(\(worker) -> worker.id == id, world.workers)
+
+fn find_run(world : World, id : String) : Option(RunState) =
+  find(\(run) -> run.id == id, world.runs)
+
+fn find_ticket(world : World, id : Int) : Option(TicketState) =
+  find(\(ticket) -> ticket.id == id, world.tickets)
+
+fn step_of(world : World, run_id : String, step_id : String) : Option(StepState) =
+  match find_run(world, run_id) of
+    None => None
+    Some(run) => find(\(step) -> step.id == step_id, run.steps)
+
+fn lease_live(now : Int, lease : Option(Lease)) : Bool =
+  -- A lease is live exactly while now < expires; equality is already expired.
+  match lease of
+    Some(held) => now < held.expires
+    None => false
+
+fn owns_live(now : Int, id : String, step : StepState) : Bool =
+  match step.lease of
+    Some(held) => held.worker == id && now < held.expires
+    None => false
+
+fn busy(world : World, id : String) : Bool =
+  any(\(run) -> any(\(step) -> owns_live(world.now, id, step), run.steps), world.runs)
+
+-- A ticket may act only while it is still the step's own live lease; a stale
+-- owner can neither call the service nor commit a response it already has.
+fn fencing_valid(world : World, ticket : TicketState) : Bool =
+  match step_of(world, ticket.run_id, ticket.step_id) of
+    None => false
+    Some(step) =>
+      match step.lease of
+        Some(held) => held.ticket == ticket.id && world.now < held.expires
+        None => false
+
+fn replace_world_run(world : World, replacement : RunState) : World =
+  World { ..world, runs = map(\(run) -> if run.id == replacement.id then replacement else run, world.runs) }
+
+fn update_ticket(world : World, id : Int, updated : TicketState) : World =
+  World { ..world, tickets = map(\(ticket) -> if ticket.id == id then updated else ticket, world.tickets) }
+
+fn running_left(run : RunState) : Bool = any(\(step) -> step.status == Running, run.steps)
+
+-- Draining statuses become terminal once no running step is left to reconcile.
+fn settle(run : RunState) : RunState =
+  if run.status == Active then
+    if all(\(step) -> step.status == Succeeded, run.steps) then RunState { ..run, status = Completed } else run
+  elif run.status == Cancelling then
+    if running_left(run) then run else RunState { ..run, status = RunCancelled }
+  elif run.status == Failing then
+    if running_left(run) then run else RunState { ..run, status = RunFailed }
+  else run
+
+fn expire_lease(now : Int, step : StepState) : StepState =
+  match step.lease of
+    Some(held) => StepState { ..step, lease = Some(Lease { ..held, expires = now }) }
+    None => step
+
+-- Revoking keeps the ticket and worker visible; only the deadline moves.
+fn expire_running(now : Int, run : RunState) : RunState =
+  RunState { ..run, steps = map(\(step) -> if step.status == Running then expire_lease(now, step) else step,
+    run.steps) }
+
+-- Scheduling: recover an expired running attempt first, then start ready work.
+fn expired_in(now : Int, steps : List(StepState)) : Option(StepState) =
+  find(\(step) -> step.status == Running && not(lease_live(now, step.lease)), steps)
+
+fn pick_expired(now : Int, runs : List(RunState)) : Option((RunState, StepState)) =
+  match runs of
+    Nil => None
+    Cons(run, rest) =>
+      match expired_in(now, run.steps) of
+        Some(step) => Some((run, step))
+        None => pick_expired(now, rest)
+
+fn ready_step(now : Int, run : RunState, states : List(StepState), definitions : List(StepDefinition))
+    : Option(StepState) =
+  match (states, definitions) of
+    (Cons(step, more_states), Cons(definition, more_definitions)) =>
+      let eligible = step.status == Pending && step.ready_at <= now
+        && all(\(dep) -> any(\(s) -> s.id == dep && s.status == Succeeded, run.steps), definition.needs)
+      if eligible then Some(step)
+      else ready_step(now, run, more_states, more_definitions)
+    _ => None
+
+fn pick_pending(now : Int, runs : List(RunState), definitions : List(StepDefinition))
+    : Option((RunState, StepState)) =
+  match runs of
+    Nil => None
+    Cons(run, rest) =>
+      if run.status == Active then
+        match ready_step(now, run, run.steps, definitions) of
+          Some(step) => Some((run, step))
+          None => pick_pending(now, rest, definitions)
+      else pick_pending(now, rest, definitions)
+
+fn pick_work(world : World, spec : Leased) : Option((RunState, StepState)) =
+  match pick_expired(world.now, world.runs) of
+    Some(found) => Some(found)
+    None => pick_pending(world.now, world.runs, spec.steps)
+
+fn grant(world : World, spec : Leased, id : String, run : RunState, step : StepState) : Result(World, String) =
+  if world.now + spec.lease_duration > time_limit() then Err("TIME_OVERFLOW")
+  else
+    let ticket = world.next_ticket
+    let lease = Lease { worker = id, ticket = ticket, expires = world.now + spec.lease_duration }
+    -- Starting pending work begins a new attempt; recovery reuses the old one.
+    let fresh = step.status == Pending
+    let held = StepState { ..step, status = Running, lease = Some(lease),
+      attempts = if fresh then step.attempts + 1 else step.attempts }
+    let kind = if run.status == Active then ExecuteKind else LookupKind
+    let record = TicketState { id = ticket, worker = id, run_id = run.id, step_id = step.id,
+      attempt = held.attempts, kind = kind, response = None, delivered = false }
+    let leased = replace_world_run(world, replace_step(run, held))
+    emit(World { ..leased, tickets = append(leased.tickets, [record]), next_ticket = ticket + 1 },
+      ResTicket(Some(ticket)))
+
+fn do_claim(world : World, spec : Leased, id : String) : Result(World, String) =
+  match find_worker(world, id) of
+    None => Err("UNKNOWN_WORKER")
+    Some(worker) =>
+      if not(worker.up) then Err("WORKER_DOWN")
+      elif busy(world, id) then Err("WORKER_BUSY")
+      else
+        match pick_work(world, spec) of
+          -- Without eligible work no ticket identifier is consumed.
+          None => emit(world, ResTicket(None))
+          Some(found) => grant(world, spec, id, fst(found), snd(found))
+
+fn authorize(world : World, id : String, ticket : Int) : Result(TicketState, String) =
+  match find_worker(world, id) of
+    None => Err("UNKNOWN_WORKER")
+    Some(worker) =>
+      if not(worker.up) then Err("WORKER_DOWN")
+      else
+        match find_ticket(world, ticket) of
+          None => Err("UNKNOWN_TICKET")
+          -- Ownership means the original acquirer, even after a reclaim.
+          Some(record) => if record.worker == id then Ok(record) else Err("WRONG_WORKER")
+
+fn do_renew(world : World, spec : Leased, id : String, ticket : Int) : Result(World, String) =
+  let record = authorize(world, id, ticket)?
+  if not(fencing_valid(world, record)) then emit(world, ResRenewed(false))
+  elif world.now + spec.lease_duration > time_limit() then Err("TIME_OVERFLOW")
+  else
+    match (find_run(world, record.run_id), step_of(world, record.run_id, record.step_id)) of
+      (Some(run), Some(step)) =>
+        let renewed = StepState { ..step,
+          lease = Some(Lease { worker = id, ticket = ticket, expires = world.now + spec.lease_duration }) }
+        emit(replace_world_run(world, replace_step(run, renewed)), ResRenewed(true))
+      _ => emit(world, ResRenewed(false))
+
+fn do_call(world : World, spec : Leased, id : String, ticket : Int) : Result(World, String) =
+  let record = authorize(world, id, ticket)?
+  if not(fencing_valid(world, record)) then emit(world, ResStale)
+  else
+    match record.response of
+      -- A repeated call on a live ticket returns its receipt without calling out.
+      Some(outcome) => emit(world, ResReceipt(record.kind, outcome))
+      None =>
+        let key = ActionKey { run_id = record.run_id, step_id = record.step_id }
+        let caller = Caller { worker = id, ticket = ticket }
+        let definition = definition_of(spec, record.step_id)
+        let response =
+          if record.kind == LookupKind then lookup(world.service, caller, key, record.attempt)
+          else execute(world.service, caller, key, definition.amount, record.attempt, definition.failures)
+        -- The mock, its audit and this saved response survive worker crashes.
+        let saved = update_ticket(world, ticket, TicketState { ..record, response = Some(response.outcome) })
+        emit(World { ..saved, service = response.service }, ResReceipt(record.kind, response.outcome))
+
+-- Failure draining stops new effects in a run while preserving those already made.
+fn drain_failure(world : World, run : RunState, step : StepState) : World =
+  let failed = replace_step(run, StepState { ..step, status = StepFailed, lease = None })
+  let blocked = RunState { ..failed,
+    steps = map(\(other) -> if other.status == Pending then StepState { ..other, status = Blocked } else other,
+      failed.steps) }
+  let drained =
+    if running_left(blocked) then expire_running(world.now, RunState { ..blocked, status = Failing })
+    else RunState { ..blocked, status = RunFailed }
+  replace_world_run(world, drained)
+
+fn commit_response(world : World, spec : Leased, record : TicketState, outcome : Outcome) : Result(World, String) =
+  match (find_run(world, record.run_id), step_of(world, record.run_id, record.step_id)) of
+    (Some(run), Some(step)) =>
+      if outcome == Applied || outcome == Replayed || outcome == Found then
+        let done = replace_step(run, StepState { ..step, status = Succeeded, lease = None })
+        Ok(replace_world_run(world, settle(done)))
+      elif outcome == Missing then
+        -- A missing effect blocks a draining branch and cancels a cancelled one.
+        let status = if run.status == Failing then Blocked else StepCancelled
+        let stopped = replace_step(run, StepState { ..step, status = status, lease = None })
+        Ok(replace_world_run(world, settle(stopped)))
+      elif step.attempts < spec.max_attempts then
+        -- Backoff is measured from the moment the response is committed.
+        if world.now + spec.retry_delay > time_limit() then Err("TIME_OVERFLOW")
+        else
+          let waiting = replace_step(run,
+            StepState { ..step, status = Pending, ready_at = world.now + spec.retry_delay, lease = None })
+          Ok(replace_world_run(world, waiting))
+      else Ok(drain_failure(world, run, step))
+    _ => Ok(world)
+
+fn has_response(record : TicketState) : Bool =
+  match record.response of
+    Some(_) => true
+    None => false
+
+fn deliverable(world : World, record : TicketState) : Bool =
+  match find_worker(world, record.worker) of
+    None => false
+    Some(worker) =>
+      worker.up && not(record.delivered) && has_response(record) && fencing_valid(world, record)
+
+fn do_deliver(world : World, spec : Leased, ticket : Int) : Result(World, String) =
+  match find_ticket(world, ticket) of
+    None => Err("UNKNOWN_TICKET")
+    Some(record) =>
+      -- A response that is undelivered, current, live and reachable commits once.
+      if not(deliverable(world, record)) then emit(world, ResCommitted(false))
+      else
+        match record.response of
+          None => emit(world, ResCommitted(false))
+          Some(outcome) =>
+            let marked = update_ticket(world, ticket, TicketState { ..record, delivered = true })
+            let committed = commit_response(marked, spec, record, outcome)?
+            emit(committed, ResCommitted(true))
+
+fn do_cancel(world : World, run : RunState) : Result(World, String) =
+  -- Repeated cancellation is a no-op, so it never revokes a fresh lookup lease.
+  if terminal(run) || run.status == Failing || run.cancel_requested then emit(world, ResNull)
+  else
+    let cancelled = map(\(step) -> if step.status == Pending then StepState { ..step, status = StepCancelled }
+      else step, run.steps)
+    let requested = RunState { ..run, cancel_requested = true, steps = cancelled }
+    -- The first cancellation revokes every execute lease immediately.
+    let revoked = expire_running(world.now, requested)
+    let status = if running_left(revoked) then Cancelling else RunCancelled
+    emit(replace_world_run(world, RunState { ..revoked, status = status }), ResNull)
+
+fn apply_leased(world : World, spec : Leased, command : LCommand) : Result(World, String) =
+  match command of
+    LStart(id) =>
+      if any(\(run) -> run.id == id, world.runs) then Err("DUPLICATE_RUN")
+      else
+        let run = RunState { id = id, status = Active, cancel_requested = false,
+          steps = map(\(definition) -> StepState { id = definition.id, status = Pending, attempts = 0,
+            ready_at = world.now, lease = None }, spec.steps) }
+        emit(World { ..world, runs = append(world.runs, [run]) }, ResNull)
+    LAdvance(by) =>
+      -- Time belongs to the simulator and moves with every worker down.
+      if world.now + by > time_limit() then Err("TIME_OVERFLOW")
+      else emit(World { ..world, now = world.now + by }, ResNull)
+    LObserve => emit(world, ResSnapshot(world_snapshot(world)))
+    LCrash(id) =>
+      match find_worker(world, id) of
+        None => Err("UNKNOWN_WORKER")
+        Some(worker) =>
+          if not(worker.up) then Err("WORKER_DOWN")
+          -- Leases and transport messages outlive the worker holding them.
+          else emit(replace_worker(world, Worker { ..worker, up = false }), ResNull)
+    LRestart(id) =>
+      match find_worker(world, id) of
+        None => Err("UNKNOWN_WORKER")
+        Some(worker) =>
+          if worker.up then Err("WORKER_UP")
+          else emit(replace_worker(world, Worker { ..worker, up = true }), ResNull)
+    LClaim(id) => do_claim(world, spec, id)
+    LRenew(id, ticket) => do_renew(world, spec, id, ticket)
+    LCall(id, ticket) => do_call(world, spec, id, ticket)
+    LDeliver(ticket) => do_deliver(world, spec, ticket)
+    LCancel(id) =>
+      match find_run(world, id) of
+        None => Err("UNKNOWN_RUN")
+        Some(run) => do_cancel(world, run)
+
+fn replace_worker(world : World, replacement : Worker) : World =
+  World { ..world, workers = map(\(worker) -> if worker.id == replacement.id then replacement else worker,
+    world.workers) }
+
+fn run_leased(world : World, spec : Leased, commands : List(LCommand)) : Result(World, String) =
+  match commands of
+    Nil => Ok(world)
+    Cons(command, rest) =>
+      let next = apply_leased(world, spec, command)?
+      run_leased(next, spec, rest)
+
+pub fn simulate_leased(spec : Leased) : Result(World, String) =
+  run_leased(new_world(spec), spec, spec.commands)

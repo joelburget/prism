@@ -25,13 +25,17 @@ pub type Workflow = Workflow {
 }
 
 pub type StepStatus = Pending | Running | Succeeded | StepFailed | Blocked | StepCancelled deriving (Eq)
-pub type RunStatus = Active | Completed | RunFailed | Cancelling | RunCancelled deriving (Eq)
+pub type RunStatus = Active | Completed | RunFailed | Failing | Cancelling | RunCancelled deriving (Eq)
+
+-- A running step holds exactly one durable lease; every other step holds none.
+pub type Lease = Lease { worker: String, ticket: Int, expires: Int } deriving (Eq)
 
 pub type StepState = StepState {
   id: String,
   status: StepStatus,
   attempts: Int,
-  ready_at: Int
+  ready_at: Int,
+  lease: Option(Lease)
 }
 
 pub type RunState = RunState {
@@ -47,7 +51,15 @@ pub type ActionKey = ActionKey { run_id: String, step_id: String }
 pub type CallKind = ExecuteKind | LookupKind deriving (Eq)
 pub type Outcome = Applied | Replayed | Transient | Found | Missing deriving (Eq)
 
-pub type ServiceCall = ServiceCall { kind: CallKind, key: ActionKey, attempt: Int, outcome: Outcome }
+-- The audit records which acquisition issued a call; the logical key is separate.
+pub type ServiceCall = ServiceCall {
+  worker: String,
+  ticket: Int,
+  kind: CallKind,
+  key: ActionKey,
+  attempt: Int,
+  outcome: Outcome
+}
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
 
@@ -64,5 +76,65 @@ pub type Simulator = Simulator {
 }
 
 pub type Action = Action { run: RunState, step: StepState, definition: StepDefinition }
+
+-- Leased mode: several workers, expiring leases, and split call/deliver phases.
+pub type LCommand
+  = LStart(String)
+  | LAdvance(Int)
+  | LObserve
+  | LCrash(String)
+  | LRestart(String)
+  | LClaim(String)
+  | LRenew(String, Int)
+  | LCall(String, Int)
+  | LDeliver(Int)
+  | LCancel(String)
+
+pub type Leased = Leased {
+  steps: List(StepDefinition),
+  commands: List(LCommand),
+  workers: List(String),
+  max_attempts: Int,
+  retry_delay: Int,
+  lease_duration: Int
+}
+
+pub type Worker = Worker { id: String, up: Bool }
+
+-- Ticket metadata, including a produced but undelivered response, is transport
+-- state: it outlives worker crashes and lease expiry.
+pub type TicketState = TicketState {
+  id: Int,
+  worker: String,
+  run_id: String,
+  step_id: String,
+  attempt: Int,
+  kind: CallKind,
+  response: Option(Outcome),
+  delivered: Bool
+}
+
+pub type LSnapshot = LSnapshot { now: Int, workers: List(Worker), runs: List(RunState) }
+
+pub type CmdResult
+  = ResNull
+  | ResTicket(Option(Int))
+  | ResRenewed(Bool)
+  | ResCommitted(Bool)
+  | ResReceipt(CallKind, Outcome)
+  | ResStale
+  | ResSnapshot(LSnapshot)
+
+pub type World = World {
+  now: Int,
+  workers: List(Worker),
+  runs: List(RunState),
+  service: MockService,
+  tickets: List(TicketState),
+  next_ticket: Int,
+  results: List(CmdResult)
+}
+
+pub type Session = LegacySession(Simulator) | LeasedSession(World)
 
 pub fn time_limit() : Int = 2147483647

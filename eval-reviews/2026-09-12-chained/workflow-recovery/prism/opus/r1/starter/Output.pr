@@ -20,6 +20,7 @@ fn run_status(status : RunStatus) : String =
     Active => "active"
     Completed => "succeeded"
     RunFailed => "failed"
+    Failing => "failing"
     Cancelling => "cancelling"
     RunCancelled => "cancelled"
 
@@ -58,12 +59,63 @@ fn call_json(call : ServiceCall) : Json =
 fn effect_json(entry : Effect) : Json =
   JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
 
+-- Leased mode adds worker availability, leases and per-command values.
+fn lease_json(lease : Option(Lease)) : Json =
+  match lease of
+    None => JNull
+    Some(held) => JObj([("worker", JStr(held.worker)), ("ticket", JInt(held.ticket)),
+      ("expires", JInt(held.expires))])
+
+fn leased_step_json(step : StepState) : Json =
+  JObj([("id", JStr(step.id)), ("status", JStr(step_status(step.status))),
+    ("attempts", JInt(step.attempts)), ("ready_at", JInt(step.ready_at)), ("lease", lease_json(step.lease))])
+
+fn leased_run_json(run : RunState) : Json =
+  JObj([("id", JStr(run.id)), ("status", JStr(run_status(run.status))),
+    ("cancel_requested", JBool(run.cancel_requested)), ("steps", JArr(map(leased_step_json, run.steps)))])
+
+fn worker_json(worker : Worker) : Json =
+  JObj([("id", JStr(worker.id)), ("up", JBool(worker.up))])
+
+fn leased_snapshot_fields(state : LSnapshot) : List((String, Json)) =
+  [("now", JInt(state.now)), ("workers", JArr(map(worker_json, state.workers))),
+    ("runs", JArr(map(leased_run_json, state.runs)))]
+
+fn leased_call_json(call : ServiceCall) : Json =
+  JObj([("worker", JStr(call.worker)), ("ticket", JInt(call.ticket)),
+    ("kind", JStr(call_kind(call.kind))), ("key", key_json(call.key)),
+    ("attempt", JInt(call.attempt)), ("outcome", JStr(call_outcome(call.outcome)))])
+
+fn ticket_json(ticket : Option(Int)) : Json =
+  match ticket of
+    Some(id) => JInt(id)
+    None => JNull
+
+fn command_json(value : CmdResult) : Json =
+  match value of
+    ResNull => JNull
+    ResTicket(ticket) => JObj([("ticket", ticket_json(ticket))])
+    ResRenewed(renewed) => JObj([("renewed", JBool(renewed))])
+    ResCommitted(committed) => JObj([("committed", JBool(committed))])
+    ResReceipt(kind, outcome) =>
+      JObj([("kind", JStr(call_kind(kind))), ("outcome", JStr(call_outcome(outcome)))])
+    ResStale => JObj([("outcome", JStr("stale"))])
+    ResSnapshot(state) => JObj(leased_snapshot_fields(state))
+
+pub fn leased_result_json(world : World) : Json =
+  let state = LSnapshot { now = world.now, workers = world.workers, runs = world.runs }
+  let final_fields = append(leased_snapshot_fields(state),
+    [("calls", JArr(map(leased_call_json, world.service.calls))),
+      ("effects", JArr(map(effect_json, world.service.effects)))])
+  JObj([("results", JArr(map(command_json, world.results))), ("final", JObj(final_fields))])
+
 pub fn result_json(sim : Simulator) : Json =
   let final_fields = append(snapshot_fields(snapshot(sim)),
     [("calls", JArr(map(call_json, sim.service.calls))), ("effects", JArr(map(effect_json, sim.service.effects)))])
   JObj([("observations", JArr(map(snapshot_json, sim.observations))), ("final", JObj(final_fields))])
 
-pub fn response_json(result : Result(Simulator, String)) : Json =
+pub fn response_json(result : Result(Session, String)) : Json =
   match result of
-    Ok(sim) => JObj([("ok", JBool(true)), ("result", result_json(sim))])
+    Ok(LegacySession(sim)) => JObj([("ok", JBool(true)), ("result", result_json(sim))])
+    Ok(LeasedSession(world)) => JObj([("ok", JBool(true)), ("result", leased_result_json(world))])
     Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
