@@ -1,0 +1,16 @@
+{
+  "run_id": "run-25395b221f87",
+  "checkpoint": 1,
+  "model": "sol",
+  "model_id": "gpt-5.6-sol",
+  "task": "workflow-recovery",
+  "language": "typescript",
+  "source_available": true,
+  "source_sha256": "539782fb63c8bb7a5d158124909908e2c9a63d6aa1214878cafe70cb0bb6394c",
+  "passed": true,
+  "seconds": 164.94609949999722,
+  "tool_calls": 9,
+  "flags": [],
+  "result_sha256": "e199051c52678703262bf8373a1254ca57b48b18ef93ba4e270779f504997938",
+  "archive_note": "Exact frozen source"
+}
