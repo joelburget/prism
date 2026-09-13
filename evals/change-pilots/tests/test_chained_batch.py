@@ -47,6 +47,42 @@ class ChainedBatchTests(unittest.TestCase):
     def plan(self):
         return chain.make_plan(self.root, ['luna'], ['query-null'], ['python'])
 
+    def test_prism_briefing_is_preloaded_at_both_stages_only_for_prism(self):
+        plan=chain.make_plan(self.root,['luna'],['query-null'],['prism','python','typescript'],prism_briefing=True)
+        self.assertEqual(plan['language_context']['profile'],chain.BRIEFING_PROFILE)
+        self.assertEqual(plan['language_context']['prism_briefing_sha256'],chain.file_hash(chain.PRISM_BRIEFING))
+        for cell in plan['runs']:
+            base=(native.native_prompt_for if cell['checkpoint']==1 else chain.stage_two_prompt)(cell['task'],cell['language'])
+            if cell['language']=='prism':
+                self.assertEqual(cell['prompt'],chain.PRISM_BRIEFING.read_text()+'\n\n---\n\n'+base)
+            else:
+                self.assertEqual(cell['prompt'],base)
+                self.assertEqual(cell['language_context'],'baseline')
+        chain.checked_plan(ResultStore(self.root))
+        self.agent.assert_not_called()
+
+    def test_baseline_keeps_original_prism_prompts(self):
+        plan=chain.make_plan(self.root,['luna'],['query-null'],['prism'])
+        self.assertEqual(plan['language_context'],{'profile':'baseline','prism_briefing_sha256':None})
+        for cell in plan['runs']:
+            base=(native.native_prompt_for if cell['checkpoint']==1 else chain.stage_two_prompt)(cell['task'],cell['language'])
+            self.assertEqual(cell['prompt'],base)
+
+    def test_briefing_plan_rejects_missing_context_or_changed_digest(self):
+        plan=chain.make_plan(self.root,['luna'],['query-null'],['prism'],prism_briefing=True)
+        path=self.root/'plan.json';path.chmod(0o600)
+        digest=plan['language_context']['prism_briefing_sha256']
+        plan['language_context']['prism_briefing_sha256']='tampered'
+        path.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ValueError,'language briefing changed'):
+            chain.checked_plan(ResultStore(self.root))
+        plan['language_context']['prism_briefing_sha256']=digest
+        plan['runs'][1]['prompt']='Missing context'
+        path.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ValueError,'missing its frozen briefing'):
+            chain.checked_plan(ResultStore(self.root))
+        self.agent.assert_not_called()
+
     def test_pair_carries_only_frozen_source_in_fresh_session_and_resumes(self):
         plan = self.plan(); first, second = plan['runs']
         self.assertEqual(first['checkpoint'], 1)

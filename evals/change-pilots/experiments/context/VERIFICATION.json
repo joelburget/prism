@@ -1,0 +1,28 @@
+{
+  "verified_at": "2026-09-13T15:24:46.846672+00:00",
+  "briefing_sha256": "d7962061ebc14067a2e28339e42f15fe10f69009b0628e6c1f5d5e966c4c547b",
+  "profile": "prism-brief-v1",
+  "compiler_version": "prism 0.18.0",
+  "compiler_commit": "2cfe818bc17d91c2a5fb452901cb40b8e8bee564",
+  "compiler_binary_sha256": "15e5a0c2f3d5c24c3d00249500ce6594347cadc2c7ba4ab5325496fbd398e1dd",
+  "release_asset": "https://github.com/sdiehl/prism/releases/download/v0.18.0/prism-0.18.0-aarch64-apple-darwin.tar.gz",
+  "release_archive_sha256": "e500dc54c2aa6e07942c1c5abe37a1ff50edb1f2bea34d665e617be2eccecb81",
+  "release_checksum_verified": true,
+  "platform": "aarch64-apple-darwin",
+  "examples": [
+    {
+      "index": 1,
+      "source_sha256": "ce38f553e929dba1c5cf65741b66719709d3f66c8e4f8d55a12e96a14054c708",
+      "compiled": true,
+      "stdout": "5\n2\n"
+    },
+    {
+      "index": 2,
+      "source_sha256": "fc382d291f6f7e8a21206b497f567d16a39aec4e17842b8074561e97d7abaf3f",
+      "compiled": true,
+      "stdout": "4\n6\n"
+    }
+  ],
+  "model_inference_requests": 0,
+  "limitation": "Examples verified using the official macOS 0.18.0 release. The pinned Linux Docker image check was unavailable because Docker Desktop was not running; the installed host Prism 0.22.0 was not used for this verification."
+}

@@ -15,6 +15,8 @@ from followups.evaluator.freeze import snapshot as followup_snapshot
 
 HARNESS = 'subscription-native-chain-v1'
 TASKS = ('query-null', 'workflow-recovery')
+PRISM_BRIEFING = Path(__file__).with_name('context') / 'prism-0.18.md'
+BRIEFING_PROFILE = 'prism-brief-v1'
 QUESTIONS = {
     'query-null': 'Explain how one atomic batch updates both sides of a join, preserves duplicates, and retracts the last match. Identify where unaffected views avoid recomputation.',
     'workflow-recovery': 'Trace an expired execute response racing with cancellation and a replacement lookup. Explain the roles of the action key, attempt number and lease ticket, citing the commit checks.',
@@ -22,7 +24,8 @@ QUESTIONS = {
 
 
 def fingerprints():
-    return {'original': inputs_fingerprint(), 'followups': followup_snapshot()}
+    return {'original': inputs_fingerprint(), 'followups': followup_snapshot(),
+            'prism_briefing_sha256': file_hash(PRISM_BRIEFING)}
 
 
 def stage_two_prompt(task, language):
@@ -45,7 +48,8 @@ the changes and checks. Do not ask for clarification; use the published contract
 
 
 def make_plan(root, model_keys=None, tasks=TASKS, languages=native.LANGUAGES,
-              seed=1730, repetitions=1, performance=None):
+              seed=1730, repetitions=1, performance=None, prism_briefing=False):
+    if type(prism_briefing) is not bool: raise ValueError('prism_briefing must be boolean')
     if not tasks or set(tasks)-set(TASKS): raise ValueError('unknown follow-up task')
     store=ResultStore(root)
     if (store.root/'plan.json').exists(): raise ValueError('plan already exists')
@@ -53,15 +57,23 @@ def make_plan(root, model_keys=None, tasks=TASKS, languages=native.LANGUAGES,
     with tempfile.TemporaryDirectory(prefix='prism-chain-plan-') as temporary:
         plan=native.make_plan(Path(temporary)/'base',model_keys,tasks,languages,repetitions,seed)
         verification=json.loads((Path(temporary)/'base'/'NATIVE_VERIFICATION.json').read_text())
+    briefing=PRISM_BRIEFING.read_text() if prism_briefing else None
     cells=[]
     for first in plan['runs']:
         first={**first,'checkpoint':1,'chain_id':'chain-'+uuid.uuid4().hex[:12]}
         second={**first,'checkpoint':2,'run_id':'run-'+uuid.uuid4().hex[:12],
                 'parent_run_id':first['run_id'],'prompt':stage_two_prompt(first['task'],first['language'])}
         second.pop('starter_sha256')
+        for cell in (first, second):
+            enabled=briefing is not None and cell['language']=='prism'
+            cell['language_context']=BRIEFING_PROFILE if enabled else 'baseline'
+            if enabled:
+                cell['prompt']=briefing+'\n\n---\n\n'+cell['prompt']
         cells.extend((first,second))
     plan.update(harness=HARNESS,inputs=fingerprints(),runs=cells,
                 cohort='chain',performance_calibration_sha256=None,
+                language_context={'profile':BRIEFING_PROFILE if prism_briefing else 'baseline',
+                                  'prism_briefing_sha256':file_hash(PRISM_BRIEFING) if prism_briefing else None},
                 notes=plan['notes']+['Fresh client session for each checkpoint; only assigned predecessor source is carried forward.',
                     'All finished valid predecessor sources continue, including incorrect ones. Invalid sources produce an explicit unattempted child.',
                     'Performance is graded separately after timed native runs; no feedback is supplied between checkpoints.'])
@@ -88,8 +100,20 @@ def checked_plan(store):
     if file_hash(verification)!=plan['verification_sha256']: raise ValueError('verification changed')
     native.checked_verification(verification,plan['native_image_id'],[c['model'] for c in plan['runs']],plan['task_image_id'])
     if plan['performance_calibration_sha256'] and file_hash(store.root/'performance-calibration.json')!=plan['performance_calibration_sha256']: raise ValueError('performance calibration changed')
+    context=plan.get('language_context', {'profile':'baseline','prism_briefing_sha256':None})
+    if context.get('profile') not in ('baseline',BRIEFING_PROFILE):
+        raise ValueError('unknown language context profile')
+    briefing_enabled=context['profile']==BRIEFING_PROFILE
+    expected_digest=file_hash(PRISM_BRIEFING) if briefing_enabled else None
+    if context.get('prism_briefing_sha256')!=expected_digest:
+        raise ValueError('language briefing changed')
     prior={}
     for cell in plan['runs']:
+        enabled=briefing_enabled and cell['language']=='prism'
+        if cell.get('language_context','baseline')!=(BRIEFING_PROFILE if enabled else 'baseline'):
+            raise ValueError('cell language context differs from plan')
+        if enabled and not cell['prompt'].startswith(PRISM_BRIEFING.read_text()+'\n\n---\n\n'):
+            raise ValueError('Prism prompt is missing its frozen briefing')
         if cell['run_id'] in prior: raise ValueError('duplicate run')
         if cell['checkpoint']==2:
             parent=prior.get(cell['parent_run_id'])
@@ -177,11 +201,12 @@ def main():
     plan.add_argument('--model',action='append'); plan.add_argument('--task',choices=TASKS,action='append')
     plan.add_argument('--language',choices=native.LANGUAGES,action='append'); plan.add_argument('--seed',type=int,default=1730)
     plan.add_argument('--repetitions',type=int,default=1); plan.add_argument('--performance-calibration',type=Path)
+    plan.add_argument('--prism-briefing',action='store_true',help='Prepend the frozen Prism 0.18 briefing to both Prism checkpoints; other languages retain baseline prompts')
     run=sub.add_parser('run'); run.add_argument('--results',type=Path,required=True); run.add_argument('--limit',type=int)
     status=sub.add_parser('status'); status.add_argument('--results',type=Path,required=True)
     a=p.parse_args()
     if a.command=='plan':
-        result=make_plan(a.results,a.model,a.task or TASKS,a.language or native.LANGUAGES,a.seed,a.repetitions,a.performance_calibration)
+        result=make_plan(a.results,a.model,a.task or TASKS,a.language or native.LANGUAGES,a.seed,a.repetitions,a.performance_calibration,a.prism_briefing)
         print(f"Frozen {len(result['runs'])} stages in {a.results}")
     elif a.command=='run':
         result=execute_plan(a.results,a.limit); print(json.dumps(result,indent=2))

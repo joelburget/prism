@@ -55,7 +55,7 @@ def collect(root):
         perf_path=root/'performance'/(cell['run_id']+'.json')
         perf=read(perf_path) if perf_path.exists() else None
         row={k:cell[k] for k in ['run_id','chain_id','checkpoint','task','language','repetition']}
-        row.update(order=order,model=cell['model']['key'],model_id=cell['model']['model_id'],provider=cell['model']['provider'],
+        row.update(order=order,language_context=cell.get('language_context','baseline'),model=cell['model']['key'],model_id=cell['model']['model_id'],provider=cell['model']['provider'],
                    effort=cell.get('effort'),parent_run_id=cell.get('parent_run_id'),passed=result.get('success') is True,
                    seconds=result.get('elapsed_seconds'),tool_calls=result.get('tool_calls'),flags=sorted(set(flags)),
                    stop_reason=result.get('stop_reason'),source_available=(d/'source').is_dir(),source_sha256=result.get('source_sha256'),
