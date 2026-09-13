@@ -1,0 +1,16 @@
+{
+  "run_id": "run-538e66fa3607",
+  "checkpoint": 1,
+  "model": "opus",
+  "model_id": "claude-opus-5",
+  "task": "query-null",
+  "language": "typescript",
+  "source_available": true,
+  "source_sha256": "8108d6fc64ff993fdb1b98da98c6bdb935697d550387ee25e7ed2e137a279f46",
+  "passed": true,
+  "seconds": 476.47693287499715,
+  "tool_calls": 24,
+  "flags": [],
+  "result_sha256": "9dbd921dc0ff50562c471d1b0009245db9f911b20078e738be358f451dd8de92",
+  "archive_note": "Exact frozen source"
+}

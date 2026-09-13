@@ -1,5 +1,6 @@
 /** Syntax tree, typed logical plan, and protocol validation. */
-export type Value = number | string | boolean;
+/** SQL NULL is represented by JavaScript `null` in every value position. */
+export type Value = number | string | boolean | null;
 export type ScalarType = "int" | "text" | "bool";
 export interface Column {
   name: string;
@@ -19,18 +20,32 @@ export interface Expr {
   op: string;
   value?: Value | [string, string];
   args: Expr[];
+  /** Absent for an untyped NULL literal, which adopts the type of its context. */
   type?: ScalarType;
   index?: number;
   source?: number;
+  /** Conservative static answer to "can this ever evaluate to NULL?". */
+  nullable?: boolean;
+}
+export interface Join {
+  on: Expr;
+  /** LEFT [OUTER] JOIN pads unmatched left rows instead of dropping them. */
+  outer: boolean;
+}
+export interface Sort {
+  /** Output alias before binding, projected column index afterwards. */
+  key: string | number;
+  desc: boolean;
+  nullsFirst: boolean;
 }
 export interface Query {
   select: [Expr, string][];
   sources: [string, string][];
-  joins: Expr[];
+  joins: Join[];
   where?: Expr;
   groups: Expr[];
   having?: Expr;
-  order: [string | number, boolean][];
+  order: Sort[];
   distinct: boolean;
   limit?: number;
   offset: number;
@@ -93,19 +108,20 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       requireThat(identifier(c.name) && !names.has(c.name));
       requireThat(c.type === "int" || c.type === "text" || c.type === "bool");
       requireThat(typeof c.nullable === "boolean");
-      requireThat(!c.nullable, "UNSUPPORTED_FEATURE");
       names.add(c.name);
-      columns.push({ name: c.name, type: c.type, nullable: false });
+      columns.push({ name: c.name, type: c.type, nullable: c.nullable });
     }
     for (const row of item.rows as unknown[]) {
       requireThat(Array.isArray(row) && row.length === columns.length);
-      row.forEach((v: unknown, i: number) =>
-        requireThat(
-          columns[i].type === "int"
-            ? typeof v === "number" && Number.isInteger(v)
-            : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
-        ),
-      );
+      row.forEach((v: unknown, i: number) => {
+        if (v === null) requireThat(columns[i].nullable);
+        else
+          requireThat(
+            columns[i].type === "int"
+              ? typeof v === "number" && Number.isInteger(v)
+              : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
+          );
+      });
     }
     database.set(item.name, {
       name: item.name,

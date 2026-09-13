@@ -1,11 +1,5 @@
 /** Tokenizer and precedence parser. Database names are resolved in the binder. */
-import {
-  aggregates,
-  reserved,
-  identifier,
-  requireThat as need,
-  DomainError,
-} from "./model.ts";
+import { aggregates, reserved, identifier, requireThat as need } from "./model.ts";
 import type { Expr, Query } from "./model.ts";
 const precedence: Record<string, number> = {
   OR: 1,
@@ -16,6 +10,7 @@ const precedence: Record<string, number> = {
   ">": 4,
   "<=": 4,
   ">=": 4,
+  IS: 4,
   "+": 5,
   "-": 5,
   "*": 6,
@@ -73,8 +68,6 @@ export class Parser {
   expr(minimum = 1): Expr {
     const t = this.pop();
     let e: Expr;
-    if (t === "NULL" || t === "COALESCE")
-      throw new DomainError("UNSUPPORTED_FEATURE");
     if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
     else if (t === "(") {
       e = this.expr();
@@ -92,7 +85,17 @@ export class Parser {
       };
     else if (t === "TRUE" || t === "FALSE")
       e = { op: "lit", value: t === "TRUE", type: "bool", args: [] };
-    else if (aggregates.has(t)) {
+    else if (t === "NULL") e = { op: "lit", value: null, args: [] };
+    else if (t === "COALESCE") {
+      this.expect("(");
+      const args: Expr[] = [];
+      do {
+        args.push(this.expr());
+      } while (this.take(","));
+      this.expect(")");
+      need(args.length >= 2, "PARSE_ERROR");
+      e = { op: "COALESCE", args };
+    } else if (aggregates.has(t)) {
       this.expect("(");
       e = { op: t, args: t === "COUNT" && this.take("*") ? [] : [this.expr()] };
       this.expect(")");
@@ -109,10 +112,13 @@ export class Parser {
       const op = this.pop(),
         p = precedence[op];
       need(!(p === 4 && compared), "PARSE_ERROR");
-      e = { op, args: [e, this.expr(p + 1)] };
+      if (op === "IS") {
+        const negated = this.take("NOT");
+        this.expect("NULL");
+        e = { op: negated ? "isnotnull" : "isnull", args: [e] };
+      } else e = { op, args: [e, this.expr(p + 1)] };
       if (p === 4) compared = true;
     }
-    if (this.peek() === "IS") throw new DomainError("UNSUPPORTED_FEATURE");
     return e;
   }
   parse(): Query {
@@ -135,12 +141,13 @@ export class Parser {
     this.expect("FROM");
     q.sources.push(this.source());
     while (["INNER", "JOIN", "LEFT"].includes(this.peek())) {
-      if (this.take("LEFT")) throw new DomainError("UNSUPPORTED_FEATURE");
-      this.take("INNER");
+      const outer = this.take("LEFT");
+      if (outer) this.take("OUTER");
+      else this.take("INNER");
       this.expect("JOIN");
       q.sources.push(this.source());
       this.expect("ON");
-      q.joins.push(this.expr());
+      q.joins.push({ on: this.expr(), outer });
     }
     if (this.take("WHERE")) q.where = this.expr();
     if (this.take("GROUP")) {
@@ -153,12 +160,18 @@ export class Parser {
     if (this.take("ORDER")) {
       this.expect("BY");
       do {
-        const a = this.name(),
+        const key = this.name(),
           desc = this.take("DESC");
         if (!desc) this.take("ASC");
-        if (this.peek() === "NULLS")
-          throw new DomainError("UNSUPPORTED_FEATURE");
-        q.order.push([a, desc]);
+        let nullsFirst = desc;
+        if (this.take("NULLS")) {
+          if (this.take("FIRST")) nullsFirst = true;
+          else {
+            this.expect("LAST");
+            nullsFirst = false;
+          }
+        }
+        q.order.push({ key, desc, nullsFirst });
       } while (this.take(","));
     }
     if (this.take("LIMIT")) {

@@ -5,11 +5,16 @@ interface BoundColumn {
   qualifier: string;
   name: string;
   type: ScalarType;
+  nullable: boolean;
   source: number;
 }
 export function* walk(e: Expr): Generator<Expr> {
   yield e;
   for (const a of e.args) yield* walk(a);
+}
+/** An untyped NULL literal has no type and unifies with whatever is required. */
+function fits(t: ScalarType | undefined, ...allowed: ScalarType[]): boolean {
+  return t === undefined || allowed.includes(t);
 }
 function check(
   e: Expr,
@@ -30,37 +35,61 @@ function check(
     const { c, i } = matches[0];
     e.index = i;
     e.type = c.type;
+    e.nullable = c.nullable;
     e.source = c.source;
-  } else if (e.op !== "lit") {
+  } else if (e.op === "lit") {
+    e.nullable = e.value === null;
+  } else {
     const agg = aggregates.has(e.op);
     need(!agg || (allow && !inside), "INVALID_AGGREGATION");
     for (const a of e.args) check(a, columns, allow, inside || agg);
     const ts = e.args.map((a) => a.type);
-    if (e.op === "COUNT") e.type = "int";
-    else if (["SUM", "+", "-", "*"].includes(e.op)) {
+    /** Anything reachable through a NULL operand may itself be NULL. */
+    const spreads = e.args.some((a) => a.nullable);
+    if (e.op === "isnull" || e.op === "isnotnull") {
+      e.type = "bool";
+      e.nullable = false;
+    } else if (e.op === "COUNT") {
+      e.type = "int";
+      e.nullable = false;
+    } else if (["SUM", "+", "-", "*"].includes(e.op)) {
       need(
-        ts.every((t) => t === "int"),
+        ts.every((t) => fits(t, "int")),
         "TYPE_ERROR",
       );
       e.type = "int";
+      e.nullable = e.op === "SUM" || spreads;
     } else if (["MIN", "MAX"].includes(e.op)) {
-      need(ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
+      need(fits(ts[0], "int", "text"), "TYPE_ERROR");
       e.type = ts[0];
+      e.nullable = true;
     } else if (["NOT", "AND", "OR"].includes(e.op)) {
       need(
-        ts.every((t) => t === "bool"),
+        ts.every((t) => fits(t, "bool")),
         "TYPE_ERROR",
       );
       e.type = "bool";
-    } else {
+      e.nullable = spreads;
+    } else if (e.op === "COALESCE") {
+      const known = ts.filter((t) => t !== undefined);
       need(
-        ts[0] === ts[1] && (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
+        known.every((t) => t === known[0]),
+        "TYPE_ERROR",
+      );
+      e.type = known[0];
+      e.nullable = e.args.every((a) => a.nullable);
+    } else {
+      const common = ts[0] === undefined || ts[1] === undefined;
+      need(
+        (common || ts[0] === ts[1]) &&
+          (![ts[0], ts[1]].includes("bool") || ["=", "<>"].includes(e.op)),
         "TYPE_ERROR",
       );
       e.type = "bool";
+      e.nullable = spreads;
     }
   }
-  need(!predicate || e.type === "bool", "TYPE_ERROR");
+  need(!predicate || fits(e.type, "bool"), "TYPE_ERROR");
 }
 function grouped(e: Expr, keys: Set<number>): void {
   if (aggregates.has(e.op)) return;
@@ -80,8 +109,17 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     const t = database.get(name);
     need(t, "UNKNOWN_TABLE");
     tables.push(t);
-    columns.push(...t.columns.map((c) => ({ ...c, qualifier, source })));
-    if (source) check(q.joins[source - 1], columns, false, false, true);
+    /** An outer join can NULL every column of its right input, declared or not. */
+    const padded = source > 0 && q.joins[source - 1].outer;
+    columns.push(
+      ...t.columns.map((c) => ({
+        ...c,
+        nullable: c.nullable || padded,
+        qualifier,
+        source,
+      })),
+    );
+    if (source) check(q.joins[source - 1].on, columns, false, false, true);
   });
   q.groups.forEach((e) => check(e, columns, false));
   const keys = new Set(q.groups.map((e) => e.index!));
@@ -95,15 +133,10 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     q.groups.length > 0 || nodes.some((e) => aggregates.has(e.op));
   need(!q.having || aggregate, "INVALID_AGGREGATION");
   if (aggregate) roots.forEach((e) => grouped(e, keys));
-  need(
-    q.groups.length > 0 ||
-      !nodes.some((e) => ["SUM", "MIN", "MAX"].includes(e.op)),
-    "UNSUPPORTED_FEATURE",
-  );
-  q.order = q.order.map(([a, d]) => {
-    const i = aliases.indexOf(a as string);
+  q.order = q.order.map((o) => {
+    const i = aliases.indexOf(o.key as string);
     need(i >= 0, "UNKNOWN_COLUMN");
-    return [i, d];
+    return { ...o, key: i };
   });
   return { query: q, tables, filters: tables.map(() => []), aggregate };
 }
