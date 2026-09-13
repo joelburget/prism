@@ -1,0 +1,642 @@
+-- Incremental view maintenance over mutable base tables for checkpoint two.
+--
+-- A view is compiled once (via the unchanged parser/binder/optimizer) into a
+-- `Plan`, then materialized as a chain of join levels. Level 0 is a table's
+-- own scan-filtered rows; level i is table i joined onto level i-1. Each
+-- level's contribution to the next is kept as a map from the previous row's
+-- identity ("tags", the source row ids of every table joined so far) to a
+-- `JoinBlock` holding its current matches. A base-table insert/update/delete
+-- is decomposed into "retract old row" and "apply new row", each of which
+-- touches only the blocks/groups reachable from that one row, cascading
+-- forward through the remaining joins/WHERE/GROUP BY without recomputing any
+-- other table, join, group, or view. A `read` sorts the (already-maintained,
+-- already deduplicated-by-presence) result, reusing Engine's own sort/
+-- distinct/paginate logic, since revisiting the bounded view result at read
+-- time is explicitly allowed by the checkpoint-two contract.
+import Json (..)
+import Model (..)
+import Parser (..)
+import Binder (..)
+import Engine (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.Set (..)
+import Data.String (..)
+import Data.Foldable (all, any, length)
+
+pub type BaseTable = BaseTable {
+  name: String,
+  columns: List(Column),
+  data: Map(Int, List(Json)),
+  order: List(Int),
+  seq: Map(Int, Int),
+  used: Map(Int, Unit),
+  next_seq: Int
+}
+
+pub type JoinBlock = JoinBlock {
+  prev_tags: List(Int),
+  prev_data: List(Json),
+  matches: Map(Int, Unit)
+}
+
+pub type GroupState = GroupState { members: Map(String, (List(Int), List(Json))) }
+
+pub type ViewState = ViewState {
+  plan: Plan,
+  offsets: List(Int),
+  filtered: List(Map(Int, List(Json))),
+  blocks: List(Map(String, JoinBlock)),
+  rev: List(Map(Int, Map(String, Unit))),
+  matched: Map(String, (List(Int), List(Json))),
+  groups: Map(String, GroupState)
+}
+
+pub type Session = Session {
+  tables: Map(String, BaseTable),
+  views: Map(String, ViewState),
+  revision: Int
+}
+
+pub type ChangeSpec = ChangeSpec { kind: String, table: String, id: Int, row: Json }
+
+-- ---- small extraction helpers with a caller-chosen rejection code ----
+
+fn lookup_field_c(xs : List((String, Json)), key : String, code : String) : Json =
+  match xs of
+    Nil =>
+      reject(code)
+      JNull
+    Cons((k, v), rest) =>
+      if k == key then v else lookup_field_c(rest, key, code)
+
+fn getfield_c(j : Json, key : String, code : String) : Json =
+  match j of
+    JObj(xs) => lookup_field_c(xs, key, code)
+    _ =>
+      reject(code)
+      JNull
+
+fn text_c(j : Json, code : String) : String =
+  match j of
+    JStr(s) => s
+    _ =>
+      reject(code)
+      ""
+
+fn arr_c(j : Json, code : String) : List(Json) =
+  match j of
+    JArr(xs) => xs
+    _ =>
+      reject(code)
+      []
+
+fn int_c(j : Json, code : String) : Int =
+  match j of
+    JInt(n) => n
+    _ =>
+      reject(code)
+      0
+
+fn bool_c(j : Json, code : String) : Bool =
+  match j of
+    JBool(b) => b
+    _ =>
+      reject(code)
+      false
+
+fn has_exact_keys(xs : List((String, Json)), names : List(String)) : Bool =
+  length(xs) == length(names)
+    && all(\(name) -> length(filter(\(kv) -> fst(kv) == name, xs)) == 1, names)
+
+fn fields_c(j : Json, names : List(String), code : String) : Unit =
+  match j of
+    JObj(xs) => demand(has_exact_keys(xs, names), code)
+    _ => reject(code)
+
+fn dummy_table() : BaseTable =
+  BaseTable { name = "", columns = [], data = map_empty, order = [], seq = map_empty, used = set_empty, next_seq = 0 }
+
+-- ---- name/row shape checks specific to the checkpoint-two protocol ----
+
+fn view_char_ok(c : Int) : Bool = c >= 97 && c <= 122 || c >= 48 && c <= 57 || c == 45
+
+pub fn view_name_ok(s : String) : Bool =
+  byte_len(s) > 0
+    && byte_len(s) <= 40
+    && (let c0 = byte_at(s, 0) in c0 >= 97 && c0 <= 122)
+    && all(\(i) -> view_char_ok(byte_at(s, i)), range(1, byte_len(s)))
+
+pub fn table_name_shape_ok(s : String) : Bool =
+  byte_len(s) > 0
+    && letter(byte_at(s, 0))
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))
+
+fn value_ok_ext(v : Json, c : Column) : Bool =
+  match v of
+    JNull => c.nullable
+    JInt(n) => c.kind == "int" && n >= -1000000000 && n <= 1000000000
+    JBool(_) => c.kind == "bool"
+    JStr(_) => c.kind == "text"
+    _ => false
+
+fn validate_row_shape(row_json : Json, columns : List(Column)) : List(Json) =
+  let row =
+    match row_json of
+      JArr(xs) => xs
+      _ =>
+        reject("INVALID_ROW")
+        []
+  demand(length(row) == length(columns), "INVALID_ROW")
+  for i in srange(0, length(columns)) do
+    demand(value_ok_ext(at(row, i), at(columns, i)), "INVALID_ROW")
+  row
+
+fn is_json_arr(j : Json) : Bool =
+  match j of
+    JArr(_) => true
+    _ => false
+
+fn validate_change_shape(j : Json) : ChangeSpec =
+  match j of
+    JObj(xs) =>
+      let op = text_c(lookup_field_c(xs, "op", "INVALID_COMMAND"), "INVALID_COMMAND")
+      if op == "insert" || op == "update" then
+        demand(has_exact_keys(xs, ["op", "table", "id", "row"]), "INVALID_COMMAND")
+        let tname = text_c(lookup_field_c(xs, "table", "INVALID_COMMAND"), "INVALID_COMMAND")
+        demand(table_name_shape_ok(tname), "INVALID_COMMAND")
+        let idv = int_c(lookup_field_c(xs, "id", "INVALID_COMMAND"), "INVALID_COMMAND")
+        demand(idv >= 1 && idv <= 2147483647, "INVALID_COMMAND")
+        let rowj = lookup_field_c(xs, "row", "INVALID_COMMAND")
+        demand(is_json_arr(rowj), "INVALID_COMMAND")
+        ChangeSpec { kind = op, table = tname, id = idv, row = rowj }
+      elif op == "delete" then
+        demand(has_exact_keys(xs, ["op", "table", "id"]), "INVALID_COMMAND")
+        let tname = text_c(lookup_field_c(xs, "table", "INVALID_COMMAND"), "INVALID_COMMAND")
+        demand(table_name_shape_ok(tname), "INVALID_COMMAND")
+        let idv = int_c(lookup_field_c(xs, "id", "INVALID_COMMAND"), "INVALID_COMMAND")
+        demand(idv >= 1 && idv <= 2147483647, "INVALID_COMMAND")
+        ChangeSpec { kind = "delete", table = tname, id = idv, row = JNull }
+      else
+        reject("INVALID_COMMAND")
+        ChangeSpec { kind = "", table = "", id = 0, row = JNull }
+    _ =>
+      reject("INVALID_COMMAND")
+      ChangeSpec { kind = "", table = "", id = 0, row = JNull }
+
+-- ---- base-table bookkeeping ----
+
+fn init_table(t : Table) : BaseTable =
+  let n = length(t.rows)
+  let ids = range(1, n + 1)
+  BaseTable {
+    name = t.name,
+    columns = t.columns,
+    data = map_from_list(zip(ids, t.rows)),
+    order = ids,
+    seq = map_from_list(zip(ids, range(0, n))),
+    used = set_from_list(ids),
+    next_seq = n
+  }
+
+pub fn init_session(database : List(Table)) : Session =
+  Session {
+    tables = map_from_list(map(\(t) -> (t.name, init_table(t)), database)),
+    views = map_empty,
+    revision = 0
+  }
+
+pub fn make_snapshot_tables(tables_state : Map(String, BaseTable)) : List(Table) =
+  map(\(p) -> let (_, bt) = p in Table { name = bt.name, columns = bt.columns, rows = [] }, map_to_list(tables_state))
+
+-- ---- view-local plumbing: scan offsets, keys, mutation of nested maps ----
+
+fn offsets_from(widths : List(Int), acc : Int) : List(Int) =
+  match widths of
+    Nil => []
+    Cons(w, rest) => Cons(acc, offsets_from(rest, acc + w))
+
+fn tags_key(tags : List(Int)) : String = encode(JArr(map(JInt, tags)))
+
+fn group_key(plan : Plan, row : List(Json)) : String =
+  encode(JArr(map(\(e) -> evaluate(e, row, []), plan.query.groups)))
+
+fn eval_filter_row(v : ViewState, t : Int, row : List(Json)) : Bool =
+  let preds = at(v.plan.filters, t)
+  let padded = append(replicate(at(v.offsets, t), JNull), row)
+  all(\(p) -> truth(evaluate(p, padded, [])), preds)
+
+fn set_filtered(v : ViewState, t : Int, id : Int, newval : Option(List(Json))) : ViewState =
+  let cur = at(v.filtered, t)
+  let cur2 =
+    match newval of
+      Some(r) => map_insert(id, r, cur)
+      None => map_delete(id, cur)
+  ViewState { ..v, filtered = list_set(v.filtered, t, cur2) }
+
+fn set_block(v : ViewState, j : Int, key : String, block : JoinBlock) : ViewState =
+  ViewState { ..v, blocks = list_set(v.blocks, j, map_insert(key, block, at(v.blocks, j))) }
+
+fn remove_block(v : ViewState, j : Int, key : String) : ViewState =
+  ViewState { ..v, blocks = list_set(v.blocks, j, map_delete(key, at(v.blocks, j))) }
+
+fn set_rev_all(v : ViewState, j : Int, m : Map(Int, Map(String, Unit))) : ViewState =
+  ViewState { ..v, rev = list_set(v.rev, j, m) }
+
+fn rev_lookup(v : ViewState, j : Int, cid : Int) : Map(String, Unit) =
+  match map_lookup(cid, at(v.rev, j)) of
+    Some(s) => s
+    None => map_empty
+
+fn set_rev(v : ViewState, j : Int, cid : Int, s : Map(String, Unit)) : ViewState =
+  set_rev_all(v, j, map_insert(cid, s, at(v.rev, j)))
+
+-- ---- terminal stage: WHERE, then GROUP BY membership (or the flat bag) ----
+
+fn apply_top(v : ViewState, tags : List(Int), data : List(Json)) : ViewState ! {} =
+  let q = v.plan.query
+  if truth(evaluate(q.predicate, data, [])) then
+    if v.plan.aggregate then
+      let gk = group_key(v.plan, data)
+      let gs =
+        match map_lookup(gk, v.groups) of
+          Some(g) => g
+          None => GroupState { members = map_empty }
+      let gs2 = GroupState { members = map_insert(tags_key(tags), (tags, data), gs.members) }
+      ViewState { ..v, groups = map_insert(gk, gs2, v.groups) }
+    else
+      ViewState { ..v, matched = map_insert(tags_key(tags), (tags, data), v.matched) }
+  else
+    v
+
+fn retract_top(v : ViewState, tags : List(Int), data : List(Json)) : ViewState ! {} =
+  let q = v.plan.query
+  if truth(evaluate(q.predicate, data, [])) then
+    if v.plan.aggregate then
+      let gk = group_key(v.plan, data)
+      match map_lookup(gk, v.groups) of
+        None => v
+        Some(g) =>
+          let members2 = map_delete(tags_key(tags), g.members)
+          if map_size(members2) == 0 && length(v.plan.query.groups) > 0 then
+            ViewState { ..v, groups = map_delete(gk, v.groups) }
+          else
+            ViewState { ..v, groups = map_insert(gk, GroupState { members = members2 }, v.groups) }
+    else
+      ViewState { ..v, matched = map_delete(tags_key(tags), v.matched) }
+  else
+    v
+
+-- ---- one join level: add/remove one row of level i's output ----
+
+fn apply_level(v : ViewState, i : Int, tags : List(Int), data : List(Json)) : ViewState ! {} =
+  let n = length(v.plan.query.joins)
+  if i == n then
+    apply_top(v, tags, data)
+  else
+    let on_expr = at(v.plan.query.joins, i)
+    let is_left = at(v.plan.query.join_types, i)
+    let right_width = length(at(v.plan.tables, i + 1).columns)
+    let cand = map_to_list(at(v.filtered, i + 1))
+    var v2 := v
+    var matches := map_empty
+    var contributed := []
+    for cp in sof(cand) do
+      let (cid, crow) = cp
+      if truth(evaluate(on_expr, append(data, crow), [])) then
+        matches := map_insert(cid, (), matches)
+        contributed := append(contributed, [(append(tags, [cid]), append(data, crow))])
+        v2 := set_rev(v2, i, cid, map_insert(tags_key(tags), (), rev_lookup(v2, i, cid)))
+    v2 := set_block(v2, i, tags_key(tags), JoinBlock { prev_tags = tags, prev_data = data, matches = matches })
+    let contributed2 =
+      if length(contributed) > 0 then
+        contributed
+      elif is_left then
+        [(append(tags, [-1]), append(data, replicate(right_width, JNull)))]
+      else
+        []
+    var v3 := v2
+    for cd in sof(contributed2) do
+      let (t2, d2) = cd
+      v3 := apply_level(v3, i + 1, t2, d2)
+    v3
+
+fn retract_level(v : ViewState, i : Int, tags : List(Int), data : List(Json)) : ViewState ! {} =
+  let n = length(v.plan.query.joins)
+  if i == n then
+    retract_top(v, tags, data)
+  else
+    let key = tags_key(tags)
+    match map_lookup(key, at(v.blocks, i)) of
+      None => v
+      Some(block) =>
+        let is_left = at(v.plan.query.join_types, i)
+        let right_width = length(at(v.plan.tables, i + 1).columns)
+        let mids = map(fst, map_to_list(block.matches))
+        var v2 := v
+        for cid in sof(mids) do
+          let crow = force(map_lookup(cid, at(v2.filtered, i + 1)))
+          v2 := retract_level(v2, i + 1, append(tags, [cid]), append(data, crow))
+          v2 := set_rev(v2, i, cid, map_delete(key, rev_lookup(v2, i, cid)))
+        if length(mids) == 0 && is_left then
+          v2 := retract_level(v2, i + 1, append(tags, [-1]), append(data, replicate(right_width, JNull)))
+        remove_block(v2, i, key)
+
+-- ---- table-level entry points: a single row of table t appears/disappears ----
+
+fn apply_row_at_table(v : ViewState, t : Int, id : Int, row : List(Json)) : ViewState ! {} =
+  if t == 0 then
+    apply_level(v, 0, [id], row)
+  else
+    let j = t - 1
+    let on_expr = at(v.plan.query.joins, j)
+    let is_left = at(v.plan.query.join_types, j)
+    let right_width = length(at(v.plan.tables, t).columns)
+    let all_blocks = map_to_list(at(v.blocks, j))
+    var v2 := v
+    for kb in sof(all_blocks) do
+      let (bkey, block) = kb
+      if truth(evaluate(on_expr, append(block.prev_data, row), [])) then
+        let was_empty = map_size(block.matches) == 0
+        let matches2 = map_insert(id, (), block.matches)
+        v2 := set_block(v2, j, bkey, JoinBlock { ..block, matches = matches2 })
+        v2 := set_rev(v2, j, id, map_insert(bkey, (), rev_lookup(v2, j, id)))
+        if was_empty && is_left then
+          v2 := retract_level(v2, j + 1, append(block.prev_tags, [-1]), append(block.prev_data, replicate(right_width, JNull)))
+        v2 := apply_level(v2, j + 1, append(block.prev_tags, [id]), append(block.prev_data, row))
+    v2
+
+fn retract_row_at_table(v : ViewState, t : Int, id : Int, row : List(Json)) : ViewState ! {} =
+  if t == 0 then
+    retract_level(v, 0, [id], row)
+  else
+    let j = t - 1
+    let is_left = at(v.plan.query.join_types, j)
+    let bkeys = map(fst, map_to_list(rev_lookup(v, j, id)))
+    var v2 := v
+    for bkey in sof(bkeys) do
+      match map_lookup(bkey, at(v2.blocks, j)) of
+        None => ()
+        Some(block) =>
+          v2 := retract_level(v2, j + 1, append(block.prev_tags, [id]), append(block.prev_data, row))
+          let matches2 = map_delete(id, block.matches)
+          v2 := set_block(v2, j, bkey, JoinBlock { ..block, matches = matches2 })
+          if map_size(matches2) == 0 && is_left then
+            let right_width = length(at(v2.plan.tables, t).columns)
+            v2 := apply_level(v2, j + 1, append(block.prev_tags, [-1]), append(block.prev_data, replicate(right_width, JNull)))
+    set_rev_all(v2, j, map_delete(id, at(v2.rev, j)))
+
+fn apply_change_to_view(v : ViewState, t : Int, old_opt : Option(List(Json)), new_opt : Option(List(Json)), id : Int) : ViewState ! {} =
+  var v2 := v
+  let old_passed =
+    match old_opt of
+      Some(r) => eval_filter_row(v2, t, r)
+      None => false
+  if old_passed then
+    v2 := retract_row_at_table(v2, t, id, force(old_opt))
+  let new_passed =
+    match new_opt of
+      Some(r) => eval_filter_row(v2, t, r)
+      None => false
+  v2 := set_filtered(v2, t, id, if new_passed then new_opt else None)
+  if new_passed then
+    v2 := apply_row_at_table(v2, t, id, force(new_opt))
+  v2
+
+fn apply_change_all_positions(v : ViewState, tname : String, old_opt : Option(List(Json)), new_opt : Option(List(Json)), id : Int) : ViewState ! {} =
+  var v2 := v
+  for i in srange(0, length(v2.plan.tables)) do
+    if at(v2.plan.tables, i).name == tname then
+      v2 := apply_change_to_view(v2, i, old_opt, new_opt, id)
+  v2
+
+fn propagate_change(views_map : Map(String, ViewState), tname : String, old_opt : Option(List(Json)), new_opt : Option(List(Json)), id : Int) : Map(String, ViewState) =
+  map_map_values(
+      \(vs) -> if any(\(t) -> t.name == tname, vs.plan.tables) then apply_change_all_positions(vs, tname, old_opt, new_opt, id) else vs,
+      views_map,
+    )
+
+-- ---- initial materialization: fold the incremental primitives over the current rows ----
+
+fn empty_view(plan : Plan) : ViewState =
+  let n_joins = length(plan.query.joins)
+  let widths = map(\(t) -> length(t.columns), plan.tables)
+  let offsets = offsets_from(widths, 0)
+  let groups0 =
+    if plan.aggregate && length(plan.query.groups) == 0 then
+      map_insert(encode(JArr([])), GroupState { members = map_empty }, map_empty)
+    else
+      map_empty
+  ViewState {
+    plan = plan,
+    offsets = offsets,
+    filtered = map(\(_) -> map_empty, plan.tables),
+    blocks = map(\(_) -> map_empty, range(0, n_joins)),
+    rev = map(\(_) -> map_empty, range(0, n_joins)),
+    matched = map_empty,
+    groups = groups0
+  }
+
+pub fn build_view(plan : Plan, tables_state : Map(String, BaseTable)) : ViewState ! {} =
+  var v := empty_view(plan)
+  for t in srange(0, length(plan.tables)) do
+    let tname = at(plan.tables, t).name
+    let bt =
+      match map_lookup(tname, tables_state) of
+        Some(b) => b
+        None => dummy_table()
+    for id in sof(bt.order) do
+      let row = force(map_lookup(id, bt.data))
+      v := apply_row_at_table(v, t, id, row)
+  v
+
+-- ---- read: natural (encounter) order via source-position tuples, then reuse Engine's tail ----
+
+fn cmp_list_int(a : List(Int), b : List(Int)) : Int =
+  match (a, b) of
+    (Nil, Nil) => 0
+    (Cons(x, xs), Cons(y, ys)) =>
+      if x < y then -1
+      elif x > y then 1
+      else cmp_list_int(xs, ys)
+    _ => 0
+
+fn seqtuple_one(p : (Int, Int), tables : List(Table), tables_state : Map(String, BaseTable)) : Int =
+  let (i, tag) = p
+  if tag < 0 then
+    0
+  else
+    let bt =
+      match map_lookup(at(tables, i).name, tables_state) of
+        Some(b) => b
+        None => dummy_table()
+    match map_lookup(tag, bt.seq) of
+      Some(s) => s
+      None => 0
+
+fn seqtuple(tags : List(Int), tables : List(Table), tables_state : Map(String, BaseTable)) : List(Int) =
+  map(\(p) -> seqtuple_one(p, tables, tables_state), zip(range(0, length(tags)), tags))
+
+fn min_seqtuple(mem : List((String, (List(Int), List(Json)))), tables : List(Table), tables_state : Map(String, BaseTable)) : List(Int) =
+  match mem of
+    Nil => []
+    Cons(kv, rest) =>
+      let (_, t_d) = kv
+      let (t, _) = t_d
+      let k = seqtuple(t, tables, tables_state)
+      match rest of
+        Nil => k
+        _ =>
+          let k2 = min_seqtuple(rest, tables, tables_state)
+          if cmp_list_int(k, k2) < 0 then k else k2
+
+fn insert_by_key(item : (List(Int), List(Json)), rows : List((List(Int), List(Json)))) : List((List(Int), List(Json))) =
+  match rows of
+    Nil => [item]
+    Cons(x, rest) =>
+      let (ik, _) = item
+      let (xk, _) = x
+      if cmp_list_int(ik, xk) <= 0 then Cons(item, rows) else Cons(x, insert_by_key(item, rest))
+
+fn sort_by_key(rows : List((List(Int), List(Json)))) : List((List(Int), List(Json))) =
+  match rows of
+    Nil => []
+    Cons(r, rest) => insert_by_key(r, sort_by_key(rest))
+
+fn materialize_group(p : (String, GroupState), q : Query, tables : List(Table), tables_state : Map(String, BaseTable)) : List((List(Int), List(Json))) =
+  let (_, gs) = p
+  let mem = map_to_list(gs.members)
+  let group_rows = map(\(kv) -> let (_, t_d) = kv in let (_, d) = t_d in d, mem)
+  let rep =
+    match mem of
+      Nil => []
+      Cons(kv, _) => let (_, t_d) = kv in let (_, d) = t_d in d
+  let projected = project(q, rep, group_rows)
+  let sk = min_seqtuple(mem, tables, tables_state)
+  map(\(r) -> (sk, r), projected)
+
+fn materialize_row(p : (String, (List(Int), List(Json))), q : Query, tables : List(Table), tables_state : Map(String, BaseTable)) : List((List(Int), List(Json))) =
+  let (_, tg_d) = p
+  let (tg, d) = tg_d
+  map(\(r) -> (seqtuple(tg, tables, tables_state), r), project(q, d, []))
+
+pub fn materialize(v : ViewState, tables : List(Table), tables_state : Map(String, BaseTable)) : (List(String), List(List(Json))) =
+  let q = v.plan.query
+  let keyed =
+    if v.plan.aggregate then
+      concat_map(\(p) -> materialize_group(p, q, tables, tables_state), map_to_list(v.groups))
+    else
+      concat_map(\(p) -> materialize_row(p, q, tables, tables_state), map_to_list(v.matched))
+  let ordered_pairs = sort_by_key(keyed)
+  let ordered = map(snd, ordered_pairs)
+  let distinct = if q.distinct then distinct_rows(ordered, []) else ordered
+  let sorted = if length(v.plan.order) > 0 then sort_rows(distinct, v.plan.order) else distinct
+  let skipped = drop(q.offset, sorted)
+  let final =
+    if q.limit >= 0 then
+      take(q.limit, skipped)
+    else
+      skipped
+  (map(snd, q.select), final)
+
+-- ---- commands ----
+
+fn cmd_create(sess : Session, c : Json) : (Session, Json) =
+  fields_c(c, ["op", "view", "sql", "optimize"], "INVALID_COMMAND")
+  let view = text_c(getfield_c(c, "view", "INVALID_COMMAND"), "INVALID_COMMAND")
+  demand(view_name_ok(view), "INVALID_COMMAND")
+  let sql = text_c(getfield_c(c, "sql", "INVALID_COMMAND"), "INVALID_COMMAND")
+  let optimize_flag = bool_c(getfield_c(c, "optimize", "INVALID_COMMAND"), "INVALID_COMMAND")
+  demand(not(map_member(view, sess.views)), "VIEW_EXISTS")
+  let database = make_snapshot_tables(sess.tables)
+  let q = parse_sql(sql)
+  let bound = bind(q, database)
+  let plan = if optimize_flag then optimize(bound) else bound
+  let vs = build_view(plan, sess.tables)
+  let sess2 = Session { ..sess, views = map_insert(view, vs, sess.views) }
+  (sess2, JObj([("view", JStr(view)), ("revision", JInt(sess.revision))]))
+
+fn cmd_read(sess : Session, c : Json) : (Session, Json) =
+  fields_c(c, ["op", "view"], "INVALID_COMMAND")
+  let view = text_c(getfield_c(c, "view", "INVALID_COMMAND"), "INVALID_COMMAND")
+  match map_lookup(view, sess.views) of
+    None =>
+      reject("UNKNOWN_VIEW")
+      (sess, JNull)
+    Some(vs) =>
+      let (cols, rows) = materialize(vs, vs.plan.tables, sess.tables)
+      (
+        sess,
+        JObj([
+            ("revision", JInt(sess.revision)),
+            ("columns", JArr(map(JStr, cols))),
+            ("rows", JArr(map(\(r) -> JArr(r), rows))),
+          ]),
+      )
+
+fn cmd_drop(sess : Session, c : Json) : (Session, Json) =
+  fields_c(c, ["op", "view"], "INVALID_COMMAND")
+  let view = text_c(getfield_c(c, "view", "INVALID_COMMAND"), "INVALID_COMMAND")
+  demand(map_member(view, sess.views), "UNKNOWN_VIEW")
+  let sess2 = Session { ..sess, views = map_delete(view, sess.views) }
+  (sess2, JObj([("dropped", JStr(view))]))
+
+fn cmd_apply(sess : Session, c : Json) : (Session, Json) =
+  fields_c(c, ["op", "changes"], "INVALID_COMMAND")
+  let changes_json = arr_c(getfield_c(c, "changes", "INVALID_COMMAND"), "INVALID_COMMAND")
+  demand(length(changes_json) > 0, "INVALID_COMMAND")
+  demand(length(changes_json) <= 200, "INVALID_COMMAND")
+  let specs = map(validate_change_shape, changes_json)
+  var tables2 := sess.tables
+  var views2 := sess.views
+  for spec in sof(specs) do
+    let bt =
+      match map_lookup(spec.table, tables2) of
+        Some(b) => b
+        None =>
+          reject("UNKNOWN_TABLE")
+          dummy_table()
+    if spec.kind == "insert" then
+      demand(not(set_member(spec.id, bt.used)), "ROW_ID_USED")
+      let row = validate_row_shape(spec.row, bt.columns)
+      let bt2 =
+        BaseTable {
+          ..bt,
+          data = map_insert(spec.id, row, bt.data),
+          order = append(bt.order, [spec.id]),
+          seq = map_insert(spec.id, bt.next_seq, bt.seq),
+          used = set_insert(spec.id, bt.used),
+          next_seq = bt.next_seq + 1
+        }
+      tables2 := map_insert(spec.table, bt2, tables2)
+      views2 := propagate_change(views2, spec.table, None, Some(row), spec.id)
+    elif spec.kind == "update" then
+      demand(map_member(spec.id, bt.data), "UNKNOWN_ROW")
+      let old_row = force(map_lookup(spec.id, bt.data))
+      let row = validate_row_shape(spec.row, bt.columns)
+      let bt2 = BaseTable { ..bt, data = map_insert(spec.id, row, bt.data) }
+      tables2 := map_insert(spec.table, bt2, tables2)
+      views2 := propagate_change(views2, spec.table, Some(old_row), Some(row), spec.id)
+    else
+      demand(map_member(spec.id, bt.data), "UNKNOWN_ROW")
+      let old_row = force(map_lookup(spec.id, bt.data))
+      let bt2 = BaseTable { ..bt, data = map_delete(spec.id, bt.data), order = filter(\(x) -> x /= spec.id, bt.order) }
+      tables2 := map_insert(spec.table, bt2, tables2)
+      views2 := propagate_change(views2, spec.table, Some(old_row), None, spec.id)
+  let rev2 = sess.revision + 1
+  let sess2 = Session { tables = tables2, views = views2, revision = rev2 }
+  (sess2, JObj([("revision", JInt(rev2))]))
+
+pub fn process_command(sess : Session, c : Json) : (Session, Json) =
+  let op = text_c(getfield_c(c, "op", "INVALID_COMMAND"), "INVALID_COMMAND")
+  if op == "create" then
+    cmd_create(sess, c)
+  elif op == "read" then
+    cmd_read(sess, c)
+  elif op == "drop" then
+    cmd_drop(sess, c)
+  elif op == "apply" then
+    cmd_apply(sess, c)
+  else
+    reject("INVALID_COMMAND")
+    (sess, JNull)

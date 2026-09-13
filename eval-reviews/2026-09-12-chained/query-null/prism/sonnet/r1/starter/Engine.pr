@@ -250,7 +250,7 @@ fn groups_for(rows : List(List(Json)), keys : List(Expr)) : List(Group) =
   else
     gs
 
-fn project(
+pub fn project(
   q : Query,
   row : List(Json),
   group : List(List(Json))
@@ -260,7 +260,7 @@ fn project(
   else
     []
 
-fn distinct_rows(
+pub fn distinct_rows(
   rows : List(List(Json)),
   seen : List(String)
 ) : List(List(Json)) =
@@ -313,7 +313,7 @@ fn insert_row(
       else
         Cons(x, insert_row(r, rest, order))
 
-fn sort_rows(
+pub fn sort_rows(
   rows : List(List(Json)),
   order : List((Int, Bool, Bool))
 ) : List(List(Json)) =

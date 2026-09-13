@@ -1,19 +1,18 @@
 {
-  "run_id": "run-60f2e13eb24c",
-  "checkpoint": 1,
+  "run_id": "run-250a3214e587",
+  "checkpoint": 2,
   "model": "sonnet",
   "model_id": "claude-sonnet-5",
   "task": "query-null",
   "language": "prism",
   "source_available": true,
-  "source_sha256": "40af35d5cf74e11592eee8b05ac48b8d6f73a318bf48c0b8f9d3cab0ed252ca9",
+  "source_sha256": "407a5742e26d68b19c21d1965aaa8e137579510e23e1de3a05c3870ea1e505dc",
   "passed": false,
-  "seconds": 1065.4171502919635,
-  "tool_calls": 100,
+  "seconds": 1800.7141588749946,
+  "tool_calls": 74,
   "flags": [
-    "task_frozen_after_resource_limit",
-    "timeout"
+    "native_wall_timeout"
   ],
-  "result_sha256": "29f50b46263b3a6ac94c15840a8b20b690c9181ce41bb575db62e5c475c38d6c",
+  "result_sha256": "04337eacf15580f4994f4849e3032072d613b7acd7e54b91a0837718931f5047",
   "archive_note": "Exact frozen source"
 }

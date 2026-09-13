@@ -1,9 +1,12 @@
--- One request, one response. Domain effects abort the complete query batch.
+-- One request, one response. Domain effects abort the complete request (old
+-- mode) or the single command being processed (new mode); a command error
+-- never unwinds past its own boundary since it is caught right there.
 import Json (..)
 import Model (..)
 import Parser (..)
 import Binder (..)
 import Engine (..)
+import Store (..)
 import Data.List (..)
 import Data.Foldable (length)
 
@@ -14,17 +17,7 @@ fn validate_query(q : Json) : Unit =
     JBool(_) => ()
     _ => reject("INVALID_INPUT")
 
-fn work(request : Json) : Json =
-  demand(
-      value_type(getfield(request, "protocol_version")) == "int"
-        && integer(getfield(request, "protocol_version")) == 1,
-      "INVALID_INPUT",
-    )
-  demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
-  let input = getfield(request, "input")
-  fields(input, ["database", "queries"])
-  let database = map(validate_table, arr(getfield(input, "database")))
-  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
+fn work_queries(input : Json, database : List(Table)) : Json =
   let queries = arr(getfield(input, "queries"))
   for q in sof(queries) do
     validate_query(q)
@@ -33,6 +26,58 @@ fn work(request : Json) : Json =
       queries,
     )
   JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
+
+fn ok_reply(reply : Json) : Json = JObj([("ok", JBool(true)), ("result", reply)])
+
+fn error_reply(code : String) : Json = JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn command_result(sess : Session, c : Json) : (Session, Json) =
+  handle process_command(sess, c) with
+    never reject(code) => (sess, error_reply(code))
+    return r =>
+      let (sess2, reply) = r
+      (sess2, ok_reply(reply))
+
+fn work_commands(input : Json, database : List(Table)) : Json =
+  let commands =
+    match getfield(input, "commands") of
+      JArr(xs) => xs
+      _ =>
+        reject("INVALID_INPUT")
+        []
+  var sess := init_session(database)
+  var results := []
+  for c in sof(commands) do
+    let (sess2, reply) = command_result(sess, c)
+    sess := sess2
+    results := append(results, [reply])
+  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
+
+fn work(request : Json) : Json =
+  demand(
+      value_type(getfield(request, "protocol_version")) == "int"
+        && integer(getfield(request, "protocol_version")) == 1,
+      "INVALID_INPUT",
+    )
+  demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
+  let input = getfield(request, "input")
+  let keys =
+    match input of
+      JObj(xs) => map(fst, xs)
+      _ =>
+        reject("INVALID_INPUT")
+        []
+  demand(length(keys) == 2, "INVALID_INPUT")
+  demand(elem("database", keys), "INVALID_INPUT")
+  let database = map(validate_table, arr(getfield(input, "database")))
+  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
+  if elem("queries", keys) then
+    work_queries(input, database)
+  elif elem("commands", keys) then
+    work_commands(input, database)
+  else
+    reject("INVALID_INPUT")
+    JNull
 
 fn error_response(code : String) : Json =
   JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
