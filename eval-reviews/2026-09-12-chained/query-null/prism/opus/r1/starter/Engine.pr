@@ -3,6 +3,7 @@ import Json (..)
 import Model (..)
 import Binder (tree_any)
 import Data.List (..)
+import Data.Map (..)
 import Data.Foldable (all, length, sum)
 
 pub fn compare_value(a : Json, b : Json) : Int =
@@ -30,6 +31,8 @@ pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
     e.value
   elif op == "col" then
     at(row, e.index)
+  elif op == "aggref" then
+    at(at(group, 0), e.index)
   elif op == "COUNT" then
     if length(e.args) == 0 then
       JInt(length(group))
@@ -117,7 +120,7 @@ fn extremum(vs : List(Json), minimum : Bool) : Json =
 pub fn fold_constants(e : Expr) : Expr =
   let n = Expr { ..e, args = map(fold_constants, e.args) }
   if (not(agg(n.op))
-      && not(elem(n.op, ["lit", "col"]))
+      && not(elem(n.op, ["lit", "col", "aggref"]))
       && all(\(a) -> a.op == "lit", n.args)) then
     Expr { ..literal(evaluate(n, [], [])), kind = n.kind }
   else
@@ -162,13 +165,13 @@ fn simplify(n : Expr) : Expr =
   else
     n
 
-fn conjuncts(e : Expr) : List(Expr) =
+pub fn conjuncts(e : Expr) : List(Expr) =
   if e.op == "AND" then
     append(conjuncts(at(e.args, 0)), conjuncts(at(e.args, 1)))
   else
     [e]
 
-fn sources(e : Expr) : List(Int) =
+pub fn sources(e : Expr) : List(Int) =
   if e.op == "col" then
     [e.source]
   else
@@ -267,18 +270,21 @@ fn project(
   else
     []
 
+-- First occurrence wins; NULLs compare equal because the encoded form of a
+-- projected row is its identity. The seen set is a map so that a wide view
+-- result stays linearithmic rather than quadratic.
 fn distinct_rows(
   rows : List(List(Json)),
-  seen : List(String)
+  seen : Map(String, Bool)
 ) : List(List(Json)) =
   match rows of
     Nil => []
     Cons(r, rest) =>
       let key = encode(JArr(r))
-      if elem(key, seen) then
+      if map_member(key, seen) then
         distinct_rows(rest, seen)
       else
-        Cons(r, distinct_rows(rest, Cons(key, seen)))
+        Cons(r, distinct_rows(rest, map_insert(key, true, seen)))
 
 fn row_compare(
   a : List(Json),
@@ -311,26 +317,36 @@ fn row_compare(
         else
           c
 
-fn insert_row(
-  r : List(Json),
-  rows : List(List(Json)),
+-- A stable merge sort: ties keep encounter order because a left-hand row is
+-- taken whenever the comparison is not strictly greater.
+fn merge_rows(
+  a : List(List(Json)),
+  b : List(List(Json)),
   order : List((Int, Bool, Bool))
 ) : List(List(Json)) =
-  match rows of
-    Nil => [r]
-    Cons(x, rest) =>
-      if row_compare(r, x, order) <= 0 then
-        Cons(r, rows)
+  match (a, b) of
+    (Nil, _) => b
+    (_, Nil) => a
+    (Cons(x, xs), Cons(y, ys)) =>
+      if row_compare(x, y, order) <= 0 then
+        Cons(x, merge_rows(xs, b, order))
       else
-        Cons(x, insert_row(r, rest, order))
+        Cons(y, merge_rows(a, ys, order))
 
 fn sort_rows(
   rows : List(List(Json)),
   order : List((Int, Bool, Bool))
 ) : List(List(Json)) =
-  match rows of
-    Nil => []
-    Cons(r, rest) => insert_row(r, sort_rows(rest, order), order)
+  let n = length(rows)
+  if n <= 1 then
+    rows
+  else
+    let half = n / 2
+    merge_rows(
+        sort_rows(take(half, rows), order),
+        sort_rows(drop(half, rows), order),
+        order,
+      )
 
 pub fn execute(plan : Plan) : Json =
   let q = plan.query
@@ -366,9 +382,15 @@ pub fn execute(plan : Plan) : Json =
         )
     else
       flatten(map(\(r) -> project(q, r, []), filtered))
+  finalize(plan, projected)
+
+-- DISTINCT, then ORDER BY, then OFFSET/LIMIT, shared by one-shot queries and
+-- by reads of an incrementally maintained view.
+pub fn finalize(plan : Plan, projected : List(List(Json))) : Json =
+  let q = plan.query
   let distinct =
     if q.distinct then
-      distinct_rows(projected, [])
+      distinct_rows(projected, map_empty)
     else
       projected
   let sorted =

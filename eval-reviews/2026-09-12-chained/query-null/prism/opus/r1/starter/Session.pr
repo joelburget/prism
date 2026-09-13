@@ -1,0 +1,217 @@
+-- The command protocol: view lifecycle, atomic batches, and the global
+-- database revision. A command that fails leaves the session it was handed
+-- untouched, because every update returns a new session value.
+import Json (..)
+import Model (..)
+import Parser (..)
+import Binder (..)
+import Engine (..)
+import Store (..)
+import View (..)
+import Data.List (..)
+import Data.Foldable (all, length)
+
+pub type Session = Session {
+  tables: List(TableState),
+  views: List(ViewState),
+  revision: Int
+}
+
+pub fn new_session(database : List(Table)) : Session =
+  Session { tables = map(initial_table, database), views = [], revision = 0 }
+
+fn field_of(j : Json, key : String) : Json =
+  match j of
+    JObj(xs) =>
+      let ms = filter(\(kv) -> fst(kv) == key, xs)
+      if length(ms) == 1 then
+        snd(at(ms, 0))
+      else
+        JNull
+    _ => JNull
+
+fn shape(j : Json, names : List(String)) : Unit =
+  match j of
+    JObj(xs) =>
+      demand(length(xs) == length(names), "INVALID_COMMAND")
+      demand(
+          all(
+              \(name) -> length(filter(\(kv) -> fst(kv) == name, xs)) == 1,
+              names,
+            ),
+          "INVALID_COMMAND",
+        )
+    _ => reject("INVALID_COMMAND")
+
+fn command_text(j : Json) : String =
+  match j of
+    JStr(s) => s
+    _ =>
+      reject("INVALID_COMMAND")
+      ""
+
+fn command_int(j : Json) : Int =
+  match j of
+    JInt(n) => n
+    _ =>
+      reject("INVALID_COMMAND")
+      0
+
+fn command_bool(j : Json) : Bool =
+  match j of
+    JBool(b) => b
+    _ =>
+      reject("INVALID_COMMAND")
+      false
+
+fn command_rows(j : Json) : List(Json) =
+  match j of
+    JArr(xs) => xs
+    _ =>
+      reject("INVALID_COMMAND")
+      []
+
+pub fn view_name_ok(s : String) : Bool =
+  byte_len(s) >= 1
+    && byte_len(s) <= 40
+    && byte_at(s, 0) >= 97
+    && byte_at(s, 0) <= 122
+    && all(
+        \(i) -> let c = byte_at(s, i) in c >= 97 && c <= 122 || digit(c) || c == 45,
+        range(1, byte_len(s)),
+      )
+
+-- A change may name a table that does not exist, including a reserved SQL
+-- word; that is a table error rather than a malformed command.
+fn table_name_ok(s : String) : Bool =
+  byte_len(s) > 0
+    && letter(byte_at(s, 0))
+    && all(
+        \(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)),
+        range(0, byte_len(s)),
+      )
+
+fn view_index(vs : List(ViewState), name : String) : Int = view_index_go(vs, name, 0)
+
+fn view_index_go(vs : List(ViewState), name : String, i : Int) : Int =
+  match vs of
+    Nil => -1
+    Cons(v, rest) =>
+      if v.name == name then
+        i
+      else
+        view_index_go(rest, name, i + 1)
+
+fn validate_change(j : Json) : Change =
+  let kind = command_text(field_of(j, "op"))
+  demand(elem(kind, ["insert", "update", "delete"]), "INVALID_COMMAND")
+  if kind == "delete" then
+    shape(j, ["op", "table", "id"])
+  else
+    shape(j, ["op", "table", "id", "row"])
+  let table = command_text(field_of(j, "table"))
+  demand(table_name_ok(table), "INVALID_COMMAND")
+  let id = command_int(field_of(j, "id"))
+  demand(id >= 1 && id <= 2147483647, "INVALID_COMMAND")
+  let cells =
+    if kind == "delete" then
+      []
+    else
+      command_rows(field_of(j, "row"))
+  Change { kind = kind, table = table, id = id, cells = cells }
+
+fn schemas(ts : List(TableState)) : List(Table) = map(\(t) -> t.schema, ts)
+
+fn do_create(s : Session, cmd : Json) : (Session, Json) =
+  shape(cmd, ["op", "view", "sql", "optimize"])
+  let name = command_text(field_of(cmd, "view"))
+  demand(view_name_ok(name), "INVALID_COMMAND")
+  let sql = command_text(field_of(cmd, "sql"))
+  let opt = command_bool(field_of(cmd, "optimize"))
+  demand(view_index(s.views, name) < 0, "VIEW_EXISTS")
+  let bound = bind(parse_sql(sql), schemas(s.tables))
+  let plan = if opt then optimize(bound) else bound
+  (
+    Session { ..s, views = append(s.views, [create_view(name, plan, s.tables)]) },
+    JObj([("view", JStr(name)), ("revision", JInt(s.revision))]),
+  )
+
+fn do_read(s : Session, cmd : Json) : (Session, Json) =
+  shape(cmd, ["op", "view"])
+  let name = command_text(field_of(cmd, "view"))
+  demand(view_name_ok(name), "INVALID_COMMAND")
+  let i = view_index(s.views, name)
+  demand(i >= 0, "UNKNOWN_VIEW")
+  let result = read_view(at(s.views, i))
+  (
+    s,
+    JObj([
+        ("revision", JInt(s.revision)),
+        ("columns", getfield(result, "columns")),
+        ("rows", getfield(result, "rows")),
+      ]),
+  )
+
+fn do_drop(s : Session, cmd : Json) : (Session, Json) =
+  shape(cmd, ["op", "view"])
+  let name = command_text(field_of(cmd, "view"))
+  demand(view_name_ok(name), "INVALID_COMMAND")
+  let i = view_index(s.views, name)
+  demand(i >= 0, "UNKNOWN_VIEW")
+  (
+    Session { ..s, views = filter(\(v) -> v.name /= name, s.views) },
+    JObj([("dropped", JStr(name))]),
+  )
+
+-- Every shape is checked before any change is processed; the batch then runs
+-- against a private copy of the tables and the views follow it in one step.
+fn do_apply(s : Session, cmd : Json) : (Session, Json) =
+  shape(cmd, ["op", "changes"])
+  let raw = command_rows(field_of(cmd, "changes"))
+  demand(length(raw) >= 1 && length(raw) <= 200, "INVALID_COMMAND")
+  let changes = map(validate_change, raw)
+  let (tables, deltas) = apply_changes(s.tables, changes)
+  let revision = s.revision + 1
+  (
+    Session {
+      tables = tables,
+      views = map(\(v) -> apply_deltas(v, deltas), s.views),
+      revision = revision
+    },
+    JObj([("revision", JInt(revision))]),
+  )
+
+pub fn run_command(s : Session, cmd : Json) : (Session, Json) =
+  let op = command_text(field_of(cmd, "op"))
+  if op == "create" then
+    do_create(s, cmd)
+  elif op == "read" then
+    do_read(s, cmd)
+  elif op == "drop" then
+    do_drop(s, cmd)
+  elif op == "apply" then
+    do_apply(s, cmd)
+  else
+    reject("INVALID_COMMAND")
+    (s, JNull)
+
+fn reply(ok : Bool, body : Json) : Json =
+  if ok then
+    JObj([("ok", JBool(true)), ("result", body)])
+  else
+    JObj([("ok", JBool(false)), ("error", body)])
+
+-- A rejected command reports its code and yields the session unchanged, so
+-- earlier replies stay valid snapshots.
+pub fn run_commands(start : Session, cmds : List(Json)) : List(Json) =
+  var s := start
+  var out := []
+  for cmd in sof(cmds) do
+    let step =
+      handle run_command(s, cmd) with
+        never reject(code) =>
+          (s, reply(false, JObj([("code", JStr(code))])))
+        return r => (fst(r), reply(true, snd(r)))
+    s := fst(step)
+    out := append(out, [snd(step)])
+  out

@@ -1,0 +1,167 @@
+-- Live base tables: ordered rows with private identifiers and used-ID sets.
+-- A batch is applied to a copy of this state, so a rejected change rolls the
+-- whole command back simply by discarding the copy.
+import Json (..)
+import Model (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.Foldable (length)
+
+pub type TableState = TableState {
+  schema: Table,
+  rows: Map(Int, List(Json)),
+  by_id: Map(Int, Int),
+  used: Map(Int, Bool),
+  next_pos: Int
+}
+
+-- One requested mutation, already checked for shape but not against state.
+pub type Change = Change {
+  kind: String,
+  table: String,
+  id: Int,
+  cells: List(Json)
+}
+
+-- What a committed change did to one base row, in encounter-position terms.
+pub type RowDelta = RowDelta {
+  table: String,
+  pos: Int,
+  old: List(Json),
+  has_old: Bool,
+  cells: List(Json),
+  has_new: Bool
+}
+
+pub fn initial_table(t : Table) : TableState =
+  var rows := map_empty
+  var ids := map_empty
+  var used := map_empty
+  var n := 0
+  for r in sof(t.rows) do
+    n += 1
+    rows := map_insert(n, r, rows)
+    ids := map_insert(n, n, ids)
+    used := map_insert(n, true, used)
+  TableState {
+    schema = t,
+    rows = rows,
+    by_id = ids,
+    used = used,
+    next_pos = n + 1
+  }
+
+-- Update rows are held to the same schema rules as input rows, plus the
+-- documented magnitude bound on integers.
+fn cell_valid(v : Json, c : Column) : Bool =
+  if is_null(v) then
+    c.nullable
+  else
+    value_type(v) == c.kind
+      && (c.kind /= "int" || abs(integer(v)) <= 1000000000)
+
+fn check_row(t : TableState, cells : List(Json)) : Unit =
+  let cs = t.schema.columns
+  demand(length(cells) == length(cs), "INVALID_ROW")
+  for i in srange(0, length(cs)) do
+    demand(cell_valid(at(cells, i), at(cs, i)), "INVALID_ROW")
+
+pub fn find_state(ts : List(TableState), name : String) : Int =
+  find_state_go(ts, name, 0)
+
+fn find_state_go(ts : List(TableState), name : String, i : Int) : Int =
+  match ts of
+    Nil => -1
+    Cons(t, rest) =>
+      if t.schema.name == name then
+        i
+      else
+        find_state_go(rest, name, i + 1)
+
+fn row_pos(t : TableState, id : Int) : Int =
+  match map_lookup(id, t.by_id) of
+    Some(p) => p
+    None =>
+      reject("UNKNOWN_ROW")
+      -1
+
+fn cells_at(t : TableState, p : Int) : List(Json) =
+  match map_lookup(p, t.rows) of
+    Some(r) => r
+    None => []
+
+-- Table existence, then row contents, then identifier state.
+fn one_change(ts : List(TableState), c : Change) : (List(TableState), RowDelta) =
+  let idx = find_state(ts, c.table)
+  demand(idx >= 0, "UNKNOWN_TABLE")
+  let t = at(ts, idx)
+  if c.kind /= "delete" then
+    check_row(t, c.cells)
+  if c.kind == "insert" then
+    demand(not(map_member(c.id, t.used)), "ROW_ID_USED")
+    let p = t.next_pos
+    let nt = TableState {
+      ..t,
+      rows = map_insert(p, c.cells, t.rows),
+      by_id = map_insert(c.id, p, t.by_id),
+      used = map_insert(c.id, true, t.used),
+      next_pos = p + 1
+    }
+    (
+      list_set(ts, idx, nt),
+      RowDelta {
+        table = c.table,
+        pos = p,
+        old = [],
+        has_old = false,
+        cells = c.cells,
+        has_new = true
+      },
+    )
+  else
+    let p = row_pos(t, c.id)
+    let old = cells_at(t, p)
+    if c.kind == "update" then
+      (
+        list_set(ts, idx, TableState { ..t, rows = map_insert(p, c.cells, t.rows) }),
+        RowDelta {
+          table = c.table,
+          pos = p,
+          old = old,
+          has_old = true,
+          cells = c.cells,
+          has_new = true
+        },
+      )
+    else
+      (
+        list_set(
+            ts,
+            idx,
+            TableState {
+              ..t,
+              rows = map_delete(p, t.rows),
+              by_id = map_delete(c.id, t.by_id)
+            },
+          ),
+        RowDelta {
+          table = c.table,
+          pos = p,
+          old = old,
+          has_old = true,
+          cells = [],
+          has_new = false
+        },
+      )
+
+pub fn apply_changes(
+  ts : List(TableState),
+  cs : List(Change)
+) : (List(TableState), List(RowDelta)) =
+  var cur := ts
+  var deltas := []
+  for c in sof(cs) do
+    let (nts, d) = one_change(cur, c)
+    cur := nts
+    deltas := append(deltas, [d])
+  (cur, deltas)

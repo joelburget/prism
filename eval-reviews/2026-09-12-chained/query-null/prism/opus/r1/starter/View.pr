@@ -1,0 +1,653 @@
+-- Incrementally maintained views.
+--
+-- A view keeps the intermediate state of its own plan: the filtered scan of
+-- every source, the joined prefix after every join, the rows that survived
+-- WHERE, and one accumulator set per surviving group. A base-row change enters
+-- as a signed delta at the source it touches and is pushed through exactly the
+-- operators above that source; nothing else is recomputed, and a view whose
+-- tables were untouched does no work at all.
+--
+-- Every joined row is named by the tuple of encounter positions of the base
+-- rows that produced it, encoded as a fixed-width string. Ordering those keys
+-- lexicographically reproduces the nested-loop encounter order the contract
+-- prescribes, so ties and first-encounter group order survive updates.
+import Json (..)
+import Model (..)
+import Engine (..)
+import Store (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.String (..)
+import Data.Foldable (all, length)
+
+-- An equality conjunct of a join condition, used to index the opposite side.
+pub type Equi = Equi { has: Bool, left: Expr, right: Expr }
+
+-- COUNT/SUM keep a running total; MIN/MAX keep the current extreme and fall
+-- back to a scan of the group when that extreme is the value being retracted.
+pub type Acc = Acc { n: Int, total: Int, extreme: Json }
+
+pub type GroupState = GroupState {
+  members: Map(String, List(Json)),
+  accs: List(Acc)
+}
+
+pub type ViewState = ViewState {
+  name: String,
+  plan: Plan,
+  aggs: List(Expr),
+  equis: List(Equi),
+  scans: List(Map(Int, List(Json))),
+  rindex: List(Map(String, Map(Int, List(Json)))),
+  prefix: List(Map(String, List(Json))),
+  lindex: List(Map(String, Map(String, List(Json)))),
+  matches: List(Map(String, Int)),
+  filtered: Map(String, List(Json)),
+  groups: Map(String, GroupState)
+}
+
+let pad_key : String = "9999999999"
+
+fn key_part(p : Int) : String =
+  let s = show_int(p)
+  concat(str_repeat("0", max(0, 10 - byte_len(s))), s)
+
+let empty_acc : Acc = Acc { n = 0, total = 0, extreme = JNull }
+
+-- Aggregates are lifted out of SELECT and HAVING before execution: each is
+-- replaced by an `aggref` slot that reads the group's maintained accumulator,
+-- so projecting a group never walks its rows.
+fn lift(e : Expr, acc : List(Expr)) : (Expr, List(Expr)) =
+  if agg(e.op) then
+    (
+      Expr {
+        ..node("aggref", []),
+        index = length(acc),
+        kind = e.kind,
+        nullable = e.nullable
+      },
+      append(acc, [e]),
+    )
+  else
+    let (args, rest) = lift_all(e.args, acc)
+    (Expr { ..e, args = args }, rest)
+
+fn lift_all(es : List(Expr), acc : List(Expr)) : (List(Expr), List(Expr)) =
+  match es of
+    Nil => ([], acc)
+    Cons(x, more) =>
+      let (x2, acc2) = lift(x, acc)
+      let (more2, acc3) = lift_all(more, acc2)
+      (Cons(x2, more2), acc3)
+
+fn lift_plan(plan : Plan) : (Plan, List(Expr)) =
+  let q = plan.query
+  var acc := []
+  var sels := []
+  for s in sof(q.select) do
+    let (e, next) = lift(fst(s), acc)
+    acc := next
+    sels := append(sels, [(e, snd(s))])
+  let (hav, acc2) = lift(q.having, acc)
+  (Plan { ..plan, query = Query { ..q, select = sels, having = hav } }, acc2)
+
+fn width_before(plan : Plan, i : Int) : Int =
+  var n := 0
+  for j in srange(0, i) do
+    n += length(at(plan.tables, j).columns)
+  n
+
+-- Scan predicates pushed down by the optimizer address global slots, so a
+-- lone source row is padded up to its own offset before they are applied.
+fn passes(plan : Plan, i : Int, cells : List(Json)) : List(Json) =
+  append(replicate(width_before(plan, i), JNull), cells)
+
+fn scan_keeps(plan : Plan, i : Int, cells : List(Json)) : Bool =
+  let padded = passes(plan, i, cells)
+  all(\(p) -> truth(evaluate(p, padded, [])), at(plan.filters, i))
+
+-- An equality conjunct with one side confined to the sources already joined
+-- and the other to the incoming source lets both directions of maintenance
+-- look their counterparts up instead of scanning.
+fn pick_equi(es : List(Expr), j : Int) : Equi =
+  match es of
+    Nil => Equi { has = false, left = literal(JNull), right = literal(JNull) }
+    Cons(e, rest) =>
+      if e.op == "=" then
+        let a = at(e.args, 0)
+        let b = at(e.args, 1)
+        let sa = sources(a)
+        let sb = sources(b)
+        if (length(sa) > 0
+            && length(sb) > 0
+            && all(\(s) -> s <= j, sa)
+            && all(\(s) -> s == j + 1, sb)) then
+          Equi { has = true, left = a, right = b }
+        elif (length(sa) > 0
+            && length(sb) > 0
+            && all(\(s) -> s == j + 1, sa)
+            && all(\(s) -> s <= j, sb)) then
+          Equi { has = true, left = b, right = a }
+        else
+          pick_equi(rest, j)
+      else
+        pick_equi(rest, j)
+
+fn equi_of(plan : Plan, j : Int) : Equi =
+  if j + 1 >= length(plan.tables) then
+    Equi { has = false, left = literal(JNull), right = literal(JNull) }
+  else
+    pick_equi(conjuncts(at(plan.query.joins, j)), j)
+
+fn index_key(v : Json) : String = encode(v)
+
+fn match_count(v : ViewState, j : Int, key : String) : Int =
+  match map_lookup(key, at(v.matches, j)) of
+    Some(n) => n
+    None => 0
+
+fn set_match(v : ViewState, j : Int, key : String, n : Int) : ViewState =
+  ViewState {
+    ..v,
+    matches = list_set(v.matches, j, map_insert(key, n, at(v.matches, j)))
+  }
+
+fn drop_match(v : ViewState, j : Int, key : String) : ViewState =
+  ViewState {
+    ..v,
+    matches = list_set(v.matches, j, map_delete(key, at(v.matches, j)))
+  }
+
+-- Right rows of source j+1 that can satisfy the join with this prefix row.
+fn right_candidates(
+  v : ViewState,
+  j : Int,
+  row : List(Json)
+) : List((Int, List(Json))) =
+  let eq = at(v.equis, j)
+  if eq.has then
+    let k = evaluate(eq.left, row, [])
+    if is_null(k) then
+      []
+    else
+      match map_lookup(index_key(k), at(v.rindex, j + 1)) of
+        Some(bucket) => map_to_list(bucket)
+        None => []
+  else
+    map_to_list(at(v.scans, j + 1))
+
+-- Prefix rows at level j that can satisfy the join with this new right row.
+fn left_candidates(
+  v : ViewState,
+  j : Int,
+  cells : List(Json)
+) : List((String, List(Json))) =
+  let eq = at(v.equis, j)
+  if eq.has then
+    let k = evaluate(eq.right, passes(v.plan, j + 1, cells), [])
+    if is_null(k) then
+      []
+    else
+      match map_lookup(index_key(k), at(v.lindex, j)) of
+        Some(bucket) => map_to_list(bucket)
+        None => []
+  else
+    map_to_list(at(v.prefix, j))
+
+fn index_right(v : ViewState, i : Int, p : Int, cells : List(Json), add : Bool) : ViewState =
+  if i == 0 || not(at(v.equis, i - 1).has) then
+    v
+  else
+    let k = evaluate(at(v.equis, i - 1).right, passes(v.plan, i, cells), [])
+    if is_null(k) then
+      v
+    else
+      let key = index_key(k)
+      let bucket =
+        match map_lookup(key, at(v.rindex, i)) of
+          Some(b) => b
+          None => map_empty
+      let updated = if add then map_insert(p, cells, bucket) else map_delete(p, bucket)
+      ViewState {
+        ..v,
+        rindex = list_set(
+            v.rindex,
+            i,
+            if map_size(updated) == 0 then
+              map_delete(key, at(v.rindex, i))
+            else
+              map_insert(key, updated, at(v.rindex, i)),
+          )
+      }
+
+fn index_left(
+  v : ViewState,
+  j : Int,
+  key : String,
+  row : List(Json),
+  add : Bool
+) : ViewState =
+  if j + 1 >= length(v.plan.tables) || not(at(v.equis, j).has) then
+    v
+  else
+    let k = evaluate(at(v.equis, j).left, row, [])
+    if is_null(k) then
+      v
+    else
+      let bk = index_key(k)
+      let bucket =
+        match map_lookup(bk, at(v.lindex, j)) of
+          Some(b) => b
+          None => map_empty
+      let updated = if add then map_insert(key, row, bucket) else map_delete(key, bucket)
+      ViewState {
+        ..v,
+        lindex = list_set(
+            v.lindex,
+            j,
+            if map_size(updated) == 0 then
+              map_delete(bk, at(v.lindex, j))
+            else
+              map_insert(bk, updated, at(v.lindex, j)),
+          )
+      }
+
+fn add_scan_row(v : ViewState, i : Int, p : Int, cells : List(Json)) : ViewState =
+  index_right(
+      ViewState {
+        ..v,
+        scans = list_set(v.scans, i, map_insert(p, cells, at(v.scans, i)))
+      },
+      i,
+      p,
+      cells,
+      true,
+    )
+
+fn del_scan_row(v : ViewState, i : Int, p : Int, cells : List(Json)) : ViewState =
+  index_right(
+      ViewState {
+        ..v,
+        scans = list_set(v.scans, i, map_delete(p, at(v.scans, i)))
+      },
+      i,
+      p,
+      cells,
+      false,
+    )
+
+fn store_prefix(
+  v : ViewState,
+  j : Int,
+  key : String,
+  row : List(Json),
+  sign : Int
+) : ViewState =
+  let pm = at(v.prefix, j)
+  index_left(
+      ViewState {
+        ..v,
+        prefix = list_set(
+            v.prefix,
+            j,
+            if sign > 0 then map_insert(key, row, pm) else map_delete(key, pm),
+          )
+      },
+      j,
+      key,
+      row,
+      sign > 0,
+    )
+
+fn store_filtered(
+  v : ViewState,
+  key : String,
+  row : List(Json),
+  sign : Int
+) : ViewState =
+  ViewState {
+    ..v,
+    filtered = if sign > 0 then
+      map_insert(key, row, v.filtered)
+    else
+      map_delete(key, v.filtered)
+  }
+
+fn null_row(v : ViewState, i : Int) : List(Json) =
+  replicate(length(at(v.plan.tables, i).columns), JNull)
+
+-- Apply signed deltas to the joined prefix at level j, then derive the deltas
+-- they cause one level up. Padding of an outer join is added or removed here,
+-- from the match count kept for the left row.
+fn store_all(
+  v : ViewState,
+  j : Int,
+  deltas : List((String, List(Json), Int))
+) : ViewState =
+  match deltas of
+    Nil => v
+    Cons(d, rest) =>
+      let (key, row, sign) = d
+      store_all(store_prefix(v, j, key, row, sign), j, rest)
+
+-- The rows of source j+1 that join with one prefix row, plus the padding an
+-- outer join owes a prefix row that found none.
+fn expand_one(
+  v : ViewState,
+  j : Int,
+  d : (String, List(Json), Int)
+) : (ViewState, List((String, List(Json), Int))) =
+  let (key, row, sign) = d
+  let outer = at(v.plan.query.outer, j)
+  let on = at(v.plan.query.joins, j)
+  var child := []
+  var found := 0
+  for rc in sof(right_candidates(v, j, row)) do
+    let joined = append(row, snd(rc))
+    if truth(evaluate(on, joined, [])) then
+      found += 1
+      child := append(child, [(concat(key, key_part(fst(rc))), joined, sign)])
+  if outer && found == 0 then
+    child := append(
+        child,
+        [(concat(key, pad_key), append(row, null_row(v, j + 1)), sign)],
+      )
+  let kept =
+    if not(outer) then
+      v
+    elif sign > 0 then
+      set_match(v, j, key, found)
+    else
+      drop_match(v, j, key)
+  (kept, child)
+
+fn expand_all(
+  v : ViewState,
+  j : Int,
+  deltas : List((String, List(Json), Int))
+) : (ViewState, List((String, List(Json), Int))) =
+  match deltas of
+    Nil => (v, [])
+    Cons(d, rest) =>
+      let (v2, here) = expand_one(v, j, d)
+      let (v3, more) = expand_all(v2, j, rest)
+      (v3, append(here, more))
+
+-- Apply signed deltas to the joined prefix at level j, then derive the deltas
+-- they cause one level up, until the top of the join chain is reached.
+fn propagate(
+  v : ViewState,
+  j : Int,
+  deltas : List((String, List(Json), Int))
+) : ViewState =
+  let cur = store_all(v, j, deltas)
+  if j == length(v.plan.tables) - 1 then
+    emit(cur, deltas)
+  else
+    let (st, child) = expand_all(cur, j, deltas)
+    propagate(st, j + 1, child)
+
+-- A change to a right-hand source only disturbs the prefix rows it matches.
+fn right_delta(
+  v : ViewState,
+  i : Int,
+  p : Int,
+  cells : List(Json),
+  sign : Int
+) : ViewState =
+  let outer = at(v.plan.query.outer, i - 1)
+  let on = at(v.plan.query.joins, i - 1)
+  var st := v
+  var child := []
+  for lc in sof(left_candidates(v, i - 1, cells)) do
+    let (key, row) = lc
+    let joined = append(row, cells)
+    if truth(evaluate(on, joined, [])) then
+      let m = match_count(st, i - 1, key)
+      if sign > 0 then
+        if outer && m == 0 then
+          child := append(
+              child,
+              [(concat(key, pad_key), append(row, null_row(st, i)), -1)],
+            )
+        child := append(child, [(concat(key, key_part(p)), joined, 1)])
+        if outer then
+          st := set_match(st, i - 1, key, m + 1)
+      else
+        child := append(child, [(concat(key, key_part(p)), joined, -1)])
+        if outer && m == 1 then
+          child := append(
+              child,
+              [(concat(key, pad_key), append(row, null_row(st, i)), 1)],
+            )
+        if outer then
+          st := set_match(st, i - 1, key, m - 1)
+  propagate(st, i, child)
+
+pub fn insert_scan(v : ViewState, i : Int, p : Int, cells : List(Json)) : ViewState =
+  if not(scan_keeps(v.plan, i, cells)) then
+    v
+  else
+    let v2 = add_scan_row(v, i, p, cells)
+    if i == 0 then
+      propagate(v2, 0, [(key_part(p), cells, 1)])
+    else
+      right_delta(v2, i, p, cells, 1)
+
+pub fn remove_scan(v : ViewState, i : Int, p : Int, cells : List(Json)) : ViewState =
+  if not(scan_keeps(v.plan, i, cells)) then
+    v
+  else
+    let v2 = del_scan_row(v, i, p, cells)
+    if i == 0 then
+      propagate(v2, 0, [(key_part(p), cells, -1)])
+    else
+      right_delta(v2, i, p, cells, -1)
+
+-- The top of the pipeline: WHERE, then either the row set of an ordinary view
+-- or the accumulators of the group the row belongs to.
+fn emit(v : ViewState, deltas : List((String, List(Json), Int))) : ViewState =
+  let plan = v.plan
+  let keeper = plan.query.predicate
+  var cur := v
+  for d in sof(deltas) do
+    let (key, row, sign) = d
+    if truth(evaluate(keeper, row, [])) then
+      if plan.aggregate then
+        cur := group_delta(cur, key, row, sign)
+      else
+        cur := store_filtered(cur, key, row, sign)
+  cur
+
+fn group_key(v : ViewState, row : List(Json)) : String =
+  encode(JArr(map(\(e) -> evaluate(e, row, []), v.plan.query.groups)))
+
+fn acc_add(a : Acc, e : Expr, row : List(Json)) : Acc =
+  if e.op == "COUNT" && length(e.args) == 0 then
+    Acc { ..a, n = a.n + 1 }
+  else
+    let item = evaluate(at(e.args, 0), row, [])
+    if is_null(item) then
+      a
+    elif e.op == "COUNT" then
+      Acc { ..a, n = a.n + 1 }
+    elif e.op == "SUM" then
+      Acc { n = a.n + 1, total = a.total + integer(item), extreme = JNull }
+    else
+      let better =
+        is_null(a.extreme) || (compare_value(item, a.extreme) < 0) == (e.op == "MIN")
+      Acc {
+        n = a.n + 1,
+        total = 0,
+        extreme = if better then item else a.extreme
+      }
+
+fn rescan_extreme(
+  e : Expr,
+  members : Map(String, List(Json))
+) : Json =
+  var best := JNull
+  for row in sof(map_values(members)) do
+    let item = evaluate(at(e.args, 0), row, [])
+    if not(is_null(item)) then
+      if (is_null(best) || (compare_value(item, best) < 0) == (e.op == "MIN")) then
+        best := item
+  best
+
+-- `members` has already lost the retracted row, so an extreme that leaves is
+-- replaced by rescanning just this group.
+fn acc_del(
+  a : Acc,
+  e : Expr,
+  row : List(Json),
+  members : Map(String, List(Json))
+) : Acc =
+  if e.op == "COUNT" && length(e.args) == 0 then
+    Acc { ..a, n = a.n - 1 }
+  else
+    let item = evaluate(at(e.args, 0), row, [])
+    if is_null(item) then
+      a
+    elif e.op == "COUNT" then
+      Acc { ..a, n = a.n - 1 }
+    elif e.op == "SUM" then
+      Acc { n = a.n - 1, total = a.total - integer(item), extreme = JNull }
+    elif compare_value(item, a.extreme) /= 0 then
+      Acc { ..a, n = a.n - 1 }
+    else
+      Acc { n = a.n - 1, total = 0, extreme = rescan_extreme(e, members) }
+
+fn group_delta(v : ViewState, key : String, row : List(Json), sign : Int) : ViewState =
+  let gk = group_key(v, row)
+  let g =
+    match map_lookup(gk, v.groups) of
+      Some(x) => x
+      None =>
+        GroupState { members = map_empty, accs = map(\(_) -> empty_acc, v.aggs) }
+  if sign > 0 then
+    let updated = GroupState {
+      members = map_insert(key, row, g.members),
+      accs = map(
+          \(i) -> acc_add(at(g.accs, i), at(v.aggs, i), row),
+          range(0, length(v.aggs)),
+        )
+    }
+    ViewState { ..v, groups = map_insert(gk, updated, v.groups) }
+  else
+    let members = map_delete(key, g.members)
+    if map_size(members) == 0 then
+      ViewState { ..v, groups = map_delete(gk, v.groups) }
+    else
+      let updated = GroupState {
+        members = members,
+        accs = map(
+            \(i) -> acc_del(at(g.accs, i), at(v.aggs, i), row, members),
+            range(0, length(v.aggs)),
+          )
+      }
+      ViewState { ..v, groups = map_insert(gk, updated, v.groups) }
+
+-- Creation runs the query once: the later sources are loaded directly and the
+-- rows of the first are streamed through the join, which is the nested-loop
+-- evaluation the one-shot engine would have performed.
+pub fn create_view(
+  name : String,
+  plan0 : Plan,
+  tables : List(TableState)
+) : ViewState =
+  let (plan, aggs) = lift_plan(plan0)
+  let n = length(plan.tables)
+  var v := ViewState {
+    name = name,
+    plan = plan,
+    aggs = aggs,
+    equis = map(\(j) -> equi_of(plan, j), range(0, n)),
+    scans = map(\(_) -> map_empty, range(0, n)),
+    rindex = map(\(_) -> map_empty, range(0, n)),
+    prefix = map(\(_) -> map_empty, range(0, n)),
+    lindex = map(\(_) -> map_empty, range(0, n)),
+    matches = map(\(_) -> map_empty, range(0, n)),
+    filtered = map_empty,
+    groups = map_empty
+  }
+  for i in srange(1, n) do
+    let st = at(tables, find_state(tables, at(plan.tables, i).name))
+    for kv in sof(map_to_list(st.rows)) do
+      if scan_keeps(plan, i, snd(kv)) then
+        v := add_scan_row(v, i, fst(kv), snd(kv))
+  let first = at(tables, find_state(tables, at(plan.tables, 0).name))
+  for kv in sof(map_to_list(first.rows)) do
+    v := insert_scan(v, 0, fst(kv), snd(kv))
+  v
+
+-- Only the sources that name a changed table are disturbed; a view over other
+-- tables leaves this loop untouched.
+pub fn apply_deltas(v : ViewState, ds : List(RowDelta)) : ViewState =
+  var cur := v
+  for d in sof(ds) do
+    for i in srange(0, length(v.plan.tables)) do
+      if at(v.plan.tables, i).name == d.table then
+        if d.has_old then
+          cur := remove_scan(cur, i, d.pos, d.old)
+        if d.has_new then
+          cur := insert_scan(cur, i, d.pos, d.cells)
+  cur
+
+fn agg_value(e : Expr, a : Acc) : Json =
+  if e.op == "COUNT" then
+    JInt(a.n)
+  elif a.n == 0 then
+    JNull
+  elif e.op == "SUM" then
+    JInt(a.total)
+  else
+    a.extreme
+
+fn project_group(v : ViewState, g : GroupState) : List(List(Json)) =
+  let vals = map(
+      \(i) -> agg_value(at(v.aggs, i), at(g.accs, i)),
+      range(0, length(v.aggs)),
+    )
+  let rep =
+    match map_min(g.members) of
+      Some(kv) => snd(kv)
+      None => []
+  if truth(evaluate(v.plan.query.having, rep, [vals])) then
+    [map(\(s) -> evaluate(fst(s), rep, [vals]), v.plan.query.select)]
+  else
+    []
+
+fn first_key(g : GroupState) : String =
+  match map_min(g.members) of
+    Some(kv) => fst(kv)
+    None => ""
+
+-- Groups appear in order of first encounter, which is the smallest row key
+-- still in the group.
+fn ordered_groups(v : ViewState) : List(GroupState) =
+  let keyed = map(\(kv) -> (first_key(snd(kv)), fst(kv)), map_to_list(v.groups))
+  map(\(pair) -> group_named(v, snd(pair)), sort(keyed))
+
+fn group_named(v : ViewState, gk : String) : GroupState =
+  match map_lookup(gk, v.groups) of
+    Some(g) => g
+    None => GroupState { members = map_empty, accs = [] }
+
+pub fn read_view(v : ViewState) : Json =
+  let q = v.plan.query
+  let projected =
+    if v.plan.aggregate then
+      let gs = ordered_groups(v)
+      if length(gs) == 0 && length(q.groups) == 0 then
+        project_group(
+            v,
+            GroupState { members = map_empty, accs = map(\(_) -> empty_acc, v.aggs) },
+          )
+      else
+        flatten(map(\(g) -> project_group(v, g), gs))
+    else
+      map(
+          \(row) -> map(\(s) -> evaluate(fst(s), row, []), q.select),
+          map_values(v.filtered),
+        )
+  finalize(v.plan, projected)
