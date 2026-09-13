@@ -4,6 +4,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from git_reviews import export
@@ -27,14 +29,16 @@ class GitReviewTests(unittest.TestCase):
                     if available:
                         (d/'source').mkdir();(d/'source/main.py').write_text(f'{model}-{cp}\n');(d/'source/main.py').chmod(0o755)
                     if cp==2:
-                        # The real chain preserves executable modes as well as contents.
-                        (d/'baseline/main.py').chmod(0o755)
+                        # Review baseline artifacts lose modes; predecessor source retains them.
+                        (d/'baseline/main.py').chmod(0o400)
                     (d/'result.json').write_text('{}')
-                    cells.append(dict(run_id=ident,chain_id=model,checkpoint=cp,task='query-null',language='python',model={'key':model},repetition=1,parent_run_id=f'{model}-1' if cp==2 else None))
+                    cells.append(dict(run_id=ident,chain_id=model,checkpoint=cp,task='query-null',language='python',model={'key':model},repetition=1,parent_run_id=f'{model}-1' if cp==2 else None,starter_sha256='fixture'))
                     rows.append(dict(run_id=ident,checkpoint=cp,model=model,model_id=model,task='query-null',language='python',source_available=available,source_sha256=tree_fingerprint(d/'source') if available else None,passed=available,seconds=60,tool_calls=3,flags=[] if available else ['invalid_submission'],result_sha256=sha(d/'result.json')))
                     before=f'{model}-{cp}\n'
             (results/'plan.json').write_text(json.dumps({'runs':cells}));(output/'runs.json').write_text(json.dumps({'runs':rows}))
-            result=export(results,repo,output,'review/test')
+            fake=SimpleNamespace(digest=lambda:'fixture',source_files=lambda:[('main.py',results/'runs/first-1/baseline/main.py')])
+            with patch('starter_support.load_starter',return_value=fake):
+                result=export(results,repo,output,'review/test')
             self.assertEqual(git('rev-parse','HEAD'),original);self.assertEqual(git('status','--porcelain'),'')
             self.assertEqual(len(result['commits']),4)
             for c in cells:

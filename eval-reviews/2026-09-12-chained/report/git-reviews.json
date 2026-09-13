@@ -1,0 +1,586 @@
+{
+  "branch": "eval-review/2026-09-12-chained",
+  "base": "6155d943f0d3068ebbae2ca239da4d2e32291f4d",
+  "baseline_commit": "6ce1565177b0e8b7f04722fa1caac3bed3082e5a",
+  "stage_tip": "d7bfcf72f6d55ef2b05774bbe20d932f1abaa178",
+  "prefix": "eval-reviews/2026-09-12-chained",
+  "github": "https://github.com/joelburget/prism",
+  "commits": {
+    "run-080101cd1e42": {
+      "commit": "0ba18ba3b03645f1fc2571ac6ce1db1da3ac8194",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/0ba18ba3b03645f1fc2571ac6ce1db1da3ac8194"
+    },
+    "run-a001aca163cf": {
+      "commit": "d96532703af9a43dec60df2556eb6565b4d73c2f",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/d96532703af9a43dec60df2556eb6565b4d73c2f"
+    },
+    "run-b29918558f75": {
+      "commit": "3234df46d0cbb1ec1edd2087a154e55c17887644",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/3234df46d0cbb1ec1edd2087a154e55c17887644"
+    },
+    "run-388dea7703de": {
+      "commit": "cff16a4792e6f7bda7dad77f8335565b6a79444c",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cff16a4792e6f7bda7dad77f8335565b6a79444c"
+    },
+    "run-46a12338faf2": {
+      "commit": "f6429853f440ee05f5f57866bbd3186c9543da1a",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f6429853f440ee05f5f57866bbd3186c9543da1a"
+    },
+    "run-3d2954134dd8": {
+      "commit": "60b9d9300983ed3beef43c3a010eb5f214d14341",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/60b9d9300983ed3beef43c3a010eb5f214d14341"
+    },
+    "run-6fa304f5eb73": {
+      "commit": "333cbd6506c10bf71c2c486d3ea5ae1f1aade13f",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/333cbd6506c10bf71c2c486d3ea5ae1f1aade13f"
+    },
+    "run-ffb7b7be5f2e": {
+      "commit": "77310ad120b4446a703ac519dbc1df15af9f4d3e",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/77310ad120b4446a703ac519dbc1df15af9f4d3e"
+    },
+    "run-c0b7b2ebaa21": {
+      "commit": "1d545211f270e5910aca44e3c1d9b10f0b7dc0e1",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/1d545211f270e5910aca44e3c1d9b10f0b7dc0e1"
+    },
+    "run-a979c604ac49": {
+      "commit": "13e0569f0130b583de836e2f2e5dc645959ed862",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/13e0569f0130b583de836e2f2e5dc645959ed862"
+    },
+    "run-c21c47b323a5": {
+      "commit": "5c44e895402ff5dd907a2f68101fcbb22139c9f3",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/5c44e895402ff5dd907a2f68101fcbb22139c9f3"
+    },
+    "run-b4618035efea": {
+      "commit": "43d28b8cbdd4f76c9f1f5685d11340b779553467",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/43d28b8cbdd4f76c9f1f5685d11340b779553467"
+    },
+    "run-6dd3ed0ba0a1": {
+      "commit": "ae6ffcb7d21eccffce33ea230a2b022233dba9c9",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/ae6ffcb7d21eccffce33ea230a2b022233dba9c9"
+    },
+    "run-c458f561615b": {
+      "commit": "b7476e6d5bedb36e31c4fef85bda81563339f9ff",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/b7476e6d5bedb36e31c4fef85bda81563339f9ff"
+    },
+    "run-67125c106fda": {
+      "commit": "a7e38b1b83df51023a0d99f9dce2bc7ff783384b",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/a7e38b1b83df51023a0d99f9dce2bc7ff783384b"
+    },
+    "run-855a758ae219": {
+      "commit": "3b45b152ac9d329ec7b478683120896b58fc7fe1",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/haiku/r1",
+      "source_available": false,
+      "url": "https://github.com/joelburget/prism/commit/3b45b152ac9d329ec7b478683120896b58fc7fe1"
+    },
+    "run-a62f6e1ef472": {
+      "commit": "15cf6a55ba529ba2a856daa5b693a5ae8da272cc",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/15cf6a55ba529ba2a856daa5b693a5ae8da272cc"
+    },
+    "run-be3dcd139689": {
+      "commit": "7eb1032fa288e81e579d235c6f478652dd3d9959",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/7eb1032fa288e81e579d235c6f478652dd3d9959"
+    },
+    "run-004248871303": {
+      "commit": "c44e8782eea5d54610098e41bda48d7d6b909b87",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/c44e8782eea5d54610098e41bda48d7d6b909b87"
+    },
+    "run-3d0745ab0136": {
+      "commit": "3e6c9bc2f18b77cb1fc01c3e274f963362f41e64",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/3e6c9bc2f18b77cb1fc01c3e274f963362f41e64"
+    },
+    "run-fcd31ea67fc5": {
+      "commit": "03f9ac83f02222a15b64c4bb4e271f373f394c9c",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/03f9ac83f02222a15b64c4bb4e271f373f394c9c"
+    },
+    "run-7ea2c0b1859c": {
+      "commit": "a076934cc7441d63010454be85685d88cd19fbaf",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/a076934cc7441d63010454be85685d88cd19fbaf"
+    },
+    "run-0cc23d7747b0": {
+      "commit": "d5f9457663b9e3a2115744ac61194dd62c550468",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/d5f9457663b9e3a2115744ac61194dd62c550468"
+    },
+    "run-f2ac5530201b": {
+      "commit": "d8a3701afc8cdcb6c752c885b4f5eab77914178b",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/d8a3701afc8cdcb6c752c885b4f5eab77914178b"
+    },
+    "run-0707cc50894e": {
+      "commit": "67f30deaaed90c2b61b31271b5b461a2e46589ef",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/67f30deaaed90c2b61b31271b5b461a2e46589ef"
+    },
+    "run-f768b4097811": {
+      "commit": "5bd88149125a1ab530d6c8b0b3ff8364b8e841bb",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/5bd88149125a1ab530d6c8b0b3ff8364b8e841bb"
+    },
+    "run-806934f1b2bf": {
+      "commit": "96e1648c17b9ea816e66d75760313a96840d1b1a",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/96e1648c17b9ea816e66d75760313a96840d1b1a"
+    },
+    "run-88ff56a4d811": {
+      "commit": "416fcf9c89fdb20e60cff0ae9d62af4cd8d1fafb",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/416fcf9c89fdb20e60cff0ae9d62af4cd8d1fafb"
+    },
+    "run-cccf0d7a8be0": {
+      "commit": "0c0c347387515c934922555eb0c1bb7ae3d90552",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/0c0c347387515c934922555eb0c1bb7ae3d90552"
+    },
+    "run-73e4f1ce4c07": {
+      "commit": "f3629bf10a9f448e291d8757d9de22b12dd7be70",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f3629bf10a9f448e291d8757d9de22b12dd7be70"
+    },
+    "run-a261de571eba": {
+      "commit": "aeeec69bd6eaf8a9af9f085c996f7338720f2d3d",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/aeeec69bd6eaf8a9af9f085c996f7338720f2d3d"
+    },
+    "run-f497864c07b5": {
+      "commit": "6cff4a2270eefa143fccb08b93955ba0a6e19b38",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/6cff4a2270eefa143fccb08b93955ba0a6e19b38"
+    },
+    "run-696bcc8062cb": {
+      "commit": "9d00082076b9c6c2f40d5533b5203edfce08dd4c",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9d00082076b9c6c2f40d5533b5203edfce08dd4c"
+    },
+    "run-e50687f1f88f": {
+      "commit": "fc62bc3a6c0117ce05cf04046123a65db36aef24",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/fc62bc3a6c0117ce05cf04046123a65db36aef24"
+    },
+    "run-68f276177f96": {
+      "commit": "9a68d8ea6b01c1ddb994d9cde8ff80d1d5acf4f6",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9a68d8ea6b01c1ddb994d9cde8ff80d1d5acf4f6"
+    },
+    "run-34abc6f36918": {
+      "commit": "95656d4d21268e4ed7a02ecaaff3905a955132b5",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/95656d4d21268e4ed7a02ecaaff3905a955132b5"
+    },
+    "run-e74c7484b4ee": {
+      "commit": "853760f13165c0acf61935eb4d9a59934a000832",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/853760f13165c0acf61935eb4d9a59934a000832"
+    },
+    "run-f56fde4567d8": {
+      "commit": "f95c42233966f957394390a10d2cbf558533d8c5",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f95c42233966f957394390a10d2cbf558533d8c5"
+    },
+    "run-69867c3df9b0": {
+      "commit": "1ace5dcd82627a9a88955a3fed34eea4421c6860",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/1ace5dcd82627a9a88955a3fed34eea4421c6860"
+    },
+    "run-d7afe5cc3d65": {
+      "commit": "2956bdda00b6f8184dcdd2064670f4d180377ef5",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/2956bdda00b6f8184dcdd2064670f4d180377ef5"
+    },
+    "run-fd43d30dfe10": {
+      "commit": "bc6a9b66deb7afb8f7b0b6ddafdeddbf1b80d498",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/bc6a9b66deb7afb8f7b0b6ddafdeddbf1b80d498"
+    },
+    "run-e3de376cac39": {
+      "commit": "69f4a7f1c21017e88ab6409516a76bf070b19b34",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/69f4a7f1c21017e88ab6409516a76bf070b19b34"
+    },
+    "run-a8ab7e6372b0": {
+      "commit": "9b0a8bf1480ee0815dd0933a7c8422da00f4045c",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9b0a8bf1480ee0815dd0933a7c8422da00f4045c"
+    },
+    "run-00f387947af6": {
+      "commit": "8f4ba3784719222895b472ce706ec9c1d4743f3c",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/8f4ba3784719222895b472ce706ec9c1d4743f3c"
+    },
+    "run-1baa619edb6a": {
+      "commit": "9c28dddb5c07b559ee6180bcf754997e61e89356",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9c28dddb5c07b559ee6180bcf754997e61e89356"
+    },
+    "run-fa37edf143e5": {
+      "commit": "c0e8e68cbb5f63723293211bc737f31ff0a8a552",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/c0e8e68cbb5f63723293211bc737f31ff0a8a552"
+    },
+    "run-9210322c0972": {
+      "commit": "18c97679d6fecc4f148c075ff3dd956b79b849ed",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/18c97679d6fecc4f148c075ff3dd956b79b849ed"
+    },
+    "run-75161b48dcca": {
+      "commit": "cb85eb608407aa53ea3a0fefcd2d4f0b9587b87e",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cb85eb608407aa53ea3a0fefcd2d4f0b9587b87e"
+    },
+    "run-d471d755b090": {
+      "commit": "dd1328da52e5ecc5e54f66da9a597591f27c513b",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/dd1328da52e5ecc5e54f66da9a597591f27c513b"
+    },
+    "run-a117552f36e9": {
+      "commit": "e83c6a25dbb29b7969be2b078e0ea2c8ac745ca5",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/e83c6a25dbb29b7969be2b078e0ea2c8ac745ca5"
+    },
+    "run-0e592018d540": {
+      "commit": "0fdd5205b449662cebe3cf379c380ff39d9f1fc1",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/0fdd5205b449662cebe3cf379c380ff39d9f1fc1"
+    },
+    "run-16482d707ad4": {
+      "commit": "04b4d1e7dc95af0c1aa27219fce07c1ab8a85302",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/04b4d1e7dc95af0c1aa27219fce07c1ab8a85302"
+    },
+    "run-ce78a11314c0": {
+      "commit": "7fbb6586b17b9d2c66004501fdd2866527edfd2f",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/7fbb6586b17b9d2c66004501fdd2866527edfd2f"
+    },
+    "run-874f869bb32e": {
+      "commit": "f3d440ff04136ad57a155b8a711243c1a25590b5",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f3d440ff04136ad57a155b8a711243c1a25590b5"
+    },
+    "run-1a51a8daa45b": {
+      "commit": "2a9321fe45062b72360b01bf846b892940ab2d32",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/2a9321fe45062b72360b01bf846b892940ab2d32"
+    },
+    "run-85190e81bdb7": {
+      "commit": "b19c9efbfd1f9a277066fb92843a7936da3c2d2f",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/b19c9efbfd1f9a277066fb92843a7936da3c2d2f"
+    },
+    "run-25395b221f87": {
+      "commit": "435dff30e0662a4e8ed7548e211d9742edb5afdf",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/435dff30e0662a4e8ed7548e211d9742edb5afdf"
+    },
+    "run-10e815b22f5b": {
+      "commit": "a6148a39de285c45cc8b6e4be0f69efbf4e084c7",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/a6148a39de285c45cc8b6e4be0f69efbf4e084c7"
+    },
+    "run-312f6413e8a7": {
+      "commit": "26654214d2413f3b0cb9a1cd862fde4df6d35547",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/26654214d2413f3b0cb9a1cd862fde4df6d35547"
+    },
+    "run-c4acb241484e": {
+      "commit": "7cdfcac1b97d2f44dd915557ea5f4158d7b169ab",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/7cdfcac1b97d2f44dd915557ea5f4158d7b169ab"
+    },
+    "run-39be87b1ef32": {
+      "commit": "e46bde3fdc7816849647e061c25210cefad7164b",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/e46bde3fdc7816849647e061c25210cefad7164b"
+    },
+    "run-a8bdaed3a116": {
+      "commit": "cc29f6331f660c1aee0806ba7ced682c29bd2b4a",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cc29f6331f660c1aee0806ba7ced682c29bd2b4a"
+    },
+    "run-60f2e13eb24c": {
+      "commit": "ee0326efd25aec7c5f2d8728431ea4d64378f7ff",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/ee0326efd25aec7c5f2d8728431ea4d64378f7ff"
+    },
+    "run-250a3214e587": {
+      "commit": "61900a9975231faa66b00db54cdfd199bf59b38b",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/61900a9975231faa66b00db54cdfd199bf59b38b"
+    },
+    "run-b3636c69ae7b": {
+      "commit": "f392737cc950be51e1ec2b5602ea5f31e5fed5fb",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f392737cc950be51e1ec2b5602ea5f31e5fed5fb"
+    },
+    "run-9fbc0016fd79": {
+      "commit": "cbc84a75b4171dd68e61bd3c6d48c08e7ee085d4",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cbc84a75b4171dd68e61bd3c6d48c08e7ee085d4"
+    },
+    "run-6c0e69db502e": {
+      "commit": "cc19715746bb0e44119a9f3cf315b600317bd17a",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cc19715746bb0e44119a9f3cf315b600317bd17a"
+    },
+    "run-edb9511f9e26": {
+      "commit": "ebe21edba2f7ce2bbbf3f9f520c3b96271a747b0",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/ebe21edba2f7ce2bbbf3f9f520c3b96271a747b0"
+    },
+    "run-93752f20cc3a": {
+      "commit": "f0382816221026c0803504508506c89404ecf34e",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f0382816221026c0803504508506c89404ecf34e"
+    },
+    "run-9a252dee4608": {
+      "commit": "066aa4351707994153ae3c11942bf8381bcc97d3",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/fable/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/066aa4351707994153ae3c11942bf8381bcc97d3"
+    },
+    "run-538e66fa3607": {
+      "commit": "cb5c1a23d9948fab7ff728ea8e64c5e8e17ef91b",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cb5c1a23d9948fab7ff728ea8e64c5e8e17ef91b"
+    },
+    "run-3d4146757b8b": {
+      "commit": "472cce543e99b36b74ca675119f8319cac1c02c3",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/472cce543e99b36b74ca675119f8319cac1c02c3"
+    },
+    "run-c63842078c8b": {
+      "commit": "b4eccadbffa278ec20b63942e65ab5a45dfd8a85",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/b4eccadbffa278ec20b63942e65ab5a45dfd8a85"
+    },
+    "run-077668138f86": {
+      "commit": "bcaa3df9b65ae209e2ba1bac91d19be9c26881d3",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/bcaa3df9b65ae209e2ba1bac91d19be9c26881d3"
+    },
+    "run-4ad2c1cf112f": {
+      "commit": "99b0bf367597f6b412033b61236c8ecbfb6581bc",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/99b0bf367597f6b412033b61236c8ecbfb6581bc"
+    },
+    "run-0169e2ec9aad": {
+      "commit": "e1108543a8373ecddeb5c77b874c30ac8fccb57d",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/sonnet/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/e1108543a8373ecddeb5c77b874c30ac8fccb57d"
+    },
+    "run-868fe7b4f39c": {
+      "commit": "28cbfbc47666cf4ad57ffd437530e976839bc5d7",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/28cbfbc47666cf4ad57ffd437530e976839bc5d7"
+    },
+    "run-52b7344475b3": {
+      "commit": "f8e23d198ac6a7189999e5b3492b5446a0a85242",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/sol/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/f8e23d198ac6a7189999e5b3492b5446a0a85242"
+    },
+    "run-540f3d965ad7": {
+      "commit": "6af982cdf6e5c377c6d43e02a891e6a0418faa0b",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/6af982cdf6e5c377c6d43e02a891e6a0418faa0b"
+    },
+    "run-15abad7bc23a": {
+      "commit": "e11bfea19ebab485ea7ca7de64c007ee2150fa1a",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/e11bfea19ebab485ea7ca7de64c007ee2150fa1a"
+    },
+    "run-ceb65bb699d4": {
+      "commit": "e1929f6cca475a655ce93108241903708803cb73",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/e1929f6cca475a655ce93108241903708803cb73"
+    },
+    "run-bb3f195b658d": {
+      "commit": "9f71b3c3cd02bfc4ae1ff377045b349a32ad06eb",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9f71b3c3cd02bfc4ae1ff377045b349a32ad06eb"
+    },
+    "run-0bc9816da1b6": {
+      "commit": "78dc1fa58abde85bb460cde8744152827e3e9e5a",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/78dc1fa58abde85bb460cde8744152827e3e9e5a"
+    },
+    "run-8f1b24f1c261": {
+      "commit": "d91b94a41846adbf9c3b85ad491e531ee09841d4",
+      "path": "eval-reviews/2026-09-12-chained/query-null/prism/opus/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/d91b94a41846adbf9c3b85ad491e531ee09841d4"
+    },
+    "run-82f0c490cddc": {
+      "commit": "017c0b3e9f10f92542f74d60cfcd1a971a963604",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/017c0b3e9f10f92542f74d60cfcd1a971a963604"
+    },
+    "run-34cca0164eaa": {
+      "commit": "4b3d81eff7b4f1250c11feabc2af93c2f502cc30",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/typescript/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/4b3d81eff7b4f1250c11feabc2af93c2f502cc30"
+    },
+    "run-50018ad32ac3": {
+      "commit": "cc66cff34d30d5c169148434e7e5359dcb273039",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/cc66cff34d30d5c169148434e7e5359dcb273039"
+    },
+    "run-5a3dfaa041b9": {
+      "commit": "198ac8e6db26790fe552e4700c80694eec544315",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/prism/terra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/198ac8e6db26790fe552e4700c80694eec544315"
+    },
+    "run-4b8fa7369e91": {
+      "commit": "3129116bb2ebf64c3671991d1a75687fba3183ed",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/3129116bb2ebf64c3671991d1a75687fba3183ed"
+    },
+    "run-065e892f55f2": {
+      "commit": "a44c4573c7faaf16b20451c1e4ffddb1e7fe2b7e",
+      "path": "eval-reviews/2026-09-12-chained/workflow-recovery/python/luna/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/a44c4573c7faaf16b20451c1e4ffddb1e7fe2b7e"
+    },
+    "run-c4d2f0c4f8a0": {
+      "commit": "9e37528820f829e638606c9ddfe32ef69dfb00f6",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/9e37528820f829e638606c9ddfe32ef69dfb00f6"
+    },
+    "run-438122f54d3b": {
+      "commit": "64d8f2e806df6a8d4007f9b33a756727e0f4cf48",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/astra/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/64d8f2e806df6a8d4007f9b33a756727e0f4cf48"
+    },
+    "run-e7fa3873d7a8": {
+      "commit": "14faa7910c8212586e0acb38acc758f5574b0353",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/14faa7910c8212586e0acb38acc758f5574b0353"
+    },
+    "run-b9d4ab5bf1ed": {
+      "commit": "f78ef406605f01fc3db24fd593bf378ffdfdf7e9",
+      "path": "eval-reviews/2026-09-12-chained/query-null/typescript/haiku/r1",
+      "source_available": false,
+      "url": "https://github.com/joelburget/prism/commit/f78ef406605f01fc3db24fd593bf378ffdfdf7e9"
+    },
+    "run-ff5f49f11907": {
+      "commit": "07920768fe778b828bf2043b7dcca4ad2dba9167",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/07920768fe778b828bf2043b7dcca4ad2dba9167"
+    },
+    "run-016cbc1fa636": {
+      "commit": "d7bfcf72f6d55ef2b05774bbe20d932f1abaa178",
+      "path": "eval-reviews/2026-09-12-chained/query-null/python/haiku/r1",
+      "source_available": true,
+      "url": "https://github.com/joelburget/prism/commit/d7bfcf72f6d55ef2b05774bbe20d932f1abaa178"
+    }
+  }
+}

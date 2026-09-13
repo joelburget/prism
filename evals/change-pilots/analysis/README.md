@@ -25,7 +25,9 @@ python3 evals/change-pilots/analysis/git_reviews.py \
 This creates a new branch through a temporary Git index without changing the
 current checkout. One baseline commit seeds all chains; each stage has its own
 commit against the preceding source for that chain. Exact bytes and executable
-modes are retained. For an invalid archive, the commit receipt explicitly says
+modes are retained. Read-only baseline review copies lost their executable bits;
+initial modes are recovered from the fingerprint-verified starter and later modes
+from the frozen predecessor. For an invalid archive, the commit receipt explicitly says
 that `starter/` is the predecessor, not a captured submission. No replacement run
 can recover that missing historical snapshot. The output manifest maps run IDs
 to immutable commit URLs. Publishing the branch is a separate `git push`.

@@ -1,0 +1,5870 @@
+{
+  "envelope": {
+    "format": "prism-index-diff-v1",
+    "compiler": "0.20.0",
+    "old": {
+      "title": "query-null",
+      "contract": "d0267e844585b7a7f905d95b6b78b0bd041c9fe64228b9563fbe9cd0f0b222e8",
+      "token_classes": [
+        "kw",
+        "op",
+        "ctor",
+        "ty",
+        "str",
+        "num",
+        "lit"
+      ],
+      "type_table": [
+        "List(String)",
+        "forall e0 a. ((a) -> Bool ! {e0}, List(a)) -> List(a) ! {e0}",
+        "String",
+        "(List(String)) -> Int ! {e0}",
+        "((String) -> Bool, List(String)) -> Bool ! {e0}",
+        "forall a. (List(a), Int) -> a",
+        "Model.Expr",
+        "List(Model.Column)",
+        "Bool",
+        "Model.Column",
+        "(Bool, String) -> Unit ! {Model.Domain}",
+        "(List(Model.Column)) -> Int ! {Model.Domain, e0}",
+        "(String) -> Bool",
+        "(Bool) -> Bool",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(Model.Expr, List(Model.Column), Bool, Bool) -> Model.Expr ! {Model.Domain, e0}",
+        "List(Model.Expr)",
+        "(String, List(String)) -> Bool ! {Model.Domain, e0}",
+        "((String) -> Bool, List(String)) -> Bool ! {Model.Domain, e0}",
+        "(String, List(String)) -> Bool",
+        "(List(String)) -> Bool",
+        "(List(String)) -> String",
+        "(Model.Expr, List(Model.Column), Bool, Bool) -> Model.Expr ! {Model.Domain}",
+        "(Model.Expr) -> Bool",
+        "((Model.Expr) -> Bool, List(Model.Expr)) -> Bool",
+        "((Model.Expr) -> Bool, Model.Expr) -> Bool",
+        "List(Int)",
+        "(Int, List(Int)) -> Bool ! {Model.Domain, e0}",
+        "forall a b. (List(a)) -> (b) -> Unit ! {Emit(a)}",
+        "(Model.Expr, List(Int)) -> Unit ! {Model.Domain, e0}",
+        "List(Model.Table)",
+        "Model.Table",
+        "(List(Model.Table)) -> Int ! {Model.Domain, e0}",
+        "Model.Query",
+        "forall a b. ((a, b)) -> b",
+        "(List(Model.Table), String) -> Model.Table ! {Model.Domain}",
+        "forall a b. ((a, b)) -> a",
+        "(String, String)",
+        "(List(Model.Column)) -> (List(Model.Column)) -> Model.Plan ! {e1} ! {e1}",
+        "Int",
+        "(String) -> Unit",
+        "(List(String), String, Int) -> Int ! {Model.Domain, e0}",
+        "Json.Json",
+        "(String, String) -> Int",
+        "List(Json.Json)",
+        "List(List(Json.Json))",
+        "(List(Model.Expr)) -> Int ! {e0}",
+        "(Int) -> Json.Json",
+        "(List(List(Json.Json))) -> Int ! {e0}",
+        "(Json.Json) -> Bool",
+        "(Model.Expr, List(Json.Json), List(List(Json.Json))) -> Json.Json ! {e0}",
+        "(List(Json.Json)) -> Int ! {e0}",
+        "(List(Int)) -> Int ! {e0}",
+        "(Json.Json) -> Int",
+        "(List(Json.Json), Bool) -> Json.Json",
+        "(List(Model.Expr), List(Json.Json), List(List(Json.Json))) -> Json.Json ! {e0}",
+        "(Bool) -> Json.Json",
+        "(Json.Json, Json.Json) -> Json.Json",
+        "(Json.Json, Json.Json) -> Int",
+        "(List(Json.Json), Bool) -> Json.Json ! {e0}",
+        "(Model.Expr) -> Model.Expr ! {e0}",
+        "(String, List(String)) -> Bool ! {e0}",
+        "((Model.Expr) -> Bool, List(Model.Expr)) -> Bool ! {e0}",
+        "(Json.Json) -> Model.Expr",
+        "(Model.Expr, List(Json.Json), List(List(Json.Json))) -> Json.Json",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(Model.Expr) -> List(Model.Expr) ! {e0}",
+        "forall a. (List(List(a))) -> List(a)",
+        "(Model.Expr) -> List(Int) ! {e0}",
+        "(String, List(Model.Expr)) -> Model.Expr",
+        "(List(Model.Expr)) -> Model.Expr ! {e0}",
+        "List(Bool)",
+        "(Model.Expr) -> List(Int)",
+        "((Int) -> Bool, List(Int)) -> Bool ! {e0}",
+        "((Bool) -> Bool, List(Bool)) -> Bool ! {e0}",
+        "forall a. (Int, List(a)) -> List(a)",
+        "Model.Plan",
+        "(Model.Expr) -> List(Model.Expr)",
+        "(Model.Expr) -> Model.Expr",
+        "(Model.Expr, Int, List(Bool)) -> Bool",
+        "(List(Model.Table)) -> Int ! {e1}",
+        "(Int, Int) -> List(Int)",
+        "(List(Model.Table)) -> Int ! {e0}",
+        "(List(Model.Expr)) -> Model.Expr",
+        "(Model.Expr, String)",
+        "List(List(Model.Expr))",
+        "forall a. (Int, a) -> List(a)",
+        "List(Engine.Group)",
+        "Engine.Group",
+        "forall a. (a, List(a)) -> List(a)",
+        "(List(Engine.Group), String, List(Json.Json)) -> List(Engine.Group) ! {e0}",
+        "(List(Engine.Group)) -> (List(Engine.Group)) -> List(Engine.Group) ! {e1} ! {e1}",
+        "(Json.Json) -> String",
+        "(List(Json.Json)) -> Json.Json",
+        "(List(List(Json.Json)), List(String)) -> List(List(Json.Json)) ! {e0}",
+        "List((Int, Bool, Int))",
+        "(List(Json.Json), List(Json.Json), List((Int, Bool, Int))) -> Int ! {e0}",
+        "(List(Json.Json), List(Json.Json), List((Int, Bool, Int))) -> Int",
+        "(List(Json.Json), List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json)) ! {e0}",
+        "(List(Json.Json), List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json))",
+        "(List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json)) ! {e0}",
+        "(List(List(List(Json.Json)))) -> (List(List(List(Json.Json)))) -> Json.Json ! {e1} ! {e1}",
+        "List((String, Json.Json))",
+        "(List((String, Json.Json)), String) -> Json.Json ! {Model.Domain}",
+        "(List((String, Json.Json)), String) -> Json.Json ! {Model.Domain, e0}",
+        "(List((String, Json.Json))) -> Int ! {Model.Domain, e0}",
+        "(List(String)) -> Int ! {Model.Domain, e0}",
+        "(List((String, Json.Json))) -> Int",
+        "(String, Json.Json)",
+        "(String) -> String",
+        "(Int, String) -> List(String)",
+        "(String) -> Int",
+        "(Int) -> Bool",
+        "(String, Int) -> Int",
+        "List(a)",
+        "forall a. (Int, List(a)) -> Option(a)",
+        "a",
+        "forall a. (List(a), Int) -> a ! {e0}",
+        "(Json.Json, List(String)) -> Unit ! {Model.Domain}",
+        "(Json.Json) -> String ! {Model.Domain}",
+        "(Json.Json, String) -> Json.Json ! {Model.Domain}",
+        "(Json.Json) -> Model.Column ! {Model.Domain}",
+        "(Json.Json) -> List(Json.Json) ! {Model.Domain}",
+        "(List(Json.Json)) -> Int ! {Model.Domain, e0}",
+        "forall a. (Int, Int) -> (a) -> Unit ! {Emit(Int)}",
+        "(List(Model.Column)) -> Int ! {Emit(Int), Model.Domain, e0}",
+        "(List(String)) -> Bool ! {e0}",
+        "(a, List(a)) -> Bool ! {e0}",
+        "(String, Int, String) -> (String, Int) ! {Model.Domain, e0}",
+        "(String, String) -> String",
+        "(Char) -> String",
+        "(Int) -> Char",
+        "(String, Int, Bool) -> Int ! {e0}",
+        "(Buf) -> String",
+        "(String, Int, Int, Buf) -> Buf",
+        "() -> Buf",
+        "(String) -> Parser.Token",
+        "(String, Int) -> List(Parser.Token) ! {Model.Domain, e0}",
+        "(String, Int, String) -> (String, Int) ! {Model.Domain}",
+        "(String) -> Json.Json",
+        "(String, Int, Bool) -> Int",
+        "(String) -> Option(Int)",
+        "(String, Int, Int) -> String",
+        "(Int, Int) -> Int",
+        "forall s. () -> s",
+        "List(Parser.Token)",
+        "Parser.Token",
+        "forall s. (s) -> Unit",
+        "forall a. (List(a)) -> List(a)",
+        "() -> String ! {Control.State.State(List(Parser.Token))}",
+        "(String) -> Bool ! {Control.State.State(List(Parser.Token))}",
+        "() -> Parser.Token ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> String ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(String, String) -> Model.Expr",
+        "(Int) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(String) -> Unit ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> Int ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(String, List(String)) -> Bool ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(List(Model.Expr)) -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(Model.Expr, Int, Bool) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(Int) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List((Model.Expr, String)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> List((String, Bool, Int)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "List((String, String))",
+        "() -> (String, String) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(List((String, String)), List(Model.Expr), List(Bool)) -> (List((String, String)), List(Model.Expr), List(Bool)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> List((Model.Expr, String)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(List((String, String)), List(Model.Expr), List(Bool)) -> (List((String, String)), List(Model.Expr), List(Bool)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List((String, Bool, Int)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "List((Model.Expr, String))",
+        "List((String, Bool, Int))",
+        "forall e0 a b. (a, () -> b ! {Control.State.State(a), Var@cell@6, e0}) -> b ! {e0}",
+        "(String, Int) -> List(Parser.Token) ! {Model.Domain}",
+        "() -> Model.Query ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(Json.Json) -> Model.Table ! {Model.Domain}",
+        "(Json.Json) -> Unit ! {Model.Domain}",
+        "(Model.Query, List(Model.Table)) -> Model.Plan ! {Model.Domain}",
+        "(String) -> Model.Query ! {Model.Domain}",
+        "(Model.Plan) -> Json.Json",
+        "(Model.Plan) -> Model.Plan",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(Json.Json) -> Json.Json ! {Model.Domain}",
+        "forall e0 a. ((Unit) -> a ! {Console, Entropy, Env, FileSystem, IO, Output, Random, e0}) -> a ! {IO, e0}"
+      ]
+    },
+    "new": {
+      "title": "query-null",
+      "contract": "ab8ec3dd5abdf325b8273556c04de5f717e489c820f2f36a647f933c19b2f18d",
+      "token_classes": [
+        "kw",
+        "op",
+        "ctor",
+        "ty",
+        "str",
+        "num",
+        "lit"
+      ],
+      "type_table": [
+        "List(String)",
+        "forall e0 a. ((a) -> Bool ! {e0}, List(a)) -> List(a) ! {e0}",
+        "String",
+        "(List(String)) -> Int ! {e0}",
+        "((String) -> Bool, List(String)) -> Bool ! {e0}",
+        "forall a. (List(a), Int) -> a",
+        "Model.Expr",
+        "List(Model.Column)",
+        "Bool",
+        "Model.Column",
+        "(Bool, String) -> Unit ! {Model.Domain}",
+        "(List(Model.Column)) -> Int ! {Model.Domain, e0}",
+        "(String) -> Bool",
+        "(Bool) -> Bool",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(Model.Expr, List(Model.Column), Bool, Bool) -> Model.Expr ! {Model.Domain, e0}",
+        "List(Model.Expr)",
+        "(String, List(String)) -> Bool ! {Model.Domain, e0}",
+        "((String) -> Bool, List(String)) -> Bool ! {Model.Domain, e0}",
+        "(String, List(String)) -> Bool",
+        "(List(String)) -> Bool",
+        "(List(String)) -> String",
+        "(Model.Expr, List(Model.Column), Bool, Bool) -> Model.Expr ! {Model.Domain}",
+        "(Model.Expr) -> Bool",
+        "((Model.Expr) -> Bool, List(Model.Expr)) -> Bool",
+        "((Model.Expr) -> Bool, Model.Expr) -> Bool",
+        "List(Int)",
+        "(Int, List(Int)) -> Bool ! {Model.Domain, e0}",
+        "forall a b. (List(a)) -> (b) -> Unit ! {Emit(a)}",
+        "(Model.Expr, List(Int)) -> Unit ! {Model.Domain, e0}",
+        "List(Model.Table)",
+        "Model.Table",
+        "(List(Model.Table)) -> Int ! {Model.Domain, e0}",
+        "Model.Query",
+        "forall a b. ((a, b)) -> b",
+        "(List(Model.Table), String) -> Model.Table ! {Model.Domain}",
+        "forall a b. ((a, b)) -> a",
+        "(String, String)",
+        "(List(Model.Column)) -> (List(Model.Column)) -> Model.Plan ! {e1} ! {e1}",
+        "Int",
+        "(String) -> Unit",
+        "(List(String), String, Int) -> Int ! {Model.Domain, e0}",
+        "Json.Json",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(Bool) -> Json.Json",
+        "(String) -> Json.Json",
+        "List((String, Json.Json))",
+        "(List((String, Json.Json))) -> Int ! {Model.Domain, e0}",
+        "(List(String)) -> Int ! {Model.Domain, e0}",
+        "(List((String, Json.Json))) -> Int",
+        "(String, Json.Json)",
+        "(List((String, Json.Json)), String) -> Json.Json ! {Model.Domain}",
+        "(List((String, Json.Json)), String) -> Json.Json ! {Model.Domain, e0}",
+        "(Json.Json, String) -> Json.Json ! {Model.Domain}",
+        "(String) -> Int",
+        "(String, Int) -> Int",
+        "((Int) -> Bool, List(Int)) -> Bool ! {e0}",
+        "(Int) -> Bool",
+        "(Int, Int) -> List(Int)",
+        "(List(List(Json.Json))) -> Int ! {e0}",
+        "List(Commands.LiveTable)",
+        "Commands.LiveTable",
+        "Commands.StoredRow",
+        "(List(Commands.LiveTable), String) -> Commands.LiveTable ! {Model.Domain, e0}",
+        "forall a. (a, List(a)) -> List(a)",
+        "(List(Commands.LiveTable), Commands.LiveTable) -> List(Commands.LiveTable) ! {e0}",
+        "List(Commands.View)",
+        "Commands.View",
+        "(List(Commands.View), String) -> Commands.View ! {Model.Domain, e0}",
+        "((Commands.View) -> Bool, List(Commands.View)) -> Bool ! {e0}",
+        "List(Json.Json)",
+        "(List(Json.Json)) -> Int ! {e0}",
+        "(List(Model.Column)) -> Int ! {e0}",
+        "(Json.Json) -> Bool",
+        "(Json.Json) -> String",
+        "List(Commands.StoredRow)",
+        "(List(Commands.StoredRow), Int) -> Commands.StoredRow ! {Model.Domain, e0}",
+        "(List(Commands.StoredRow), Int, List(Json.Json)) -> List(Commands.StoredRow) ! {e0}",
+        "(Json.Json, String) -> String ! {Model.Domain}",
+        "(Json.Json, List(String)) -> Unit ! {Model.Domain}",
+        "(Json.Json, String) -> Int ! {Model.Domain}",
+        "(List(Commands.LiveTable), String) -> Commands.LiveTable ! {Model.Domain}",
+        "(Json.Json) -> List(Json.Json) ! {Model.Domain}",
+        "(List(Json.Json), List(Model.Column)) -> Bool",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(List(Commands.StoredRow), Int) -> Commands.StoredRow ! {Model.Domain}",
+        "(List(Commands.StoredRow), Int, List(Json.Json)) -> List(Commands.StoredRow)",
+        "(List(Commands.LiveTable), Commands.LiveTable) -> List(Commands.LiveTable)",
+        "(List(String)) -> List(String)",
+        "(List(String)) -> List(String) ! {e0}",
+        "Model.Plan",
+        "(List(Commands.LiveTable)) -> List(Model.Table)",
+        "(Model.Plan, List(Model.Table)) -> Model.Plan",
+        "(Model.Plan) -> Json.Json",
+        "(Int) -> Json.Json",
+        "Commands.Store",
+        "(List(Commands.View), String) -> Bool",
+        "(Model.Query, List(Model.Table)) -> Model.Plan ! {Model.Domain}",
+        "(String) -> Model.Query ! {Model.Domain}",
+        "(Model.Plan) -> Model.Plan",
+        "(Json.Json) -> Json.Json",
+        "(List(Commands.View), String) -> Commands.View ! {Model.Domain}",
+        "(Json.Json, Int) -> Json.Json",
+        "(List(Commands.View), String) -> List(Commands.View)",
+        "(List(Json.Json)) -> Int ! {Model.Domain, e0}",
+        "(Json.Json) -> Unit ! {Model.Domain}",
+        "(List(Commands.LiveTable)) -> (List(Commands.LiveTable)) -> Commands@CommandResult ! {e1} ! {e1}",
+        "(Json.Json, Commands.Store) -> Commands@CommandResult ! {Model.Domain}",
+        "Commands@CommandResult",
+        "(List(Json.Json), Commands.Store) -> List(Json.Json) ! {e0}",
+        "(List(Json.Json)) -> Json.Json",
+        "(List(Json.Json), Commands.Store) -> List(Json.Json)",
+        "(List(Model.Table)) -> Commands.Store",
+        "(String, String) -> Int",
+        "List(List(Json.Json))",
+        "(List(Model.Expr)) -> Int ! {e0}",
+        "(Model.Expr, List(Json.Json), List(List(Json.Json))) -> Json.Json ! {e0}",
+        "(List(Int)) -> Int ! {e0}",
+        "(Json.Json) -> Int",
+        "(List(Json.Json), Bool) -> Json.Json",
+        "(List(Model.Expr), List(Json.Json), List(List(Json.Json))) -> Json.Json ! {e0}",
+        "(Json.Json, Json.Json) -> Json.Json",
+        "(Json.Json, Json.Json) -> Int",
+        "(List(Json.Json), Bool) -> Json.Json ! {e0}",
+        "(Model.Expr) -> Model.Expr ! {e0}",
+        "(String, List(String)) -> Bool ! {e0}",
+        "((Model.Expr) -> Bool, List(Model.Expr)) -> Bool ! {e0}",
+        "(Json.Json) -> Model.Expr",
+        "(Model.Expr, List(Json.Json), List(List(Json.Json))) -> Json.Json",
+        "(Model.Expr) -> List(Model.Expr) ! {e0}",
+        "forall a. (List(List(a))) -> List(a)",
+        "(Model.Expr) -> List(Int) ! {e0}",
+        "(String, List(Model.Expr)) -> Model.Expr",
+        "(List(Model.Expr)) -> Model.Expr ! {e0}",
+        "List(Bool)",
+        "(Model.Expr) -> List(Int)",
+        "((Bool) -> Bool, List(Bool)) -> Bool ! {e0}",
+        "forall a. (Int, List(a)) -> List(a)",
+        "(Model.Expr) -> List(Model.Expr)",
+        "(Model.Expr) -> Model.Expr",
+        "(Model.Expr, Int, List(Bool)) -> Bool",
+        "(List(Model.Table)) -> Int ! {e1}",
+        "(List(Model.Table)) -> Int ! {e0}",
+        "(List(Model.Expr)) -> Model.Expr",
+        "(Model.Expr, String)",
+        "List(List(Model.Expr))",
+        "forall a. (Int, a) -> List(a)",
+        "List(Engine.Group)",
+        "Engine.Group",
+        "(List(Engine.Group), String, List(Json.Json)) -> List(Engine.Group) ! {e0}",
+        "(List(Engine.Group)) -> (List(Engine.Group)) -> List(Engine.Group) ! {e1} ! {e1}",
+        "(List(List(Json.Json)), List(String)) -> List(List(Json.Json)) ! {e0}",
+        "List((Int, Bool, Int))",
+        "(List(Json.Json), List(Json.Json), List((Int, Bool, Int))) -> Int ! {e0}",
+        "(List(Json.Json), List(Json.Json), List((Int, Bool, Int))) -> Int",
+        "(List(Json.Json), List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json)) ! {e0}",
+        "(List(Json.Json), List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json))",
+        "(List(List(Json.Json)), List((Int, Bool, Int))) -> List(List(Json.Json)) ! {e0}",
+        "(List(List(List(Json.Json)))) -> (List(List(List(Json.Json)))) -> Json.Json ! {e1} ! {e1}",
+        "(String) -> String",
+        "(Int, String) -> List(String)",
+        "List(a)",
+        "forall a. (Int, List(a)) -> Option(a)",
+        "a",
+        "forall a. (List(a), Int) -> a ! {e0}",
+        "(Json.Json) -> String ! {Model.Domain}",
+        "(Json.Json) -> Model.Column ! {Model.Domain}",
+        "forall a. (Int, Int) -> (a) -> Unit ! {Emit(Int)}",
+        "(List(Model.Column)) -> Int ! {Emit(Int), Model.Domain, e0}",
+        "(List(String)) -> Bool ! {e0}",
+        "(a, List(a)) -> Bool ! {e0}",
+        "(String, Int, String) -> (String, Int) ! {Model.Domain, e0}",
+        "(String, String) -> String",
+        "(Char) -> String",
+        "(Int) -> Char",
+        "(String, Int, Bool) -> Int ! {e0}",
+        "(Buf) -> String",
+        "(String, Int, Int, Buf) -> Buf",
+        "() -> Buf",
+        "(String) -> Parser.Token",
+        "(String, Int) -> List(Parser.Token) ! {Model.Domain, e0}",
+        "(String, Int, String) -> (String, Int) ! {Model.Domain}",
+        "(String, Int, Bool) -> Int",
+        "(String) -> Option(Int)",
+        "(String, Int, Int) -> String",
+        "(Int, Int) -> Int",
+        "forall s. () -> s",
+        "List(Parser.Token)",
+        "Parser.Token",
+        "forall s. (s) -> Unit",
+        "forall a. (List(a)) -> List(a)",
+        "() -> String ! {Control.State.State(List(Parser.Token))}",
+        "(String) -> Bool ! {Control.State.State(List(Parser.Token))}",
+        "() -> Parser.Token ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> String ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(String, String) -> Model.Expr",
+        "(Int) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(String) -> Unit ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> Int ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(String, List(String)) -> Bool ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(List(Model.Expr)) -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(Model.Expr, Int, Bool) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "(Int) -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List((Model.Expr, String)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> Model.Expr ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> List((String, Bool, Int)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "List((String, String))",
+        "() -> (String, String) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(List((String, String)), List(Model.Expr), List(Bool)) -> (List((String, String)), List(Model.Expr), List(Bool)) ! {Control.State.State(List(Parser.Token)), Model.Domain, e0}",
+        "() -> List((Model.Expr, String)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(List((String, String)), List(Model.Expr), List(Bool)) -> (List((String, String)), List(Model.Expr), List(Bool)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List(Model.Expr) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "() -> List((String, Bool, Int)) ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "List((Model.Expr, String))",
+        "List((String, Bool, Int))",
+        "forall e0 a b. (a, () -> b ! {Control.State.State(a), Var@cell@7, e0}) -> b ! {e0}",
+        "(String, Int) -> List(Parser.Token) ! {Model.Domain}",
+        "() -> Model.Query ! {Control.State.State(List(Parser.Token)), Model.Domain}",
+        "(List((String, Json.Json))) -> Int ! {e0}",
+        "(Json.Json, String) -> Bool",
+        "(Json.Json) -> Model.Table ! {Model.Domain}",
+        "(List(Model.Table), List(Json.Json)) -> Json.Json",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(Json.Json) -> Json.Json ! {Model.Domain}",
+        "forall e0 a. ((Unit) -> a ! {Console, Entropy, Env, FileSystem, IO, Output, Random, e0}) -> a ! {IO, e0}"
+      ]
+    },
+    "counts": {
+      "added": 37,
+      "removed": 0,
+      "moved": 0,
+      "changed": 1,
+      "cone": 3,
+      "cosmetic": 0,
+      "unchanged": 85
+    }
+  },
+  "entries": [
+    {
+      "status": "added",
+      "id": "Commands.LiveTable",
+      "new": {
+        "id": "Commands.LiveTable",
+        "name": "LiveTable",
+        "module": "Commands",
+        "kind": "type",
+        "hash": "7156a99a34a9a555b8e3cd8298641948171e7a111e2d27e5e1f85b5ff6237bf9",
+        "source": "type LiveTable = LiveTable {\n  name: String,\n  columns: List(Column),\n  rows: List(StoredRow),\n  used: List(Int)\n}",
+        "span": {
+          "start": 399,
+          "end": 513
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 9 2 1 1 1 1 9 2 1 1 1 7 1 1 1 6 3 0 1 1 10 1 1 1 4 2 0 1 1 0 6 2 0 1 1 0 1 1 7 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 7 1 1 1 4 2 0 1 1 0 3 3 0 1 1 1 1 1",
+        "members": [
+          {
+            "name": "LiveTable",
+            "start": 5,
+            "end": 14
+          }
+        ],
+        "refs": [
+          {
+            "start": 17,
+            "end": 26,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 37,
+            "end": 43,
+            "target": "String"
+          },
+          {
+            "start": 56,
+            "end": 60,
+            "target": "List"
+          },
+          {
+            "start": 61,
+            "end": 67,
+            "target": "Model.Column"
+          },
+          {
+            "start": 78,
+            "end": 82,
+            "target": "List"
+          },
+          {
+            "start": 83,
+            "end": 92,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 103,
+            "end": 107,
+            "target": "List"
+          },
+          {
+            "start": 108,
+            "end": 111,
+            "target": "Int"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands.Store",
+      "new": {
+        "id": "Commands.Store",
+        "name": "Store",
+        "module": "Commands",
+        "kind": "type",
+        "hash": "7277faf81d1eddf591ee3ca1debe8dd05592737b7169c1092f69449dba687805",
+        "source": "type Store = Store {\n  tables: List(LiveTable),\n  views: List(View),\n  revision: Int\n}",
+        "span": {
+          "start": 620,
+          "end": 706
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 5 2 1 1 1 1 5 2 1 1 1 9 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 8 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 11 1 1 1 3 3 1 1 1",
+        "members": [
+          {
+            "name": "Store",
+            "start": 5,
+            "end": 10
+          }
+        ],
+        "refs": [
+          {
+            "start": 13,
+            "end": 18,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 31,
+            "end": 35,
+            "target": "List"
+          },
+          {
+            "start": 36,
+            "end": 45,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 57,
+            "end": 61,
+            "target": "List"
+          },
+          {
+            "start": 62,
+            "end": 66,
+            "target": "Commands.View"
+          },
+          {
+            "start": 81,
+            "end": 84,
+            "target": "Int"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands.StoredRow",
+      "new": {
+        "id": "Commands.StoredRow",
+        "name": "StoredRow",
+        "module": "Commands",
+        "kind": "type",
+        "hash": "17e030a274cc92bff9b540471b5025e1ec79364d4d9c2724a37355431cbcdfae",
+        "source": "type StoredRow = StoredRow { id: Int, values: List(Json) }",
+        "span": {
+          "start": 335,
+          "end": 393
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 9 2 1 1 1 1 9 2 1 1 1 3 1 1 1 3 3 0 1 1 7 1 1 1 4 2 0 1 1 0 4 2 0 1 1 1 1 1",
+        "members": [
+          {
+            "name": "StoredRow",
+            "start": 5,
+            "end": 14
+          }
+        ],
+        "refs": [
+          {
+            "start": 17,
+            "end": 26,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 33,
+            "end": 36,
+            "target": "Int"
+          },
+          {
+            "start": 46,
+            "end": 50,
+            "target": "List"
+          },
+          {
+            "start": 51,
+            "end": 55,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands.View",
+      "new": {
+        "id": "Commands.View",
+        "name": "View",
+        "module": "Commands",
+        "kind": "type",
+        "hash": "b2918474ec103e614757b5020788692d0769c0a7acc26c1c13731c24c0c526ce",
+        "source": "type View = View {\n  name: String,\n  plan: Plan,\n  dependencies: List(String),\n  result: Json\n}",
+        "span": {
+          "start": 519,
+          "end": 614
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 4 2 1 1 1 1 4 2 1 1 1 7 1 1 1 6 3 0 1 1 7 1 1 1 4 2 0 1 1 15 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 9 1 1 1 4 2 1 1 1",
+        "members": [
+          {
+            "name": "View",
+            "start": 5,
+            "end": 9
+          }
+        ],
+        "refs": [
+          {
+            "start": 12,
+            "end": 16,
+            "target": "Commands.View"
+          },
+          {
+            "start": 27,
+            "end": 33,
+            "target": "String"
+          },
+          {
+            "start": 43,
+            "end": 47,
+            "target": "Model.Plan"
+          },
+          {
+            "start": 65,
+            "end": 69,
+            "target": "List"
+          },
+          {
+            "start": 70,
+            "end": 76,
+            "target": "String"
+          },
+          {
+            "start": 89,
+            "end": 93,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands.initial_store",
+      "new": {
+        "id": "Commands.initial_store",
+        "name": "initial_store",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "d4fdd0115e42b0eaa620653394b7323a6bfa3f69a17bb6f9cc770101c46ef23a",
+        "ty": "(List(Model.Table)) -> Commands.Store",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 11 2 0 1 1 0 1 1 1 2 1 1 14 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 17,
+            "target": "Model.Table"
+          },
+          {
+            "start": 23,
+            "end": 37,
+            "target": "Commands.Store"
+          }
+        ],
+        "source": "fn initial_store(database : List(Table)) : Store =\n  Store {\n    tables = map(\n        \\(t) -> LiveTable {\n          name = t.name,\n          columns = t.columns,\n          rows = map(\\(i) -> StoredRow { id = i + 1, values = at(t.rows, i) }, range(0, length(t.rows))),\n          used = range(1, length(t.rows) + 1)\n        },\n        database,\n      ),\n    views = [],\n    revision = 0\n  }",
+        "span": {
+          "start": 2451,
+          "end": 2840
+        },
+        "vis": "public",
+        "types": "17 8 30 49 3 14 47 1 31 27 1 31 27 3 14 26 1 39 15 2 5 1 1 31 7 1 39 5 5 58 4 6 59 1 1 31 27 5 58 4 6 59 1 1 31 31 8 30",
+        "tokens": "0 2 0 14 1 1 9 1 1 1 4 2 0 1 1 0 5 2 0 1 1 0 1 1 1 1 1 1 5 2 1 1 1 3 5 2 1 1 1 12 1 1 4 1 1 9 1 1 0 1 1 1 1 1 1 2 1 1 9 2 1 1 1 16 1 1 2 1 1 4 1 1 19 1 1 2 1 1 7 1 1 16 1 1 4 1 1 0 1 1 0 1 1 1 1 1 1 2 1 1 9 2 1 1 1 4 1 1 3 1 1 1 1 5 0 1 1 8 1 1 3 1 1 1 1 1 4 1 1 2 1 1 1 1 1 0 1 1 6 1 1 0 1 5 0 1 1 7 1 1 1 1 1 4 1 1 0 1 1 0 1 1 0 1 1 16 1 1 6 1 1 0 1 5 0 1 1 7 1 1 1 1 1 4 1 1 1 1 1 1 1 5 0 1 1 9 1 1 0 1 1 17 1 1 7 1 1 0 1 1 11 1 1 1 1 1 0 1 1 0 1 1 14 1 1 1 1 5 3 1 1",
+        "refs": [
+          {
+            "start": 28,
+            "end": 32,
+            "target": "List"
+          },
+          {
+            "start": 33,
+            "end": 38,
+            "target": "Model.Table"
+          },
+          {
+            "start": 43,
+            "end": 48,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 53,
+            "end": 58,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 74,
+            "end": 77,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 95,
+            "end": 104,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 180,
+            "end": 183,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 192,
+            "end": 201,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 225,
+            "end": 227,
+            "target": "Model.at"
+          },
+          {
+            "start": 242,
+            "end": 247,
+            "target": "Data.List.range"
+          },
+          {
+            "start": 251,
+            "end": 257,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 286,
+            "end": 291,
+            "target": "Data.List.range"
+          },
+          {
+            "start": 295,
+            "end": 301,
+            "target": "Data.Foldable.length"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands.run_commands",
+      "new": {
+        "id": "Commands.run_commands",
+        "name": "run_commands",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "a42b620732c63dbf7890ca2c0c696e14458986d8ee1fffbff733bceadd2bd695",
+        "ty": "(List(Model.Table), List(Json.Json)) -> Json.Json",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 11 2 0 1 1 0 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 2 1 1 9 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 17,
+            "target": "Model.Table"
+          },
+          {
+            "start": 20,
+            "end": 24,
+            "target": "List"
+          },
+          {
+            "start": 25,
+            "end": 34,
+            "target": "Json.Json"
+          },
+          {
+            "start": 40,
+            "end": 49,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn run_commands(database : List(Table), commands : List(Json)) : Json =\n  JObj([\n      (\"ok\", JBool(true)),\n      (\"result\", JObj([(\"results\", JArr(process(commands, initial_store(database))))])),\n    ])",
+        "span": {
+          "start": 10686,
+          "end": 10889
+        },
+        "vis": "public",
+        "types": "16 8 30 16 8 70 26 4 43 16 5 44 26 4 43 14 4 110 1 7 111 1 8 70 2 13 112 1 8 30",
+        "tokens": "0 2 0 13 1 1 9 1 1 1 4 2 0 1 1 0 5 2 0 1 1 0 1 1 10 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 1 1 1 1 4 2 1 1 1 3 4 2 0 1 1 0 1 1 7 1 1 0 4 4 0 1 1 1 5 2 0 1 1 0 4 6 0 1 1 0 1 1 0 1 1 7 1 1 0 8 4 0 1 1 1 4 2 0 1 1 0 1 1 0 1 1 0 9 4 0 1 1 1 4 2 0 1 1 7 1 1 8 1 1 14 1 1 8 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 5 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 27,
+            "end": 31,
+            "target": "List"
+          },
+          {
+            "start": 32,
+            "end": 37,
+            "target": "Model.Table"
+          },
+          {
+            "start": 51,
+            "end": 55,
+            "target": "List"
+          },
+          {
+            "start": 56,
+            "end": 60,
+            "target": "Json.Json"
+          },
+          {
+            "start": 65,
+            "end": 69,
+            "target": "Json.Json"
+          },
+          {
+            "start": 74,
+            "end": 78,
+            "target": "Json.Json"
+          },
+          {
+            "start": 94,
+            "end": 99,
+            "target": "Json.Json"
+          },
+          {
+            "start": 125,
+            "end": 129,
+            "target": "Json.Json"
+          },
+          {
+            "start": 143,
+            "end": 147,
+            "target": "Json.Json"
+          },
+          {
+            "start": 148,
+            "end": 155,
+            "target": "Commands@process"
+          },
+          {
+            "start": 166,
+            "end": 179,
+            "target": "Commands.initial_store"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@CommandResult",
+      "new": {
+        "id": "Commands@CommandResult",
+        "name": "CommandResult",
+        "module": "Commands",
+        "kind": "type",
+        "hash": "1c7cfdef96d15c0911c2adf35d33f0840c8fc8347959eb74cffa76cbb510697e",
+        "source": "type CommandResult = CommandResult { store: Store, reply: Json }",
+        "span": {
+          "start": 708,
+          "end": 772
+        },
+        "tokens": "0 4 0 1 13 2 1 1 1 1 13 2 1 1 1 6 1 1 1 5 2 0 1 1 6 1 1 1 4 2 1 1 1",
+        "members": [
+          {
+            "name": "CommandResult",
+            "start": 5,
+            "end": 18
+          }
+        ],
+        "refs": [
+          {
+            "start": 21,
+            "end": 34,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 44,
+            "end": 49,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 58,
+            "end": 62,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@apply_change",
+      "new": {
+        "id": "Commands@apply_change",
+        "name": "apply_change",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "ec4b6b888b735327fef05b7d6716bc503598acb29c9d4aa95e59538ee0b4239a",
+        "ty": "(List(Commands.LiveTable), Json.Json) -> List(Commands.LiveTable) ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 9 2 0 1 1 1 2 1 1 4 2 0 1 1 0 18 2 0 1 1 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 27,
+            "end": 36,
+            "target": "Json.Json"
+          },
+          {
+            "start": 41,
+            "end": 45,
+            "target": "List"
+          },
+          {
+            "start": 46,
+            "end": 64,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 69,
+            "end": 81,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn apply_change(tables : List(LiveTable), change : Json) : List(LiveTable) =\n  let op = command_text(change, \"op\")\n  let name = command_text(change, \"table\")\n  let id = command_int(change, \"id\")\n  let table = find_live(tables, name)\n  let changed =\n    if op == \"insert\" then\n      let values = change_row(change) in\n      demand(valid_row(values, table.columns), \"INVALID_ROW\")\n      demand(not(elem(id, table.used)), \"ROW_ID_USED\")\n      LiveTable { ..table, rows = append(table.rows, [StoredRow { id = id, values = values }]), used = Cons(id, table.used) }\n    elif op == \"update\" then\n      let values = change_row(change) in\n      demand(valid_row(values, table.columns), \"INVALID_ROW\")\n      let ignored = row_at(table.rows, id)\n      LiveTable { ..table, rows = update_row(table.rows, id, values) }\n    else\n      let ignored = row_at(table.rows, id)\n      LiveTable { ..table, rows = filter(\\(r) -> r.id /= id, table.rows) }\n  replace_live(tables, changed)",
+        "span": {
+          "start": 5648,
+          "end": 6612
+        },
+        "types": "16 6 60 20 6 42 40 12 78 1 6 42 21 12 78 1 6 42 22 11 80 1 6 42 22 9 81 1 6 60 2 4 2 25 2 2 37 10 82 1 6 42 11 6 10 1 9 83 1 6 70 2 5 61 32 6 10 1 3 13 1 4 27 1 2 39 2 5 61 44 5 61 9 6 84 1 5 61 25 2 39 11 6 70 13 4 64 1 2 39 2 5 61 18 2 2 37 10 82 1 6 42 11 6 10 1 9 83 1 6 70 2 5 61 46 6 85 1 5 61 7 2 39 22 5 61 9 10 86 1 5 61 7 2 39 2 6 70 33 6 85 1 5 61 7 2 39 22 5 61 9 6 1 9 1 62 7 2 39 2 5 61 11 12 87 1 6 60 2 7 61",
+        "tokens": "0 2 0 13 1 1 7 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 8 1 1 1 4 2 0 1 1 1 1 1 1 4 2 0 1 1 0 9 2 0 1 1 1 1 1 3 3 0 4 1 1 13 1 1 6 1 1 1 4 4 0 1 1 3 3 0 6 1 1 13 1 1 6 1 1 1 7 4 0 1 1 3 3 0 4 1 1 12 1 1 6 1 1 1 4 4 0 1 1 3 3 0 7 1 1 10 1 1 6 1 1 5 1 1 3 3 0 9 1 1 5 2 0 4 2 1 1 8 4 1 4 0 7 3 0 8 1 1 11 1 1 6 1 1 1 2 0 13 1 1 9 1 1 6 1 1 6 1 1 7 1 1 0 1 1 1 13 4 0 1 1 13 1 1 3 1 1 4 1 1 2 1 1 6 1 1 4 1 1 0 1 1 0 1 1 1 13 4 0 1 1 7 9 2 1 1 1 1 2 1 5 1 1 6 1 1 7 1 1 5 1 1 4 1 1 1 1 1 0 9 2 1 1 1 4 1 1 3 1 1 8 1 1 8 1 1 0 1 1 0 1 1 0 1 1 6 1 1 1 4 2 0 1 1 2 1 1 6 1 1 4 1 1 1 1 1 5 4 0 4 2 1 1 8 4 1 4 0 7 3 0 8 1 1 11 1 1 6 1 1 1 2 0 13 1 1 9 1 1 6 1 1 6 1 1 7 1 1 0 1 1 1 13 4 0 1 1 7 3 0 9 1 1 7 1 1 5 1 1 4 1 1 3 1 1 7 9 2 1 1 1 1 2 1 5 1 1 6 1 1 11 1 1 5 1 1 4 1 1 3 1 1 7 1 1 1 1 1 5 4 0 7 3 0 9 1 1 7 1 1 5 1 1 4 1 1 3 1 1 7 9 2 1 1 1 1 2 1 5 1 1 6 1 1 7 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 3 2 1 3 1 1 6 1 1 4 1 1 1 1 1 15 1 1 6 1 1 8 1 1",
+        "refs": [
+          {
+            "start": 25,
+            "end": 29,
+            "target": "List"
+          },
+          {
+            "start": 30,
+            "end": 39,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 51,
+            "end": 55,
+            "target": "Json.Json"
+          },
+          {
+            "start": 59,
+            "end": 63,
+            "target": "List"
+          },
+          {
+            "start": 64,
+            "end": 73,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 88,
+            "end": 100,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 128,
+            "end": 140,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 169,
+            "end": 180,
+            "target": "Commands@command_int"
+          },
+          {
+            "start": 209,
+            "end": 218,
+            "target": "Commands@find_live"
+          },
+          {
+            "start": 295,
+            "end": 305,
+            "target": "Commands@change_row"
+          },
+          {
+            "start": 323,
+            "end": 329,
+            "target": "Model.demand"
+          },
+          {
+            "start": 330,
+            "end": 339,
+            "target": "Commands@valid_row"
+          },
+          {
+            "start": 385,
+            "end": 391,
+            "target": "Model.demand"
+          },
+          {
+            "start": 392,
+            "end": 395,
+            "target": "not"
+          },
+          {
+            "start": 396,
+            "end": 400,
+            "target": "Model.elem"
+          },
+          {
+            "start": 440,
+            "end": 449,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 468,
+            "end": 474,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 488,
+            "end": 497,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 537,
+            "end": 541,
+            "target": "List"
+          },
+          {
+            "start": 608,
+            "end": 618,
+            "target": "Commands@change_row"
+          },
+          {
+            "start": 636,
+            "end": 642,
+            "target": "Model.demand"
+          },
+          {
+            "start": 643,
+            "end": 652,
+            "target": "Commands@valid_row"
+          },
+          {
+            "start": 712,
+            "end": 718,
+            "target": "Commands@row_at"
+          },
+          {
+            "start": 741,
+            "end": 750,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 769,
+            "end": 779,
+            "target": "Commands@update_row"
+          },
+          {
+            "start": 835,
+            "end": 841,
+            "target": "Commands@row_at"
+          },
+          {
+            "start": 864,
+            "end": 873,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 892,
+            "end": 898,
+            "target": "Data.List.filter"
+          },
+          {
+            "start": 935,
+            "end": 947,
+            "target": "Commands@replace_live"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@bad",
+      "new": {
+        "id": "Commands@bad",
+        "name": "bad",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "7fa6ce9ab48884182d570d129c1b1f4a29d3cff87187ae70b36339e37a8c9c92",
+        "ty": "(String) -> Json.Json",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 9 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 21,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn bad(code : String) : Json =\n  JObj([(\"ok\", JBool(false)), (\"error\", JObj([(\"code\", JStr(code))]))])",
+        "span": {
+          "start": 855,
+          "end": 957
+        },
+        "types": "7 4 2 22 4 43 9 5 44 20 4 43 11 4 45 1 4 2",
+        "tokens": "0 2 0 4 1 1 5 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 4 2 0 1 1 0 1 1 0 1 1 0 4 4 0 1 1 1 5 2 0 1 1 0 5 6 0 1 1 0 1 1 0 1 1 1 1 1 0 7 4 0 1 1 1 4 2 0 1 1 0 1 1 0 1 1 0 6 4 0 1 1 1 4 2 0 1 1 4 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 14,
+            "end": 20,
+            "target": "String"
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "target": "Json.Json"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Json.Json"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Json.Json"
+          },
+          {
+            "start": 71,
+            "end": 75,
+            "target": "Json.Json"
+          },
+          {
+            "start": 86,
+            "end": 90,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@bounded_value",
+      "new": {
+        "id": "Commands@bounded_value",
+        "name": "bounded_value",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "38079e7f11904deb6c5bfe42184931fc2d74aff814cf9df9ab49712a2358991c",
+        "ty": "(Json.Json) -> Bool",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 19,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn bounded_value(value : Json) : Bool =\n  match value of\n    JInt(n) => n >= -1000000000 && n <= 1000000000\n    _ => true",
+        "span": {
+          "start": 3881,
+          "end": 4002
+        },
+        "types": "17 5 42 26 5 42 13 1 39 5 1 39 19 1 39",
+        "tokens": "0 2 0 14 1 1 6 1 1 1 4 2 0 1 1 1 1 1 1 4 3 1 1 1 3 5 0 7 2 0 5 4 2 0 1 1 1 1 1 1 2 1 3 2 1 1 1 1 0 10 5 1 2 1 3 2 1 1 10 5 7 2 1 1 4 6",
+        "refs": [
+          {
+            "start": 25,
+            "end": 29,
+            "target": "Json.Json"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Bool"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@change_row",
+      "new": {
+        "id": "Commands@change_row",
+        "name": "change_row",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "200369390ab51ac4b63ce32cd81a341c9f8e8cd052766ebe2d64a03832ebdbff",
+        "ty": "(Json.Json) -> List(Json.Json) ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 4 2 0 1 1 0 9 2 0 1 1 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 19,
+            "target": "List"
+          },
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Json.Json"
+          },
+          {
+            "start": 34,
+            "end": 46,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn change_row(change : Json) : List(Json) =\n  match command_field(change, \"row\") of\n    JArr(xs) => xs\n    _ => []",
+        "span": {
+          "start": 5532,
+          "end": 5646
+        },
+        "types": "14 6 42 32 13 53 1 6 42 21 2 70 5 2 70",
+        "tokens": "0 2 0 11 1 1 7 1 1 1 4 2 0 1 1 1 1 1 1 4 2 0 1 1 0 4 2 0 1 1 1 1 1 3 5 0 14 1 1 6 1 1 1 5 4 0 1 1 1 2 0 5 4 2 0 1 1 2 1 1 1 2 1 10 2 1 1 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Json.Json"
+          },
+          {
+            "start": 31,
+            "end": 35,
+            "target": "List"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 65,
+            "target": "Commands@command_field"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@changed_names",
+      "new": {
+        "id": "Commands@changed_names",
+        "name": "changed_names",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "7916b5e4fd769d22108264c7df99a5a1ee3b7af9c4747d9f6c51946335532f59",
+        "ty": "(List(Json.Json)) -> List(String) ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 2 1 1 4 2 0 1 1 0 6 3 0 1 1 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 15,
+            "target": "Json.Json"
+          },
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 26,
+            "end": 32,
+            "target": "String"
+          },
+          {
+            "start": 37,
+            "end": 49,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn changed_names(changes : List(Json)) : List(String) =\n  unique_names(map(\\(c) -> command_text(c, \"table\"), changes))",
+        "span": {
+          "start": 6614,
+          "end": 6732
+        },
+        "types": "17 7 70 34 12 88 1 3 14 9 12 78 1 1 42 12 7 70",
+        "tokens": "0 2 0 14 1 1 8 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 1 1 1 1 4 2 0 1 1 0 6 3 0 1 1 1 1 1 15 1 1 3 1 1 0 1 1 0 1 1 1 1 1 1 2 1 13 1 1 1 1 1 1 7 4 0 1 1 0 1 1 8 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 27,
+            "end": 31,
+            "target": "List"
+          },
+          {
+            "start": 32,
+            "end": 36,
+            "target": "Json.Json"
+          },
+          {
+            "start": 41,
+            "end": 45,
+            "target": "List"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "String"
+          },
+          {
+            "start": 58,
+            "end": 70,
+            "target": "Commands@unique_names"
+          },
+          {
+            "start": 71,
+            "end": 74,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 83,
+            "end": 95,
+            "target": "Commands@command_text"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@check_change_shape",
+      "new": {
+        "id": "Commands@check_change_shape",
+        "name": "check_change_shape",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "35d451676101f326a162f7cf373932de1fb55d01574c9f30b93bbdea967580e1",
+        "ty": "(Json.Json) -> Unit ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 4 3 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 19,
+            "target": "Unit"
+          },
+          {
+            "start": 23,
+            "end": 35,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn check_change_shape(change : Json) : Unit =\n  let op = command_text(change, \"op\")\n  if op == \"insert\" || op == \"update\" then\n    command_fields(change, [\"op\", \"table\", \"id\", \"row\"])\n    let table = command_text(change, \"table\")\n    demand(table_name_shape(table), \"INVALID_COMMAND\")\n    let ignored_id = command_int(change, \"id\")\n    match command_field(change, \"row\") of\n      JArr(_) => ()\n      _ => reject(\"INVALID_COMMAND\")\n  elif op == \"delete\" then\n    command_fields(change, [\"op\", \"table\", \"id\"])\n    let table = command_text(change, \"table\")\n    demand(table_name_shape(table), \"INVALID_COMMAND\")\n    let ignored_id = command_int(change, \"id\")\n    ()\n  else\n    reject(\"INVALID_COMMAND\")",
+        "span": {
+          "start": 4831,
+          "end": 5530
+        },
+        "types": "22 6 42 29 12 78 1 6 42 13 2 2 16 2 2 22 14 79 1 6 42 48 12 78 1 6 42 15 6 10 1 16 12 1 5 2 43 11 80 1 6 42 18 13 53 1 6 42 43 6 40 27 2 2 22 14 79 1 6 42 41 12 78 1 6 42 15 6 10 1 16 12 1 5 2 43 11 80 1 6 42 26 6 40",
+        "tokens": "0 2 0 19 1 1 7 1 1 1 4 2 0 1 1 1 1 1 1 4 3 1 1 1 3 3 0 4 1 1 13 1 1 6 1 1 1 4 4 0 1 1 3 2 0 4 2 1 1 8 4 1 2 1 4 2 1 1 8 4 1 4 0 19 1 1 6 1 1 1 1 1 0 4 4 0 1 1 1 7 4 0 1 1 1 4 4 0 1 1 1 5 4 0 1 1 0 1 1 5 3 0 7 1 1 13 1 1 6 1 1 1 7 4 0 1 1 11 1 1 16 1 1 5 1 1 0 1 1 1 17 4 0 1 1 5 3 0 12 1 1 12 1 1 6 1 1 1 4 4 0 1 1 5 5 0 14 1 1 6 1 1 1 5 4 0 1 1 1 2 0 7 4 2 0 1 1 1 1 1 1 2 1 1 1 1 0 1 1 9 2 1 7 1 1 0 17 4 0 1 1 3 4 0 4 2 1 1 8 4 1 4 0 19 1 1 6 1 1 1 1 1 0 4 4 0 1 1 1 7 4 0 1 1 1 4 4 0 1 1 0 1 1 5 3 0 7 1 1 13 1 1 6 1 1 1 7 4 0 1 1 11 1 1 16 1 1 5 1 1 0 1 1 1 17 4 0 1 1 5 3 0 12 1 1 12 1 1 6 1 1 1 4 4 0 1 1 5 1 1 0 1 1 3 4 0 11 1 1 0 17 4 0 1 1",
+        "refs": [
+          {
+            "start": 31,
+            "end": 35,
+            "target": "Json.Json"
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "target": "Unit"
+          },
+          {
+            "start": 57,
+            "end": 69,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 131,
+            "end": 145,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 200,
+            "end": 212,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 234,
+            "end": 240,
+            "target": "Model.demand"
+          },
+          {
+            "start": 241,
+            "end": 257,
+            "target": "Commands@table_name_shape"
+          },
+          {
+            "start": 306,
+            "end": 317,
+            "target": "Commands@command_int"
+          },
+          {
+            "start": 342,
+            "end": 355,
+            "target": "Commands@command_field"
+          },
+          {
+            "start": 405,
+            "end": 411,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 462,
+            "end": 476,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 524,
+            "end": 536,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 558,
+            "end": 564,
+            "target": "Model.demand"
+          },
+          {
+            "start": 565,
+            "end": 581,
+            "target": "Commands@table_name_shape"
+          },
+          {
+            "start": 630,
+            "end": 641,
+            "target": "Commands@command_int"
+          },
+          {
+            "start": 674,
+            "end": 680,
+            "target": "Model.Domain"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@command_field",
+      "new": {
+        "id": "Commands@command_field",
+        "name": "command_field",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "5c592dce3f5313786c2c3f1b48f561c8fe700c1d2fe305110cc71e1a11cb293d",
+        "ty": "(Json.Json, String) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 6 3 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "String"
+          },
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Json.Json"
+          },
+          {
+            "start": 36,
+            "end": 48,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn command_field(j : Json, name : String) : Json =\n  match j of\n    JObj(xs) => command_lookup(xs, name)\n    _ =>\n      reject(\"INVALID_COMMAND\")\n      JNull",
+        "span": {
+          "start": 1244,
+          "end": 1401
+        },
+        "types": "17 1 42 9 4 2 28 1 42 13 2 46 5 14 51 1 2 46 2 4 2 17 6 40 26 5 42",
+        "tokens": "0 2 0 14 1 1 2 1 1 1 4 2 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 3 2 0 5 4 2 0 1 1 2 1 1 1 2 1 15 1 1 2 1 1 5 1 1 7 2 1 13 1 1 0 17 4 0 1 1 7 5 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 25,
+            "target": "Json.Json"
+          },
+          {
+            "start": 34,
+            "end": 40,
+            "target": "String"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 80,
+            "end": 94,
+            "target": "Commands@command_lookup"
+          },
+          {
+            "start": 120,
+            "end": 126,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 152,
+            "end": 157,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@command_fields",
+      "new": {
+        "id": "Commands@command_fields",
+        "name": "command_fields",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "051c7a296b88da58a7b0a44166b8173bcf6a154ed311ea768ee0f0f64f259c4a",
+        "ty": "(Json.Json, List(String)) -> Unit ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 2 1 1 4 3 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 16,
+            "target": "List"
+          },
+          {
+            "start": 17,
+            "end": 23,
+            "target": "String"
+          },
+          {
+            "start": 29,
+            "end": 33,
+            "target": "Unit"
+          },
+          {
+            "start": 37,
+            "end": 49,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn command_fields(j : Json, names : List(String)) : Unit =\n  match j of\n    JObj(xs) =>\n      demand(length(xs) == length(names), \"INVALID_COMMAND\")\n      demand(all(\\(n) -> length(filter(\\(kv) -> fst(kv) == n, xs)) == 1, names), \"INVALID_COMMAND\")\n    _ => reject(\"INVALID_COMMAND\")",
+        "span": {
+          "start": 959,
+          "end": 1242
+        },
+        "types": "18 1 42 9 5 0 34 1 42 13 2 46 11 6 10 1 6 47 1 2 46 5 6 48 1 5 0 28 6 10 1 3 18 9 6 49 1 6 1 10 3 36 1 2 50 5 1 2 2 2 46 9 5 0 31 6 40",
+        "tokens": "0 2 0 15 1 1 2 1 1 1 4 2 0 1 1 7 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 1 1 1 4 3 1 1 1 3 5 0 3 2 0 5 4 2 0 1 1 2 1 1 1 2 1 13 1 1 6 1 1 2 1 1 1 2 1 7 1 1 5 1 1 0 1 1 1 17 4 0 1 1 13 1 1 3 1 1 0 1 1 0 1 1 1 1 1 1 2 1 7 1 1 6 1 1 0 1 1 0 1 1 2 1 1 1 2 1 4 1 1 2 1 1 1 2 1 2 1 1 3 1 1 0 1 1 1 2 1 1 1 5 0 1 1 6 1 1 0 1 1 1 17 4 0 1 1 7 2 1 7 1 1 0 17 4 0 1 1",
+        "refs": [
+          {
+            "start": 22,
+            "end": 26,
+            "target": "Json.Json"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "List"
+          },
+          {
+            "start": 41,
+            "end": 47,
+            "target": "String"
+          },
+          {
+            "start": 52,
+            "end": 56,
+            "target": "Unit"
+          },
+          {
+            "start": 94,
+            "end": 100,
+            "target": "Model.demand"
+          },
+          {
+            "start": 101,
+            "end": 107,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 115,
+            "end": 121,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 155,
+            "end": 161,
+            "target": "Model.demand"
+          },
+          {
+            "start": 162,
+            "end": 165,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 174,
+            "end": 180,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 181,
+            "end": 187,
+            "target": "Data.List.filter"
+          },
+          {
+            "start": 197,
+            "end": 200,
+            "target": "fst"
+          },
+          {
+            "start": 258,
+            "end": 264,
+            "target": "Model.Domain"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@command_int",
+      "new": {
+        "id": "Commands@command_int",
+        "name": "command_int",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "0499c78f4d5db9894c5a00840bf04b98cecf0ccb6d932801874c8024edb4e512",
+        "ty": "(Json.Json, String) -> Int ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 6 3 0 1 1 1 2 1 1 3 3 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "String"
+          },
+          {
+            "start": 23,
+            "end": 26,
+            "target": "Int"
+          },
+          {
+            "start": 30,
+            "end": 42,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn command_int(j : Json, name : String) : Int =\n  match command_field(j, name) of\n    JInt(n) =>\n      demand(n >= 1 && n <= 2147483647, \"INVALID_COMMAND\")\n      n\n    _ =>\n      reject(\"INVALID_COMMAND\")\n      0",
+        "span": {
+          "start": 1774,
+          "end": 1986
+        },
+        "types": "15 1 42 9 4 2 27 13 53 1 1 42 2 4 2 14 1 39 11 6 10 1 1 39 9 1 39 41 1 39 16 6 40",
+        "tokens": "0 2 0 12 1 1 2 1 1 1 4 2 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 3 3 1 1 1 3 5 0 14 1 1 1 1 1 5 1 1 1 2 0 5 4 2 0 1 1 1 1 1 1 2 1 13 1 1 2 2 1 1 1 5 1 2 1 3 2 1 1 10 5 0 1 1 1 17 4 0 1 1 15 2 1 13 1 1 0 17 4 0 1 1 7 1 5",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "Json.Json"
+          },
+          {
+            "start": 32,
+            "end": 38,
+            "target": "String"
+          },
+          {
+            "start": 42,
+            "end": 45,
+            "target": "Int"
+          },
+          {
+            "start": 56,
+            "end": 69,
+            "target": "Commands@command_field"
+          },
+          {
+            "start": 103,
+            "end": 109,
+            "target": "Model.demand"
+          },
+          {
+            "start": 179,
+            "end": 185,
+            "target": "Model.Domain"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@command_lookup",
+      "new": {
+        "id": "Commands@command_lookup",
+        "name": "command_lookup",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "ccbcbd50d39c2b60e6d03de95fa59a6aa53ada0e51f3019f6473772526ab60de",
+        "ty": "(List((String, Json.Json)), String) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 1 1 0 6 3 0 1 1 1 9 2 0 1 1 0 1 1 0 1 1 1 6 3 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 7,
+            "end": 13,
+            "target": "String"
+          },
+          {
+            "start": 15,
+            "end": 24,
+            "target": "Json.Json"
+          },
+          {
+            "start": 28,
+            "end": 34,
+            "target": "String"
+          },
+          {
+            "start": 39,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 64,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn command_lookup(xs : List((String, Json)), name : String) : Json =\n  match xs of\n    Nil =>\n      reject(\"INVALID_COMMAND\")\n      JNull\n    Cons((k, v), rest) => if k == name then v else command_lookup(rest, name)",
+        "span": {
+          "start": 1403,
+          "end": 1618
+        },
+        "types": "18 2 46 25 4 2 28 2 46 21 6 40 26 5 42 11 1 2 2 1 42 3 4 46 8 1 2 4 4 2 6 1 42 6 14 52 1 4 46 2 4 2",
+        "tokens": "0 2 0 15 1 1 3 1 1 1 4 2 0 1 1 0 1 1 0 6 3 0 1 1 1 4 2 0 1 1 0 1 1 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 4 2 0 5 3 2 1 2 1 13 1 1 0 17 4 0 1 1 7 5 2 5 4 2 0 1 1 0 1 1 1 1 1 2 1 1 0 1 1 5 1 1 1 2 1 1 2 0 3 2 1 6 4 0 3 4 0 15 1 1 4 1 1 5 1 1",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "List"
+          },
+          {
+            "start": 29,
+            "end": 35,
+            "target": "String"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 58,
+            "target": "String"
+          },
+          {
+            "start": 62,
+            "end": 66,
+            "target": "Json.Json"
+          },
+          {
+            "start": 87,
+            "end": 90,
+            "target": "List"
+          },
+          {
+            "start": 100,
+            "end": 106,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 132,
+            "end": 137,
+            "target": "Json.Json"
+          },
+          {
+            "start": 142,
+            "end": 146,
+            "target": "List"
+          },
+          {
+            "start": 189,
+            "end": 203,
+            "target": "Commands@command_lookup"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@command_text",
+      "new": {
+        "id": "Commands@command_text",
+        "name": "command_text",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "70553e7cbb062bfa21cfeedd64a69eaaa66e09e61d2482e73dab286352dc39fb",
+        "ty": "(Json.Json, String) -> String ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 6 3 0 1 1 1 2 1 1 6 3 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "String"
+          },
+          {
+            "start": 23,
+            "end": 29,
+            "target": "String"
+          },
+          {
+            "start": 33,
+            "end": 45,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn command_text(j : Json, name : String) : String =\n  match command_field(j, name) of\n    JStr(s) => s\n    _ =>\n      reject(\"INVALID_COMMAND\")\n      \"\"",
+        "span": {
+          "start": 1620,
+          "end": 1772
+        },
+        "types": "16 1 42 9 4 2 30 13 53 1 1 42 2 4 2 14 1 2 5 1 2 16 6 40",
+        "tokens": "0 2 0 13 1 1 2 1 1 1 4 2 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 6 3 1 1 1 3 5 0 14 1 1 1 1 1 5 1 1 1 2 0 5 4 2 0 1 1 1 1 1 1 2 1 9 2 1 13 1 1 0 17 4 0 1 1 7 2 4",
+        "refs": [
+          {
+            "start": 20,
+            "end": 24,
+            "target": "Json.Json"
+          },
+          {
+            "start": 33,
+            "end": 39,
+            "target": "String"
+          },
+          {
+            "start": 43,
+            "end": 49,
+            "target": "String"
+          },
+          {
+            "start": 60,
+            "end": 73,
+            "target": "Commands@command_field"
+          },
+          {
+            "start": 118,
+            "end": 124,
+            "target": "Model.Domain"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@database_of",
+      "new": {
+        "id": "Commands@database_of",
+        "name": "database_of",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "2f37aa5a23919932f984dbdb8039f9bf8930b12af6ab2803f4baedf43c45a103",
+        "ty": "(List(Commands.LiveTable)) -> List(Model.Table)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 2 1 1 4 2 0 1 1 0 11 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 30,
+            "end": 34,
+            "target": "List"
+          },
+          {
+            "start": 35,
+            "end": 46,
+            "target": "Model.Table"
+          }
+        ],
+        "source": "fn database_of(tables : List(LiveTable)) : List(Table) =\n  map(\n      \\(t) -> Table { name = t.name, columns = t.columns, rows = map(\\(r) -> r.values, t.rows) },\n      tables,\n    )",
+        "span": {
+          "start": 2842,
+          "end": 3023
+        },
+        "types": "15 6 60 38 3 14 31 1 61 17 1 61 17 3 14 9 1 62 9 1 61 16 6 60",
+        "tokens": "0 2 0 12 1 1 7 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 1 1 1 4 2 0 1 1 0 5 2 0 1 1 1 1 1 6 1 1 7 1 1 0 1 1 1 1 1 1 2 1 1 5 2 1 1 1 6 1 1 2 1 1 4 1 1 9 1 1 2 1 1 7 1 1 6 1 1 4 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 6 1 1 2 1 1 4 1 1 1 1 1 0 1 1 13 1 1 5 1 1",
+        "refs": [
+          {
+            "start": 24,
+            "end": 28,
+            "target": "List"
+          },
+          {
+            "start": 29,
+            "end": 38,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 43,
+            "end": 47,
+            "target": "List"
+          },
+          {
+            "start": 48,
+            "end": 53,
+            "target": "Model.Table"
+          },
+          {
+            "start": 59,
+            "end": 62,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 78,
+            "end": 83,
+            "target": "Model.Table"
+          },
+          {
+            "start": 129,
+            "end": 132,
+            "target": "Data.List.map"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@find_live",
+      "new": {
+        "id": "Commands@find_live",
+        "name": "find_live",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "8b3dac15b4f54ebebde05d11c51ba8d54b7c47e2b667d7342f6d089cd5d26362",
+        "ty": "(List(Commands.LiveTable), String) -> Commands.LiveTable ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 6 3 0 1 1 1 2 1 1 18 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 27,
+            "end": 33,
+            "target": "String"
+          },
+          {
+            "start": 38,
+            "end": 56,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 60,
+            "end": 72,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn find_live(tables : List(LiveTable), name : String) : LiveTable =\n  match tables of\n    Nil =>\n      reject(\"UNKNOWN_TABLE\")\n      at(tables, 0)\n    Cons(t, rest) => if t.name == name then t else find_live(rest, name)",
+        "span": {
+          "start": 3025,
+          "end": 3244
+        },
+        "types": "13 6 60 20 4 2 33 6 60 21 6 40 24 2 5 1 6 60 14 1 61 2 4 60 8 1 61 9 4 2 6 1 61 6 9 63 1 4 60 2 4 2",
+        "tokens": "0 2 0 10 1 1 7 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 9 2 1 1 1 3 5 0 8 2 0 5 3 2 1 2 1 13 1 1 0 15 4 0 1 1 9 1 1 6 1 1 1 1 5 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 1 2 0 2 1 1 5 2 1 6 4 0 3 4 0 10 1 1 4 1 1 5 1 1",
+        "refs": [
+          {
+            "start": 22,
+            "end": 26,
+            "target": "List"
+          },
+          {
+            "start": 27,
+            "end": 36,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "String"
+          },
+          {
+            "start": 56,
+            "end": 65,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 90,
+            "end": 93,
+            "target": "List"
+          },
+          {
+            "start": 103,
+            "end": 109,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 133,
+            "end": 135,
+            "target": "Model.at"
+          },
+          {
+            "start": 151,
+            "end": 155,
+            "target": "List"
+          },
+          {
+            "start": 198,
+            "end": 207,
+            "target": "Commands@find_live"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@find_view",
+      "new": {
+        "id": "Commands@find_view",
+        "name": "find_view",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "6696ecb69714721fe345df0bf67108e67c50ba416335755c42fed58bf1098985",
+        "ty": "(List(Commands.View), String) -> Commands.View ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 13 2 0 1 1 0 1 1 1 6 3 0 1 1 1 2 1 1 13 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Commands.View"
+          },
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          },
+          {
+            "start": 33,
+            "end": 46,
+            "target": "Commands.View"
+          },
+          {
+            "start": 50,
+            "end": 62,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn find_view(views : List(View), name : String) : View =\n  match views of\n    Nil =>\n      reject(\"UNKNOWN_VIEW\")\n      at(views, 0)\n    Cons(v, rest) => if v.name == name then v else find_view(rest, name)",
+        "span": {
+          "start": 3474,
+          "end": 3679
+        },
+        "types": "13 5 66 15 4 2 28 5 66 21 6 40 23 2 5 1 5 66 14 1 67 2 4 66 8 1 67 9 4 2 6 1 67 6 9 68 1 4 66 2 4 2",
+        "tokens": "0 2 0 10 1 1 6 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 7 2 0 5 3 2 1 2 1 13 1 1 0 14 4 0 1 1 9 1 1 5 1 1 1 1 5 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 1 2 0 2 1 1 5 2 1 6 4 0 3 4 0 10 1 1 4 1 1 5 1 1",
+        "refs": [
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 26,
+            "end": 30,
+            "target": "Commands.View"
+          },
+          {
+            "start": 40,
+            "end": 46,
+            "target": "String"
+          },
+          {
+            "start": 50,
+            "end": 54,
+            "target": "Commands.View"
+          },
+          {
+            "start": 78,
+            "end": 81,
+            "target": "List"
+          },
+          {
+            "start": 91,
+            "end": 97,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 120,
+            "end": 122,
+            "target": "Model.at"
+          },
+          {
+            "start": 137,
+            "end": 141,
+            "target": "List"
+          },
+          {
+            "start": 184,
+            "end": 193,
+            "target": "Commands@find_view"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@good",
+      "new": {
+        "id": "Commands@good",
+        "name": "good",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "5369d1695b5d076068083f013ced135566ed6127ccd977b48cf1039a4d6bfa48",
+        "ty": "(Json.Json) -> Json.Json",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 9 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 24,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn good(value : Json) : Json =\n  JObj([(\"ok\", JBool(true)), (\"result\", value)])",
+        "span": {
+          "start": 774,
+          "end": 853
+        },
+        "types": "8 5 42 20 4 43 9 5 44 20 5 42",
+        "tokens": "0 2 0 5 1 1 6 1 1 1 4 2 0 1 1 1 1 1 1 4 2 1 1 1 3 4 2 0 1 1 0 1 1 0 1 1 0 4 4 0 1 1 1 5 2 0 1 1 0 4 6 0 1 1 0 1 1 0 1 1 1 1 1 0 8 4 0 1 1 6 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 16,
+            "end": 20,
+            "target": "Json.Json"
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "target": "Json.Json"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Json.Json"
+          },
+          {
+            "start": 46,
+            "end": 51,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@has_view",
+      "new": {
+        "id": "Commands@has_view",
+        "name": "has_view",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "12cd82fb7ae303215982faaea4f58acb4ecb0c0cd58f23b0e5992e00fb71221d",
+        "ty": "(List(Commands.View), String) -> Bool",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 13 2 0 1 1 0 1 1 1 6 3 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Commands.View"
+          },
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn has_view(views : List(View), name : String) : Bool =\n  any(\\(v) -> v.name == name, views)",
+        "span": {
+          "start": 3681,
+          "end": 3773
+        },
+        "types": "12 5 66 15 4 2 22 3 69 9 1 67 9 4 2 2 5 66",
+        "tokens": "0 2 0 9 1 1 6 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 3 1 1 1 6 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 5 2 1 5 1 1 6 1 1",
+        "refs": [
+          {
+            "start": 20,
+            "end": 24,
+            "target": "List"
+          },
+          {
+            "start": 25,
+            "end": 29,
+            "target": "Commands.View"
+          },
+          {
+            "start": 39,
+            "end": 45,
+            "target": "String"
+          },
+          {
+            "start": 49,
+            "end": 53,
+            "target": "Bool"
+          },
+          {
+            "start": 58,
+            "end": 61,
+            "target": "Data.Foldable.any"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@maintain",
+      "new": {
+        "id": "Commands@maintain",
+        "name": "maintain",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "9c46c09e72bb5c312cb49b78a10ab14dd77f1d379f19011fe64c7828bee51b5e",
+        "ty": "(List(Commands.View), List(Commands.LiveTable), List(String)) -> List(Commands.View)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 13 2 0 1 1 0 1 1 1 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 2 1 1 4 2 0 1 1 0 13 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Commands.View"
+          },
+          {
+            "start": 22,
+            "end": 26,
+            "target": "List"
+          },
+          {
+            "start": 27,
+            "end": 45,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 48,
+            "end": 52,
+            "target": "List"
+          },
+          {
+            "start": 53,
+            "end": 59,
+            "target": "String"
+          },
+          {
+            "start": 65,
+            "end": 69,
+            "target": "List"
+          },
+          {
+            "start": 70,
+            "end": 83,
+            "target": "Commands.View"
+          }
+        ],
+        "source": "fn maintain(views : List(View), tables : List(LiveTable), changed : List(String)) : List(View) =\n  let database = database_of(tables)\n  map(\n      \\(view) ->\n        if any(\\(name) -> elem(name, changed), view.dependencies) then\n          let plan = refresh_plan(view.plan, database) in\n          View { ..view, plan = plan, result = execute(plan) }\n        else\n          view,\n      views,\n    )",
+        "span": {
+          "start": 7302,
+          "end": 7699
+        },
+        "types": "12 5 66 15 6 60 20 7 0 49 11 91 1 6 60 4 3 14 30 3 4 12 4 19 1 4 2 2 7 0 3 4 67 41 12 92 1 4 67 7 8 30 24 4 67 9 4 90 11 7 93 1 4 90 27 4 67 8 5 66",
+        "tokens": "0 2 0 9 1 1 6 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 8 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 9 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 1 1 1 4 2 0 1 1 0 4 2 0 1 1 1 1 1 3 3 0 10 1 1 12 1 1 6 1 1 6 1 1 7 1 1 0 1 1 4 1 1 1 2 1 9 2 0 4 1 1 0 1 1 0 1 1 4 1 1 1 2 1 5 1 1 4 1 1 8 1 1 0 1 1 5 1 1 12 1 1 1 4 0 11 3 0 6 1 1 13 1 1 4 1 1 4 1 1 9 1 1 1 2 0 11 4 2 1 1 1 1 2 1 4 1 1 6 1 1 5 1 1 8 1 1 8 1 1 4 1 1 1 1 1 9 4 0 15 1 1 12 1 1 5 1 1",
+        "refs": [
+          {
+            "start": 20,
+            "end": 24,
+            "target": "List"
+          },
+          {
+            "start": 25,
+            "end": 29,
+            "target": "Commands.View"
+          },
+          {
+            "start": 41,
+            "end": 45,
+            "target": "List"
+          },
+          {
+            "start": 46,
+            "end": 55,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 68,
+            "end": 72,
+            "target": "List"
+          },
+          {
+            "start": 73,
+            "end": 79,
+            "target": "String"
+          },
+          {
+            "start": 84,
+            "end": 88,
+            "target": "List"
+          },
+          {
+            "start": 89,
+            "end": 93,
+            "target": "Commands.View"
+          },
+          {
+            "start": 114,
+            "end": 125,
+            "target": "Commands@database_of"
+          },
+          {
+            "start": 136,
+            "end": 139,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 169,
+            "end": 172,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 184,
+            "end": 188,
+            "target": "Model.elem"
+          },
+          {
+            "start": 250,
+            "end": 262,
+            "target": "Commands@refresh_plan"
+          },
+          {
+            "start": 297,
+            "end": 301,
+            "target": "Commands.View"
+          },
+          {
+            "start": 334,
+            "end": 341,
+            "target": "Engine.execute"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@process",
+      "new": {
+        "id": "Commands@process",
+        "name": "process",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "7135004bcdca0c808a32ab3e845ca24f3f0c1da59f135f761ef04803b3884fa6",
+        "ty": "(List(Json.Json), Commands.Store) -> List(Json.Json)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 14 2 0 1 1 1 2 1 1 4 2 0 1 1 0 9 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 15,
+            "target": "Json.Json"
+          },
+          {
+            "start": 18,
+            "end": 32,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "List"
+          },
+          {
+            "start": 42,
+            "end": 51,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn process(commands : List(Json), store : Store) : List(Json) =\n  match commands of\n    Nil => []\n    Cons(command, rest) =>\n      let outcome =\n        handle run_command(command, store) with\n          never reject(code) => CommandResult { store = store, reply = bad(code) }\n          return result => result\n      Cons(outcome.reply, process(rest, outcome.store))",
+        "span": {
+          "start": 10315,
+          "end": 10680
+        },
+        "types": "11 8 70 15 5 95 33 8 70 27 7 42 2 4 70 40 11 107 1 7 42 2 5 95 63 5 95 10 3 45 1 4 2 31 6 108 7 4 64 1 7 108 8 7 109 1 4 70 2 7 108",
+        "tokens": "0 2 0 8 1 1 9 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 7 1 1 1 5 2 0 1 1 1 1 1 1 4 2 0 1 1 0 4 2 0 1 1 1 1 1 3 5 0 10 2 0 5 3 2 1 2 1 1 1 1 0 1 1 5 4 2 0 1 1 7 1 1 5 1 1 1 2 1 7 3 0 9 1 1 9 6 0 12 1 1 7 1 1 6 1 1 1 4 0 23 1 1 4 1 1 1 2 1 1 13 2 1 1 1 7 1 1 6 1 1 7 1 1 4 1 1 4 1 1 1 1 1 11 6 0 8 2 1 14 4 2 0 1 1 7 1 1 5 1 1 8 1 1 4 1 1 8 1 1 5 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 22,
+            "end": 26,
+            "target": "List"
+          },
+          {
+            "start": 27,
+            "end": 31,
+            "target": "Json.Json"
+          },
+          {
+            "start": 42,
+            "end": 47,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 51,
+            "end": 55,
+            "target": "List"
+          },
+          {
+            "start": 56,
+            "end": 60,
+            "target": "Json.Json"
+          },
+          {
+            "start": 88,
+            "end": 91,
+            "target": "List"
+          },
+          {
+            "start": 102,
+            "end": 106,
+            "target": "List"
+          },
+          {
+            "start": 160,
+            "end": 171,
+            "target": "Commands@run_command"
+          },
+          {
+            "start": 225,
+            "end": 238,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 264,
+            "end": 267,
+            "target": "Commands@bad"
+          },
+          {
+            "start": 316,
+            "end": 320,
+            "target": "List"
+          },
+          {
+            "start": 336,
+            "end": 343,
+            "target": "Commands@process"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@refresh_plan",
+      "new": {
+        "id": "Commands@refresh_plan",
+        "name": "refresh_plan",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "1df5f4cc8e6a7c02f9dbc07ac663cce5a01902e3350e94d80969db5f149c6700",
+        "ty": "(Model.Plan, List(Model.Table)) -> Model.Plan",
+        "ty_tokens": "0 1 1 0 10 2 0 1 1 1 4 2 0 1 1 0 11 2 0 1 1 0 1 1 1 2 1 1 10 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 11,
+            "target": "Model.Plan"
+          },
+          {
+            "start": 13,
+            "end": 17,
+            "target": "List"
+          },
+          {
+            "start": 18,
+            "end": 29,
+            "target": "Model.Table"
+          },
+          {
+            "start": 35,
+            "end": 45,
+            "target": "Model.Plan"
+          }
+        ],
+        "source": "fn refresh_plan(plan : Plan, database : List(Table)) : Plan =\n  let tables = map(\n      \\(source) ->\n        let matches = filter(\\(t) -> t.name == fst(source), database) in at(matches, 0),\n      plan.query.sources,\n    )\n  Plan { ..plan, tables = tables }",
+        "span": {
+          "start": 7044,
+          "end": 7300
+        },
+        "types": "16 4 90 9 8 30 40 3 14 43 6 1 9 1 31 9 3 36 1 6 37 3 8 30 5 2 5 1 7 30 12 4 90 33 4 90 11 6 30",
+        "tokens": "0 2 0 13 1 1 5 1 1 1 4 2 0 1 1 10 1 1 1 4 2 0 1 1 0 5 2 0 1 1 0 1 1 1 1 1 1 4 2 1 1 1 3 3 0 8 1 1 4 1 1 7 1 1 0 1 1 6 1 1 1 2 1 9 3 0 9 1 1 7 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 5 2 1 4 1 1 6 1 1 0 1 1 9 1 1 1 2 0 3 1 1 7 1 1 1 1 5 0 1 1 0 1 1 11 1 1 5 1 1 7 1 1 5 1 1 3 4 2 1 1 1 1 2 1 4 1 1 8 1 1 8 1 1",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Model.Plan"
+          },
+          {
+            "start": 40,
+            "end": 44,
+            "target": "List"
+          },
+          {
+            "start": 45,
+            "end": 50,
+            "target": "Model.Table"
+          },
+          {
+            "start": 55,
+            "end": 59,
+            "target": "Model.Plan"
+          },
+          {
+            "start": 77,
+            "end": 80,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 123,
+            "end": 129,
+            "target": "Data.List.filter"
+          },
+          {
+            "start": 148,
+            "end": 151,
+            "target": "fst"
+          },
+          {
+            "start": 174,
+            "end": 176,
+            "target": "Model.at"
+          },
+          {
+            "start": 224,
+            "end": 228,
+            "target": "Model.Plan"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@remove_view",
+      "new": {
+        "id": "Commands@remove_view",
+        "name": "remove_view",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "c74cf02e264c5be45fe6c544cb6f0b83a556bf7dcb906495f03d04e15a8ae7fd",
+        "ty": "(List(Commands.View), String) -> List(Commands.View)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 13 2 0 1 1 0 1 1 1 6 3 0 1 1 1 2 1 1 4 2 0 1 1 0 13 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 19,
+            "target": "Commands.View"
+          },
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "List"
+          },
+          {
+            "start": 38,
+            "end": 51,
+            "target": "Commands.View"
+          }
+        ],
+        "source": "fn remove_view(views : List(View), name : String) : List(View) =\n  filter(\\(v) -> v.name /= name, views)",
+        "span": {
+          "start": 3775,
+          "end": 3879
+        },
+        "types": "15 5 66 15 4 2 28 6 1 9 1 67 9 4 2 2 5 66",
+        "tokens": "0 2 0 12 1 1 6 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 2 0 1 1 0 4 2 0 1 1 1 1 1 9 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 5 2 1 5 1 1 6 1 1",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "List"
+          },
+          {
+            "start": 28,
+            "end": 32,
+            "target": "Commands.View"
+          },
+          {
+            "start": 42,
+            "end": 48,
+            "target": "String"
+          },
+          {
+            "start": 52,
+            "end": 56,
+            "target": "List"
+          },
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Commands.View"
+          },
+          {
+            "start": 67,
+            "end": 73,
+            "target": "Data.List.filter"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@replace_live",
+      "new": {
+        "id": "Commands@replace_live",
+        "name": "replace_live",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "9ee24157265cf0fd9db36f4df953d3f658754613bb9b3ecd3a8ea4543d7b0045",
+        "ty": "(List(Commands.LiveTable), Commands.LiveTable) -> List(Commands.LiveTable)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 18 2 0 1 1 1 2 1 1 4 2 0 1 1 0 18 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 27,
+            "end": 45,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 50,
+            "end": 54,
+            "target": "List"
+          },
+          {
+            "start": 55,
+            "end": 73,
+            "target": "Commands.LiveTable"
+          }
+        ],
+        "source": "fn replace_live(tables : List(LiveTable), table : LiveTable) : List(LiveTable) =\n  match tables of\n    Nil => []\n    Cons(t, rest) =>\n      if t.name == table.name then Cons(table, rest) else Cons(t, replace_live(rest, table))",
+        "span": {
+          "start": 3246,
+          "end": 3472
+        },
+        "types": "16 6 60 20 5 61 42 6 60 27 1 61 2 4 60 14 1 61 9 5 61 11 4 64 1 5 61 2 4 60 7 4 64 1 1 61 2 12 65 1 4 60 2 5 61",
+        "tokens": "0 2 0 13 1 1 7 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 7 1 1 1 9 2 0 1 1 1 1 1 1 4 2 0 1 1 0 9 2 0 1 1 1 1 1 3 5 0 8 2 0 5 3 2 1 2 1 1 1 1 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 7 2 0 2 1 1 5 2 1 6 1 1 5 4 0 1 4 2 0 1 1 5 1 1 5 1 1 1 4 0 1 4 2 0 1 1 1 1 1 13 1 1 4 1 1 6 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 25,
+            "end": 29,
+            "target": "List"
+          },
+          {
+            "start": 30,
+            "end": 39,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 50,
+            "end": 59,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 63,
+            "end": 67,
+            "target": "List"
+          },
+          {
+            "start": 68,
+            "end": 77,
+            "target": "Commands.LiveTable"
+          },
+          {
+            "start": 103,
+            "end": 106,
+            "target": "List"
+          },
+          {
+            "start": 117,
+            "end": 121,
+            "target": "List"
+          },
+          {
+            "start": 169,
+            "end": 173,
+            "target": "List"
+          },
+          {
+            "start": 192,
+            "end": 196,
+            "target": "List"
+          },
+          {
+            "start": 200,
+            "end": 212,
+            "target": "Commands@replace_live"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@result_with_revision",
+      "new": {
+        "id": "Commands@result_with_revision",
+        "name": "result_with_revision",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "285d2db916e6ff168bdd3094143e7544fc0ca64c375ca21b2da01137cb2790de",
+        "ty": "(Json.Json, Int) -> Json.Json",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 3 3 0 1 1 1 2 1 1 9 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 15,
+            "target": "Int"
+          },
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn result_with_revision(result : Json, revision : Int) : Json =\n  match result of\n    JObj(xs) => JObj(Cons((\"revision\", JInt(revision)), xs))\n    _ => result",
+        "span": {
+          "start": 7701,
+          "end": 7859
+        },
+        "types": "24 6 42 9 8 39 25 6 42 13 2 46 5 4 43 1 4 64 14 4 94 1 8 39 4 2 46 12 6 42",
+        "tokens": "0 2 0 21 1 1 7 1 1 1 4 2 0 1 1 10 1 1 1 3 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 8 2 0 5 4 2 0 1 1 2 1 1 1 2 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 0 10 4 0 1 1 1 4 2 0 1 1 8 1 1 0 1 1 0 1 1 3 1 1 0 1 1 7 2 1",
+        "refs": [
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Json.Json"
+          },
+          {
+            "start": 50,
+            "end": 53,
+            "target": "Int"
+          },
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Json.Json"
+          },
+          {
+            "start": 98,
+            "end": 102,
+            "target": "Json.Json"
+          },
+          {
+            "start": 103,
+            "end": 107,
+            "target": "List"
+          },
+          {
+            "start": 121,
+            "end": 125,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@row_at",
+      "new": {
+        "id": "Commands@row_at",
+        "name": "row_at",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "02deed0440cfb13d11ff826aab3d9b70cae28949354963440c102803791badab",
+        "ty": "(List(Commands.StoredRow), Int) -> Commands.StoredRow ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 3 3 0 1 1 1 2 1 1 18 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 27,
+            "end": 30,
+            "target": "Int"
+          },
+          {
+            "start": 35,
+            "end": 53,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 57,
+            "end": 69,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn row_at(rows : List(StoredRow), id : Int) : StoredRow =\n  match rows of\n    Nil =>\n      reject(\"UNKNOWN_ROW\")\n      at(rows, 0)\n    Cons(r, rest) => if r.id == id then r else row_at(rest, id)",
+        "span": {
+          "start": 4369,
+          "end": 4563
+        },
+        "types": "10 4 75 20 2 39 30 4 75 21 6 40 22 2 5 1 4 75 14 1 62 2 4 75 8 1 62 7 2 39 6 1 62 6 6 76 1 4 75 2 2 39",
+        "tokens": "0 2 0 7 1 1 5 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 4 1 1 1 3 3 0 1 1 1 1 1 1 9 2 1 1 1 3 5 0 6 2 0 5 3 2 1 2 1 13 1 1 0 13 4 0 1 1 9 1 1 4 1 1 1 1 5 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 1 2 0 2 1 1 3 2 1 4 4 0 3 4 0 7 1 1 4 1 1 3 1 1",
+        "refs": [
+          {
+            "start": 17,
+            "end": 21,
+            "target": "List"
+          },
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 39,
+            "end": 42,
+            "target": "Int"
+          },
+          {
+            "start": 46,
+            "end": 55,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 78,
+            "end": 81,
+            "target": "List"
+          },
+          {
+            "start": 91,
+            "end": 97,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 119,
+            "end": 121,
+            "target": "Model.at"
+          },
+          {
+            "start": 135,
+            "end": 139,
+            "target": "List"
+          },
+          {
+            "start": 178,
+            "end": 184,
+            "target": "Commands@row_at"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@run_command",
+      "new": {
+        "id": "Commands@run_command",
+        "name": "run_command",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "ae1cab3a81f4035ccb9f38a3763ef9681427e343de148c75a66da3701d6eed8d",
+        "ty": "(Json.Json, Commands.Store) -> Commands@CommandResult ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 14 2 0 1 1 1 2 1 1 8 2 0 1 1 0 13 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 26,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 40,
+            "end": 53,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 57,
+            "end": 69,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn run_command(command : Json, store : Store) : CommandResult =\n  let op = command_text(command, \"op\")\n  if op == \"create\" then\n    command_fields(command, [\"op\", \"view\", \"sql\", \"optimize\"])\n    let name = command_text(command, \"view\")\n    demand(view_name_ok(name), \"INVALID_COMMAND\")\n    let sql = command_text(command, \"sql\")\n    let optimized =\n      match command_field(command, \"optimize\") of\n        JBool(b) => b\n        _ =>\n          reject(\"INVALID_COMMAND\")\n          false\n    demand(not(has_view(store.views, name)), \"VIEW_EXISTS\")\n    let raw = bind(parse_sql(sql), database_of(store.tables))\n    let plan = if optimized then optimize(raw) else raw\n    let view = View { name = name, plan = plan, dependencies = unique_names(map(fst, plan.query.sources)), result = execute(plan) }\n    CommandResult {\n      store = Store { ..store, views = append(store.views, [view]) },\n      reply = good(JObj([(\"view\", JStr(name)), (\"revision\", JInt(store.revision))]))\n    }\n  elif op == \"read\" then\n    command_fields(command, [\"op\", \"view\"])\n    let name = command_text(command, \"view\")\n    demand(view_name_ok(name), \"INVALID_COMMAND\")\n    let view = find_view(store.views, name)\n    CommandResult { store = store, reply = good(result_with_revision(view.result, store.revision)) }\n  elif op == \"drop\" then\n    command_fields(command, [\"op\", \"view\"])\n    let name = command_text(command, \"view\")\n    demand(view_name_ok(name), \"INVALID_COMMAND\")\n    let ignored = find_view(store.views, name)\n    CommandResult {\n      store = Store { ..store, views = remove_view(store.views, name) },\n      reply = good(JObj([(\"dropped\", JStr(name))]))\n    }\n  elif op == \"apply\" then\n    command_fields(command, [\"op\", \"changes\"])\n    let changes =\n      match command_field(command, \"changes\") of\n        JArr(xs) => xs\n        _ =>\n          reject(\"INVALID_COMMAND\")\n          []\n    demand(length(changes) >= 1 && length(changes) <= 200, \"INVALID_COMMAND\")\n    for change in sof(changes) do check_change_shape(change)\n    var tables := store.tables\n    for change in sof(changes) do tables := apply_change(tables, change)\n    let views = maintain(store.views, tables, changed_names(changes))\n    let next = Store { tables = tables, views = views, revision = store.revision + 1 }\n    CommandResult { store = next, reply = good(JObj([(\"revision\", JInt(next.revision))])) }\n  else\n    reject(\"INVALID_COMMAND\")\n    CommandResult { store = store, reply = JNull }",
+        "span": {
+          "start": 7861,
+          "end": 10313
+        },
+        "types": "15 7 42 9 5 95 39 12 78 1 7 42 13 2 2 22 14 79 1 7 42 52 12 78 1 7 42 14 6 10 1 12 12 1 4 2 36 12 78 1 7 42 41 13 53 1 7 42 31 1 8 5 1 8 24 6 40 40 6 10 1 3 13 1 8 96 1 5 95 8 4 2 33 4 97 1 9 98 1 3 2 3 11 91 1 5 95 28 9 8 6 8 99 1 3 90 7 3 90 30 4 2 9 4 90 17 12 88 1 3 14 1 3 36 2 4 90 27 7 93 1 4 90 48 5 95 10 6 84 1 5 95 9 4 67 20 4 100 1 4 43 11 4 45 1 4 2 17 4 94 1 5 95 28 2 2 20 14 79 1 7 42 33 12 78 1 7 42 14 6 10 1 12 12 1 4 2 37 9 101 1 5 95 8 4 2 30 5 95 10 4 100 1 20 102 1 4 67 9 5 95 21 2 2 20 14 79 1 7 42 33 12 78 1 7 42 14 6 10 1 12 12 1 4 2 40 9 101 1 5 95 8 4 2 46 5 95 10 11 103 1 5 95 8 4 2 19 4 100 1 4 43 14 4 45 1 4 2 19 2 2 21 14 79 1 7 42 51 13 53 1 7 42 29 2 70 5 2 70 24 6 40 37 6 10 1 6 104 1 7 70 10 6 104 1 7 70 47 3 28 1 7 70 5 18 105 1 6 42 6 348 106 12 6 40 48 5 95 10 5 42",
+        "tokens": "0 2 0 12 1 1 8 1 1 1 4 2 0 1 1 7 1 1 1 5 2 0 1 1 1 1 1 1 13 2 1 1 1 3 3 0 4 1 1 13 1 1 7 1 1 1 4 4 0 1 1 3 2 0 4 2 1 1 8 4 1 4 0 19 1 1 7 1 1 1 1 1 0 4 4 0 1 1 1 6 4 0 1 1 1 5 4 0 1 1 1 10 4 0 1 1 0 1 1 5 3 0 6 1 1 13 1 1 7 1 1 1 6 4 0 1 1 11 1 1 12 1 1 4 1 1 0 1 1 1 17 4 0 1 1 5 3 0 5 1 1 13 1 1 7 1 1 1 5 4 0 1 1 5 3 0 11 1 1 7 5 0 14 1 1 7 1 1 1 10 4 0 1 1 1 2 0 9 5 2 0 1 1 1 1 1 1 2 1 13 2 1 17 1 1 0 17 4 0 1 1 11 5 6 11 1 1 3 1 1 8 1 1 5 1 1 5 1 1 5 1 1 0 1 1 0 1 1 1 13 4 0 1 1 5 3 0 5 1 1 5 1 1 9 1 1 3 1 1 0 1 1 12 1 1 5 1 1 6 1 1 0 1 1 5 3 0 6 1 1 1 2 0 11 4 0 9 1 1 3 1 1 1 4 0 9 3 0 6 1 1 1 4 2 1 1 1 6 1 1 5 1 1 6 1 1 5 1 1 14 1 1 13 1 1 3 1 1 3 1 1 5 1 1 5 1 1 7 1 1 0 1 1 0 1 1 8 1 1 8 1 1 4 1 1 1 1 1 5 13 2 1 1 1 13 1 1 1 5 2 1 1 1 1 2 1 5 1 1 7 1 1 7 1 1 5 1 1 5 1 1 1 1 1 4 1 1 0 1 1 1 1 1 0 1 1 13 1 1 5 1 1 0 4 2 0 1 1 0 1 1 0 1 1 0 6 4 0 1 1 1 4 2 0 1 1 4 1 1 0 1 1 0 1 1 1 1 1 0 10 4 0 1 1 1 4 2 0 1 1 5 1 1 8 1 1 0 1 1 0 1 1 0 1 1 0 1 1 5 1 1 3 4 0 4 2 1 1 6 4 1 4 0 19 1 1 7 1 1 1 1 1 0 4 4 0 1 1 1 6 4 0 1 1 0 1 1 5 3 0 6 1 1 13 1 1 7 1 1 1 6 4 0 1 1 11 1 1 12 1 1 4 1 1 0 1 1 1 17 4 0 1 1 5 3 0 6 1 1 10 1 1 5 1 1 5 1 1 5 1 1 5 13 2 1 1 1 7 1 1 6 1 1 7 1 1 5 1 1 20 1 1 4 1 1 6 1 1 6 1 1 8 1 1 0 1 1 1 1 1 3 4 0 4 2 1 1 6 4 1 4 0 19 1 1 7 1 1 1 1 1 0 4 4 0 1 1 1 6 4 0 1 1 0 1 1 5 3 0 6 1 1 13 1 1 7 1 1 1 6 4 0 1 1 11 1 1 12 1 1 4 1 1 0 1 1 1 17 4 0 1 1 5 3 0 9 1 1 10 1 1 5 1 1 5 1 1 5 1 1 5 13 2 1 1 1 13 1 1 1 5 2 1 1 1 1 2 1 5 1 1 7 1 1 12 1 1 5 1 1 5 1 1 5 1 1 1 1 1 0 1 1 13 1 1 5 1 1 0 4 2 0 1 1 0 1 1 0 1 1 0 9 4 0 1 1 1 4 2 0 1 1 4 1 1 0 1 1 0 1 1 0 1 1 0 1 1 5 1 1 3 4 0 4 2 1 1 7 4 1 4 0 19 1 1 7 1 1 1 1 1 0 4 4 0 1 1 1 9 4 0 1 1 0 1 1 5 3 0 9 1 1 7 5 0 14 1 1 7 1 1 1 9 4 0 1 1 1 2 0 9 4 2 0 1 1 2 1 1 1 2 1 14 2 1 17 1 1 0 17 4 0 1 1 11 1 1 0 1 1 11 1 1 6 1 1 7 1 1 1 2 1 1 1 5 1 2 1 7 1 1 7 1 1 1 2 1 1 3 5 0 1 1 1 17 4 0 1 1 5 3 0 8 2 0 4 1 1 7 1 1 1 2 0 19 1 1 6 1 1 5 3 0 8 2 1 6 1 1 11 3 0 8 2 0 4 1 1 7 1 1 1 2 0 8 2 1 13 1 1 6 1 1 7 1 1 5 3 0 7 1 1 9 1 1 5 1 1 5 1 1 7 1 1 14 1 1 7 1 1 0 1 1 5 3 0 6 1 1 1 5 2 1 1 1 8 1 1 7 1 1 7 1 1 6 1 1 10 1 1 6 1 1 9 1 1 1 1 5 1 1 1 5 13 2 1 1 1 7 1 1 5 1 1 7 1 1 5 1 1 0 4 2 0 1 1 0 1 1 0 1 1 0 10 4 0 1 1 1 4 2 0 1 1 4 1 1 8 1 1 0 1 1 0 1 1 0 1 1 0 1 1 1 1 1 3 4 0 11 1 1 0 17 4 0 1 1 5 13 2 1 1 1 7 1 1 6 1 1 7 1 1 1 5 2 1 1 1",
+        "refs": [
+          {
+            "start": 25,
+            "end": 29,
+            "target": "Json.Json"
+          },
+          {
+            "start": 39,
+            "end": 44,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 48,
+            "end": 61,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 75,
+            "end": 87,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 132,
+            "end": 146,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 206,
+            "end": 218,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 240,
+            "end": 246,
+            "target": "Model.demand"
+          },
+          {
+            "start": 247,
+            "end": 259,
+            "target": "Commands@view_name_ok"
+          },
+          {
+            "start": 300,
+            "end": 312,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 361,
+            "end": 374,
+            "target": "Commands@command_field"
+          },
+          {
+            "start": 444,
+            "end": 450,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 490,
+            "end": 496,
+            "target": "Model.demand"
+          },
+          {
+            "start": 497,
+            "end": 500,
+            "target": "not"
+          },
+          {
+            "start": 501,
+            "end": 509,
+            "target": "Commands@has_view"
+          },
+          {
+            "start": 560,
+            "end": 564,
+            "target": "Binder.bind"
+          },
+          {
+            "start": 565,
+            "end": 574,
+            "target": "Parser.parse_sql"
+          },
+          {
+            "start": 581,
+            "end": 592,
+            "target": "Commands@database_of"
+          },
+          {
+            "start": 641,
+            "end": 649,
+            "target": "Engine.optimize"
+          },
+          {
+            "start": 679,
+            "end": 683,
+            "target": "Commands.View"
+          },
+          {
+            "start": 727,
+            "end": 739,
+            "target": "Commands@unique_names"
+          },
+          {
+            "start": 740,
+            "end": 743,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 744,
+            "end": 747,
+            "target": "fst"
+          },
+          {
+            "start": 780,
+            "end": 787,
+            "target": "Engine.execute"
+          },
+          {
+            "start": 800,
+            "end": 813,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 830,
+            "end": 835,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 855,
+            "end": 861,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 900,
+            "end": 904,
+            "target": "Commands@good"
+          },
+          {
+            "start": 905,
+            "end": 909,
+            "target": "Json.Json"
+          },
+          {
+            "start": 920,
+            "end": 924,
+            "target": "Json.Json"
+          },
+          {
+            "start": 946,
+            "end": 950,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1006,
+            "end": 1020,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 1061,
+            "end": 1073,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 1095,
+            "end": 1101,
+            "target": "Model.demand"
+          },
+          {
+            "start": 1102,
+            "end": 1114,
+            "target": "Commands@view_name_ok"
+          },
+          {
+            "start": 1156,
+            "end": 1165,
+            "target": "Commands@find_view"
+          },
+          {
+            "start": 1189,
+            "end": 1202,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 1228,
+            "end": 1232,
+            "target": "Commands@good"
+          },
+          {
+            "start": 1233,
+            "end": 1253,
+            "target": "Commands@result_with_revision"
+          },
+          {
+            "start": 1315,
+            "end": 1329,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 1370,
+            "end": 1382,
+            "target": "Commands@command_text"
+          },
+          {
+            "start": 1404,
+            "end": 1410,
+            "target": "Model.demand"
+          },
+          {
+            "start": 1411,
+            "end": 1423,
+            "target": "Commands@view_name_ok"
+          },
+          {
+            "start": 1468,
+            "end": 1477,
+            "target": "Commands@find_view"
+          },
+          {
+            "start": 1501,
+            "end": 1514,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 1531,
+            "end": 1536,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 1556,
+            "end": 1567,
+            "target": "Commands@remove_view"
+          },
+          {
+            "start": 1604,
+            "end": 1608,
+            "target": "Commands@good"
+          },
+          {
+            "start": 1609,
+            "end": 1613,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1627,
+            "end": 1631,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1678,
+            "end": 1692,
+            "target": "Commands@command_fields"
+          },
+          {
+            "start": 1751,
+            "end": 1764,
+            "target": "Commands@command_field"
+          },
+          {
+            "start": 1834,
+            "end": 1840,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 1877,
+            "end": 1883,
+            "target": "Model.demand"
+          },
+          {
+            "start": 1884,
+            "end": 1890,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 1908,
+            "end": 1914,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 1969,
+            "end": 1972,
+            "target": "sof"
+          },
+          {
+            "start": 1985,
+            "end": 2003,
+            "target": "Commands@check_change_shape"
+          },
+          {
+            "start": 2061,
+            "end": 2064,
+            "target": "sof"
+          },
+          {
+            "start": 2087,
+            "end": 2099,
+            "target": "Commands@apply_change"
+          },
+          {
+            "start": 2132,
+            "end": 2140,
+            "target": "Commands@maintain"
+          },
+          {
+            "start": 2162,
+            "end": 2175,
+            "target": "Commands@changed_names"
+          },
+          {
+            "start": 2201,
+            "end": 2206,
+            "target": "Commands.Store"
+          },
+          {
+            "start": 2277,
+            "end": 2290,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 2315,
+            "end": 2319,
+            "target": "Commands@good"
+          },
+          {
+            "start": 2320,
+            "end": 2324,
+            "target": "Json.Json"
+          },
+          {
+            "start": 2339,
+            "end": 2343,
+            "target": "Json.Json"
+          },
+          {
+            "start": 2376,
+            "end": 2382,
+            "target": "Model.Domain"
+          },
+          {
+            "start": 2406,
+            "end": 2419,
+            "target": "Commands@CommandResult"
+          },
+          {
+            "start": 2445,
+            "end": 2450,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@table_name_shape",
+      "new": {
+        "id": "Commands@table_name_shape",
+        "name": "table_name_shape",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "c43060822cdc47207b50d663061f1bec0e44bc30aa224ea9b764ee57e1835b74",
+        "ty": "(String) -> Bool",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 16,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn table_name_shape(s : String) : Bool =\n  byte_len(s) > 0 && letter(byte_at(s, 0))\n    && all(\\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))",
+        "span": {
+          "start": 2273,
+          "end": 2445
+        },
+        "types": "20 1 2 22 8 54 1 1 2 9 6 57 1 7 55 1 1 2 13 3 56 9 6 57 1 7 55 1 1 2 2 1 39 6 5 57 1 7 55 1 1 2 2 1 39 4 5 58 4 8 54 1 1 2",
+        "tokens": "0 2 0 17 1 1 2 1 1 1 6 3 0 1 1 1 1 1 1 4 3 1 1 1 11 1 1 1 1 1 1 1 1 1 1 5 1 2 1 7 1 1 7 1 1 1 1 1 1 1 5 0 1 1 0 1 1 5 2 1 4 1 1 0 1 1 0 1 1 1 1 1 1 2 1 7 1 1 7 1 1 1 1 1 2 1 1 0 1 1 1 2 1 6 1 1 7 1 1 1 1 1 2 1 1 0 1 1 0 1 1 6 1 1 0 1 5 0 1 1 9 1 1 1 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 24,
+            "end": 30,
+            "target": "String"
+          },
+          {
+            "start": 34,
+            "end": 38,
+            "target": "Bool"
+          },
+          {
+            "start": 43,
+            "end": 51,
+            "target": "byte_len"
+          },
+          {
+            "start": 62,
+            "end": 68,
+            "target": "Model.letter"
+          },
+          {
+            "start": 69,
+            "end": 76,
+            "target": "byte_at"
+          },
+          {
+            "start": 91,
+            "end": 94,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 103,
+            "end": 109,
+            "target": "Model.letter"
+          },
+          {
+            "start": 110,
+            "end": 117,
+            "target": "byte_at"
+          },
+          {
+            "start": 128,
+            "end": 133,
+            "target": "Model.digit"
+          },
+          {
+            "start": 134,
+            "end": 141,
+            "target": "byte_at"
+          },
+          {
+            "start": 150,
+            "end": 155,
+            "target": "Data.List.range"
+          },
+          {
+            "start": 159,
+            "end": 167,
+            "target": "byte_len"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@unique_names",
+      "new": {
+        "id": "Commands@unique_names",
+        "name": "unique_names",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "3f798c08b50e3e6a4d29a9734925c6d32aabd3578d65aa7f691fb6528badd2b4",
+        "ty": "(List(String)) -> List(String)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 2 1 1 4 2 0 1 1 0 6 3 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 12,
+            "target": "String"
+          },
+          {
+            "start": 18,
+            "end": 22,
+            "target": "List"
+          },
+          {
+            "start": 23,
+            "end": 29,
+            "target": "String"
+          }
+        ],
+        "source": "fn unique_names(xs : List(String)) : List(String) =\n  match xs of\n    Nil => []\n    Cons(x, rest) => Cons(x, unique_names(filter(\\(y) -> y /= x, rest)))",
+        "span": {
+          "start": 6734,
+          "end": 6886
+        },
+        "types": "16 2 0 42 2 0 27 1 2 2 4 0 5 4 64 1 1 2 2 12 89 1 6 1 9 1 2 4 1 2 2 4 0",
+        "tokens": "0 2 0 13 1 1 3 1 1 1 4 2 0 1 1 0 6 3 0 1 1 0 1 1 1 1 1 1 4 2 0 1 1 0 6 3 0 1 1 1 1 1 3 5 0 4 2 0 5 3 2 1 2 1 1 1 1 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 1 4 2 0 1 1 1 1 1 13 1 1 6 1 1 0 1 1 0 1 1 1 1 1 1 2 1 3 2 1 2 1 1 5 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 26,
+            "end": 32,
+            "target": "String"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "List"
+          },
+          {
+            "start": 42,
+            "end": 48,
+            "target": "String"
+          },
+          {
+            "start": 70,
+            "end": 73,
+            "target": "List"
+          },
+          {
+            "start": 84,
+            "end": 88,
+            "target": "List"
+          },
+          {
+            "start": 101,
+            "end": 105,
+            "target": "List"
+          },
+          {
+            "start": 109,
+            "end": 121,
+            "target": "Commands@unique_names"
+          },
+          {
+            "start": 122,
+            "end": 128,
+            "target": "Data.List.filter"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@update_row",
+      "new": {
+        "id": "Commands@update_row",
+        "name": "update_row",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "6daf3fc11fcd74852b5344de74bc662a013969f756fb13bf69f5f78be2216641",
+        "ty": "(List(Commands.StoredRow), Int, List(Json.Json)) -> List(Commands.StoredRow)",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 18 2 0 1 1 0 1 1 1 3 3 0 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 2 1 1 4 2 0 1 1 0 18 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 24,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 27,
+            "end": 30,
+            "target": "Int"
+          },
+          {
+            "start": 32,
+            "end": 36,
+            "target": "List"
+          },
+          {
+            "start": 37,
+            "end": 46,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 56,
+            "target": "List"
+          },
+          {
+            "start": 57,
+            "end": 75,
+            "target": "Commands.StoredRow"
+          }
+        ],
+        "source": "fn update_row(rows : List(StoredRow), id : Int, values : List(Json)) : List(StoredRow) =\n  match rows of\n    Nil => []\n    Cons(r, rest) =>\n      if r.id == id then Cons(StoredRow { id = id, values = values }, rest)\n      else Cons(r, update_row(rest, id, values))",
+        "span": {
+          "start": 4565,
+          "end": 4829
+        },
+        "types": "14 4 75 20 2 39 8 6 70 43 4 75 27 1 62 2 4 75 14 1 62 7 2 39 6 4 64 18 2 39 11 6 70 4 4 75 13 4 64 1 1 62 2 10 77 1 4 75 2 2 39 2 6 70",
+        "tokens": "0 2 0 11 1 1 5 1 1 1 4 2 0 1 1 0 9 2 0 1 1 0 1 1 4 1 1 1 3 3 0 1 1 8 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 1 1 1 1 4 2 0 1 1 0 9 2 0 1 1 1 1 1 3 5 0 6 2 0 5 3 2 1 2 1 1 1 1 0 1 1 5 4 2 0 1 1 1 1 1 5 1 1 1 2 1 7 2 0 2 1 1 3 2 1 4 4 0 1 4 2 0 1 1 0 9 2 1 1 1 4 1 1 3 1 1 8 1 1 8 1 1 0 1 1 5 1 1 7 4 0 1 4 2 0 1 1 1 1 1 11 1 1 4 1 1 3 1 1 7 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 26,
+            "end": 35,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 43,
+            "end": 46,
+            "target": "Int"
+          },
+          {
+            "start": 57,
+            "end": 61,
+            "target": "List"
+          },
+          {
+            "start": 62,
+            "end": 66,
+            "target": "Json.Json"
+          },
+          {
+            "start": 71,
+            "end": 75,
+            "target": "List"
+          },
+          {
+            "start": 76,
+            "end": 85,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 109,
+            "end": 112,
+            "target": "List"
+          },
+          {
+            "start": 123,
+            "end": 127,
+            "target": "List"
+          },
+          {
+            "start": 165,
+            "end": 169,
+            "target": "List"
+          },
+          {
+            "start": 170,
+            "end": 179,
+            "target": "Commands.StoredRow"
+          },
+          {
+            "start": 227,
+            "end": 231,
+            "target": "List"
+          },
+          {
+            "start": 235,
+            "end": 245,
+            "target": "Commands@update_row"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@valid_row",
+      "new": {
+        "id": "Commands@valid_row",
+        "name": "valid_row",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "0472bc17c684a57fb27b38ebaa183a39e655dd66313ad53b58a49a3f13ed5d5d",
+        "ty": "(List(Json.Json), List(Model.Column)) -> Bool",
+        "ty_tokens": "0 1 1 0 4 2 0 1 1 0 9 2 0 1 1 0 1 1 1 4 2 0 1 1 0 12 2 0 1 1 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 5,
+            "target": "List"
+          },
+          {
+            "start": 6,
+            "end": 15,
+            "target": "Json.Json"
+          },
+          {
+            "start": 18,
+            "end": 22,
+            "target": "List"
+          },
+          {
+            "start": 23,
+            "end": 35,
+            "target": "Model.Column"
+          },
+          {
+            "start": 41,
+            "end": 45,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn valid_row(row : List(Json), columns : List(Column)) : Bool =\n  length(row) == length(columns)\n    && all(\n        \\(i) ->\n          let value = at(row, i) in\n          let column = at(columns, i) in\n          bounded_value(value)\n            && (value_type(value) == column.kind || is_null(value) && column.nullable),\n        range(0, length(columns)),\n      )",
+        "span": {
+          "start": 4004,
+          "end": 4367
+        },
+        "types": "13 3 70 15 7 7 28 6 71 1 3 70 5 6 72 1 7 7 9 3 56 40 2 5 1 3 70 2 1 39 28 2 5 1 7 7 2 1 39 15 13 73 1 5 42 18 10 74 1 5 42 5 6 9 9 7 73 1 5 42 5 6 9 20 5 58 4 6 72 1 7 7",
+        "tokens": "0 2 0 10 1 1 4 1 1 1 4 2 0 1 1 0 4 2 0 1 1 0 1 1 9 1 1 1 4 2 0 1 1 0 6 2 0 1 1 0 1 1 1 1 1 1 4 3 1 1 1 9 1 1 3 1 1 1 2 1 7 1 1 7 1 1 5 2 1 4 1 1 9 1 1 0 1 1 1 1 1 1 2 1 11 3 0 7 1 1 3 1 1 3 1 1 2 1 1 1 2 0 11 3 0 8 1 1 3 1 1 7 1 1 2 1 1 1 2 0 24 1 1 5 1 1 13 2 1 1 1 1 10 1 1 5 1 1 1 2 1 7 1 1 5 2 1 8 1 1 5 1 1 1 2 1 7 1 1 8 1 1 0 1 1 14 1 1 0 1 5 0 1 1 7 1 1 7 1 1 0 1 1 0 1 1 7 1 1",
+        "refs": [
+          {
+            "start": 19,
+            "end": 23,
+            "target": "List"
+          },
+          {
+            "start": 24,
+            "end": 28,
+            "target": "Json.Json"
+          },
+          {
+            "start": 41,
+            "end": 45,
+            "target": "List"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "Model.Column"
+          },
+          {
+            "start": 57,
+            "end": 61,
+            "target": "Bool"
+          },
+          {
+            "start": 66,
+            "end": 72,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 81,
+            "end": 87,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 104,
+            "end": 107,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 147,
+            "end": 149,
+            "target": "Model.at"
+          },
+          {
+            "start": 184,
+            "end": 186,
+            "target": "Model.at"
+          },
+          {
+            "start": 212,
+            "end": 225,
+            "target": "Commands@bounded_value"
+          },
+          {
+            "start": 249,
+            "end": 259,
+            "target": "Model.value_type"
+          },
+          {
+            "start": 285,
+            "end": 292,
+            "target": "Model.is_null"
+          },
+          {
+            "start": 329,
+            "end": 334,
+            "target": "Data.List.range"
+          },
+          {
+            "start": 338,
+            "end": 344,
+            "target": "Data.Foldable.length"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Commands@view_name_ok",
+      "new": {
+        "id": "Commands@view_name_ok",
+        "name": "view_name_ok",
+        "module": "Commands",
+        "kind": "value",
+        "hash": "79501c4ab4a9528b9f5cc55994afdc3f6b31e9d6f360c7522d3a28d0ebc49a7d",
+        "ty": "(String) -> Bool",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 16,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn view_name_ok(s : String) : Bool =\n  byte_len(s) >= 1 && byte_len(s) <= 40\n    && byte_at(s, 0) >= 97 && byte_at(s, 0) <= 122\n    && all(\n        \\(i) ->\n          let c = byte_at(s, i) in\n          c >= 97 && c <= 122 || digit(c) || c == 45,\n        range(0, byte_len(s)),\n      )",
+        "span": {
+          "start": 1988,
+          "end": 2271
+        },
+        "types": "16 1 2 22 8 54 1 1 2 10 8 54 1 1 2 15 7 55 1 1 2 14 7 55 1 1 2 19 3 56 36 7 55 1 1 2 2 1 39 15 1 39 10 1 39 11 5 57 1 1 39 5 1 39 16 5 58 4 8 54 1 1 2",
+        "tokens": "0 2 0 13 1 1 2 1 1 1 6 3 0 1 1 1 1 1 1 4 3 1 1 1 11 1 1 1 1 1 1 2 1 1 1 5 1 2 1 9 1 1 1 1 1 1 2 1 1 2 5 5 2 1 8 1 1 1 1 1 1 1 5 0 1 1 1 2 1 1 2 5 1 2 1 8 1 1 1 1 1 1 1 5 0 1 1 1 2 1 1 3 5 5 2 1 4 1 1 9 1 1 0 1 1 1 1 1 1 2 1 11 3 0 3 1 1 8 1 1 1 1 1 2 1 1 1 2 0 13 2 1 1 2 5 1 2 1 3 2 1 1 3 5 1 2 1 6 1 1 1 1 1 1 2 1 3 2 1 1 2 5 0 1 1 14 1 1 0 1 5 0 1 1 9 1 1 1 1 1 0 1 1 0 1 1 7 1 1",
+        "refs": [
+          {
+            "start": 20,
+            "end": 26,
+            "target": "String"
+          },
+          {
+            "start": 30,
+            "end": 34,
+            "target": "Bool"
+          },
+          {
+            "start": 39,
+            "end": 47,
+            "target": "byte_len"
+          },
+          {
+            "start": 59,
+            "end": 67,
+            "target": "byte_len"
+          },
+          {
+            "start": 84,
+            "end": 91,
+            "target": "byte_at"
+          },
+          {
+            "start": 107,
+            "end": 114,
+            "target": "byte_at"
+          },
+          {
+            "start": 135,
+            "end": 138,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 174,
+            "end": 181,
+            "target": "byte_at"
+          },
+          {
+            "start": 224,
+            "end": 229,
+            "target": "Model.digit"
+          },
+          {
+            "start": 253,
+            "end": 258,
+            "target": "Data.List.range"
+          },
+          {
+            "start": 262,
+            "end": 270,
+            "target": "byte_len"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "has_field",
+      "new": {
+        "id": "has_field",
+        "name": "has_field",
+        "module": "main",
+        "kind": "value",
+        "hash": "2e32733866022bf2efe29d1c4654c356b08689944416ba39fe0fe8e901fc0b65",
+        "ty": "(Json.Json, String) -> Bool",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 6 3 0 1 1 1 2 1 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "String"
+          },
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn has_field(j : Json, name : String) : Bool =\n  match j of\n    JObj(xs) => length(filter(\\(kv) -> fst(kv) == name, xs)) > 0\n    _ => false",
+        "span": {
+          "start": 452,
+          "end": 591
+        },
+        "types": "13 1 42 9 4 2 28 1 42 13 2 46 5 6 219 1 6 1 10 3 36 1 2 50 5 4 2 2 2 46",
+        "tokens": "0 2 0 10 1 1 2 1 1 1 4 2 0 1 1 6 1 1 1 6 3 0 1 1 1 1 1 1 4 3 1 1 1 3 5 0 3 2 0 5 4 2 0 1 1 2 1 1 1 2 1 7 1 1 6 1 1 0 1 1 0 1 1 2 1 1 1 2 1 4 1 1 2 1 1 1 2 1 5 1 1 3 1 1 0 1 1 1 1 1 1 1 5 7 2 1 1 5 6",
+        "refs": [
+          {
+            "start": 17,
+            "end": 21,
+            "target": "Json.Json"
+          },
+          {
+            "start": 30,
+            "end": 36,
+            "target": "String"
+          },
+          {
+            "start": 40,
+            "end": 44,
+            "target": "Bool"
+          },
+          {
+            "start": 76,
+            "end": 82,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 83,
+            "end": 89,
+            "target": "Data.List.filter"
+          },
+          {
+            "start": 99,
+            "end": 102,
+            "target": "fst"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "work",
+      "old": {
+        "id": "work",
+        "name": "work",
+        "module": "main",
+        "kind": "value",
+        "hash": "c98cbf4d71edf8de47b14d1d5293b51200dbf0cf5320bd2046d9f00b1c26ee26",
+        "ty": "(Json.Json) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 24,
+            "target": "Json.Json"
+          },
+          {
+            "start": 28,
+            "end": 40,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn work(request : Json) : Json =\n  fields(request, [\"protocol_version\", \"task\", \"input\"])\n  demand(\n      value_type(getfield(request, \"protocol_version\")) == \"int\"\n        && integer(getfield(request, \"protocol_version\")) == 1,\n      \"INVALID_INPUT\",\n    )\n  demand(text(getfield(request, \"task\")) == \"query-null\", \"INVALID_INPUT\")\n  let input = getfield(request, \"input\")\n  fields(input, [\"database\", \"queries\"])\n  let database = map(validate_table, arr(getfield(input, \"database\")))\n  demand(unique(map(\\(t) -> t.name, database)), \"INVALID_INPUT\")\n  let queries = arr(getfield(input, \"queries\"))\n  for q in sof(queries) do\n    validate_query(q)\n  let results = map(\n      \\(q) -> let plan = bind(parse_sql(text(getfield(q, \"sql\"))), database) in execute(if truth(getfield(q, \"optimize\")) then optimize(plan) else plan),\n      queries,\n    )\n  JObj([(\"ok\", JBool(true)), (\"result\", JObj([(\"results\", JArr(results))]))])",
+        "span": {
+          "start": 421,
+          "end": 1342
+        },
+        "types": "8 7 42 20 6 118 1 7 42 43 6 10 8 10 92 1 8 120 1 7 42 43 7 53 1 8 120 1 7 42 60 6 10 1 4 119 1 8 120 1 7 42 59 8 120 1 7 42 13 6 118 1 5 42 44 3 14 1 14 177 2 3 122 1 8 120 1 5 42 18 6 10 1 6 20 1 3 14 9 1 31 7 8 30 37 3 122 1 8 120 1 5 42 25 3 28 1 7 44 9 14 178 1 1 42 18 3 14 27 4 179 1 9 180 1 4 119 1 8 120 1 1 42 12 8 30 5 7 181 4 5 49 1 8 120 1 1 42 20 8 182 1 4 76 7 4 76 9 7 44 10 4 183 9 5 56 20 4 183 14 4 93 1 7 44",
+        "tokens": "0 2 0 5 1 1 8 1 1 1 4 2 0 1 1 1 1 1 1 4 2 1 1 1 9 1 1 7 1 1 1 1 1 0 18 4 0 1 1 1 6 4 0 1 1 1 7 4 0 1 1 0 1 1 9 1 1 17 1 1 8 1 1 7 1 1 1 18 4 0 1 1 0 1 1 1 2 1 1 5 4 9 2 1 8 1 1 8 1 1 7 1 1 1 18 4 0 1 1 0 1 1 1 2 1 1 1 5 0 1 1 7 15 4 0 1 1 5 1 1 9 1 1 4 1 1 8 1 1 7 1 1 1 6 4 0 1 1 0 1 1 1 2 1 1 12 4 0 1 1 1 15 4 0 1 1 3 3 0 7 1 1 9 1 1 7 1 1 1 7 4 0 1 1 9 1 1 5 1 1 1 1 1 0 10 4 0 1 1 1 9 4 0 1 1 0 1 1 3 3 0 10 1 1 4 1 1 14 1 1 4 1 1 8 1 1 5 1 1 1 10 4 0 1 1 0 1 1 0 1 1 9 1 1 6 1 1 3 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 4 1 1 9 1 1 0 1 1 0 1 1 1 15 4 0 1 1 3 3 0 9 1 1 4 1 1 8 1 1 5 1 1 1 9 4 0 1 1 0 1 1 3 3 0 3 2 0 4 1 1 7 1 1 1 2 0 19 1 1 1 1 1 3 3 0 9 1 1 4 1 1 7 1 1 0 1 1 1 1 1 1 2 1 1 3 0 6 1 1 5 1 1 9 1 1 4 1 1 8 1 1 1 1 1 1 5 4 0 1 1 0 1 1 0 1 1 0 1 1 9 1 1 1 2 0 8 1 1 0 2 0 6 1 1 8 1 1 1 1 1 1 10 4 0 1 1 0 1 1 1 4 0 9 1 1 4 1 1 1 4 0 5 1 1 0 1 1 14 1 1 5 1 1 3 4 2 0 1 1 0 1 1 0 1 1 0 4 4 0 1 1 1 5 2 0 1 1 0 4 6 0 1 1 0 1 1 0 1 1 1 1 1 0 8 4 0 1 1 1 4 2 0 1 1 0 1 1 0 1 1 0 9 4 0 1 1 1 4 2 0 1 1 7 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 18,
+            "end": 22,
+            "target": "Json.Json"
+          },
+          {
+            "start": 26,
+            "end": 30,
+            "target": "Json.Json"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Model.fields"
+          },
+          {
+            "start": 92,
+            "end": 98,
+            "target": "Model.demand"
+          },
+          {
+            "start": 106,
+            "end": 116,
+            "target": "Model.value_type"
+          },
+          {
+            "start": 117,
+            "end": 125,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 176,
+            "end": 183,
+            "target": "Model.integer"
+          },
+          {
+            "start": 184,
+            "end": 192,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 260,
+            "end": 266,
+            "target": "Model.demand"
+          },
+          {
+            "start": 267,
+            "end": 271,
+            "target": "Model.text"
+          },
+          {
+            "start": 272,
+            "end": 280,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 347,
+            "end": 355,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 376,
+            "end": 382,
+            "target": "Model.fields"
+          },
+          {
+            "start": 432,
+            "end": 435,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 436,
+            "end": 450,
+            "target": "Model.validate_table"
+          },
+          {
+            "start": 452,
+            "end": 455,
+            "target": "Model.arr"
+          },
+          {
+            "start": 456,
+            "end": 464,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 488,
+            "end": 494,
+            "target": "Model.demand"
+          },
+          {
+            "start": 495,
+            "end": 501,
+            "target": "Model.unique"
+          },
+          {
+            "start": 502,
+            "end": 505,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 567,
+            "end": 570,
+            "target": "Model.arr"
+          },
+          {
+            "start": 571,
+            "end": 579,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 610,
+            "end": 613,
+            "target": "sof"
+          },
+          {
+            "start": 630,
+            "end": 644,
+            "target": "validate_query"
+          },
+          {
+            "start": 664,
+            "end": 667,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 694,
+            "end": 698,
+            "target": "Binder.bind"
+          },
+          {
+            "start": 699,
+            "end": 708,
+            "target": "Parser.parse_sql"
+          },
+          {
+            "start": 709,
+            "end": 713,
+            "target": "Model.text"
+          },
+          {
+            "start": 714,
+            "end": 722,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 749,
+            "end": 756,
+            "target": "Engine.execute"
+          },
+          {
+            "start": 760,
+            "end": 765,
+            "target": "Model.truth"
+          },
+          {
+            "start": 766,
+            "end": 774,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 796,
+            "end": 804,
+            "target": "Engine.optimize"
+          },
+          {
+            "start": 846,
+            "end": 850,
+            "target": "Json.Json"
+          },
+          {
+            "start": 859,
+            "end": 864,
+            "target": "Json.Json"
+          },
+          {
+            "start": 884,
+            "end": 888,
+            "target": "Json.Json"
+          },
+          {
+            "start": 902,
+            "end": 906,
+            "target": "Json.Json"
+          }
+        ]
+      },
+      "new": {
+        "id": "work",
+        "name": "work",
+        "module": "main",
+        "kind": "value",
+        "hash": "57771a47ec8c454bb633ec6e5a3294eb97de58e7e6482d82d7912484643ccc11",
+        "ty": "(Json.Json) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 9 2 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 24,
+            "target": "Json.Json"
+          },
+          {
+            "start": 28,
+            "end": 40,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn work(request : Json) : Json =\n  fields(request, [\"protocol_version\", \"task\", \"input\"])\n  demand(\n      value_type(getfield(request, \"protocol_version\")) == \"int\"\n        && integer(getfield(request, \"protocol_version\")) == 1,\n      \"INVALID_INPUT\",\n    )\n  demand(text(getfield(request, \"task\")) == \"query-null\", \"INVALID_INPUT\")\n  let input = getfield(request, \"input\")\n  let query_mode = has_field(input, \"queries\") && not(has_field(input, \"commands\"))\n  let command_mode = has_field(input, \"commands\") && not(has_field(input, \"queries\"))\n  demand(query_mode || command_mode, \"INVALID_INPUT\")\n  fields(input, if query_mode then [\"database\", \"queries\"] else [\"database\", \"commands\"])\n  let database = map(validate_table, arr(getfield(input, \"database\")))\n  demand(unique(map(\\(t) -> t.name, database)), \"INVALID_INPUT\")\n  if command_mode then\n    let commands = arr(getfield(input, \"commands\"))\n    demand(length(commands) <= 2000, \"INVALID_INPUT\")\n    run_commands(database, commands)\n  else\n    let queries = arr(getfield(input, \"queries\"))\n    for q in sof(queries) do\n      validate_query(q)\n    let results = map(\n        \\(q) -> let plan = bind(parse_sql(text(getfield(q, \"sql\"))), database) in execute(if truth(getfield(q, \"optimize\")) then optimize(plan) else plan),\n        queries,\n      )\n    JObj([(\"ok\", JBool(true)), (\"result\", JObj([(\"results\", JArr(results))]))])",
+        "span": {
+          "start": 593,
+          "end": 1976
+        },
+        "types": "8 7 42 20 6 79 1 7 42 43 6 10 8 10 74 1 8 53 1 7 42 43 7 118 1 8 53 1 7 42 60 6 10 1 4 165 1 8 53 1 7 42 59 8 53 1 7 42 30 9 220 1 5 42 16 3 13 1 9 220 1 5 42 36 9 220 1 5 42 17 3 13 1 9 220 1 5 42 16 6 10 1 10 8 4 12 8 21 6 79 1 5 42 5 10 8 78 3 14 1 14 221 2 3 82 1 8 53 1 5 42 18 6 10 1 6 20 1 3 14 9 1 31 7 8 30 26 12 8 25 3 82 1 8 53 1 5 42 19 6 10 1 6 104 1 8 70 32 12 222 1 8 30 2 8 70 27 3 82 1 8 53 1 5 42 27 3 28 1 7 70 11 14 105 1 1 42 20 3 14 29 4 97 1 9 98 1 4 165 1 8 53 1 1 42 12 8 30 5 7 93 4 5 73 1 8 53 1 1 42 20 8 99 1 4 90 7 4 90 11 7 70 14 4 43 9 5 44 20 4 43 14 4 110 1 7 70",
+        "tokens": "0 2 0 5 1 1 8 1 1 1 4 2 0 1 1 1 1 1 1 4 2 1 1 1 9 1 1 7 1 1 1 1 1 0 18 4 0 1 1 1 6 4 0 1 1 1 7 4 0 1 1 0 1 1 9 1 1 17 1 1 8 1 1 7 1 1 1 18 4 0 1 1 0 1 1 1 2 1 1 5 4 9 2 1 8 1 1 8 1 1 7 1 1 1 18 4 0 1 1 0 1 1 1 2 1 1 1 5 0 1 1 7 15 4 0 1 1 5 1 1 9 1 1 4 1 1 8 1 1 7 1 1 1 6 4 0 1 1 0 1 1 1 2 1 1 12 4 0 1 1 1 15 4 0 1 1 3 3 0 7 1 1 9 1 1 7 1 1 1 7 4 0 1 1 3 3 0 12 1 1 10 1 1 5 1 1 1 9 4 0 1 1 1 2 1 4 1 1 9 1 1 5 1 1 1 10 4 0 1 1 0 1 1 3 3 0 14 1 1 10 1 1 5 1 1 1 10 4 0 1 1 1 2 1 4 1 1 9 1 1 5 1 1 1 9 4 0 1 1 0 1 1 9 1 1 11 2 1 13 1 1 1 15 4 0 1 1 9 1 1 5 1 1 1 2 0 12 4 0 1 1 1 0 10 4 0 1 1 1 9 4 0 1 1 1 4 0 1 1 1 0 10 4 0 1 1 1 10 4 0 1 1 0 1 1 3 3 0 10 1 1 4 1 1 14 1 1 4 1 1 8 1 1 5 1 1 1 10 4 0 1 1 0 1 1 0 1 1 9 1 1 6 1 1 3 1 1 0 1 1 0 1 1 1 1 1 1 2 1 2 1 1 4 1 1 9 1 1 0 1 1 0 1 1 1 15 4 0 1 1 3 2 0 14 4 0 5 3 0 10 1 1 4 1 1 8 1 1 5 1 1 1 10 4 0 1 1 0 1 1 11 1 1 6 1 1 8 1 1 1 2 1 1 4 5 0 1 1 1 15 4 0 1 1 17 1 1 8 1 1 9 1 1 3 4 0 5 3 0 9 1 1 4 1 1 8 1 1 5 1 1 1 9 4 0 1 1 0 1 1 5 3 0 3 2 0 4 1 1 7 1 1 1 2 0 21 1 1 1 1 1 5 3 0 9 1 1 4 1 1 9 1 1 0 1 1 1 1 1 1 2 1 1 3 0 6 1 1 5 1 1 9 1 1 4 1 1 8 1 1 1 1 1 1 5 4 0 1 1 0 1 1 0 1 1 0 1 1 9 1 1 1 2 0 8 1 1 0 2 0 6 1 1 8 1 1 1 1 1 1 10 4 0 1 1 0 1 1 1 4 0 9 1 1 4 1 1 1 4 0 5 1 1 0 1 1 16 1 1 7 1 1 5 4 2 0 1 1 0 1 1 0 1 1 0 4 4 0 1 1 1 5 2 0 1 1 0 4 6 0 1 1 0 1 1 0 1 1 1 1 1 0 8 4 0 1 1 1 4 2 0 1 1 0 1 1 0 1 1 0 9 4 0 1 1 1 4 2 0 1 1 7 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 18,
+            "end": 22,
+            "target": "Json.Json"
+          },
+          {
+            "start": 26,
+            "end": 30,
+            "target": "Json.Json"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Model.fields"
+          },
+          {
+            "start": 92,
+            "end": 98,
+            "target": "Model.demand"
+          },
+          {
+            "start": 106,
+            "end": 116,
+            "target": "Model.value_type"
+          },
+          {
+            "start": 117,
+            "end": 125,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 176,
+            "end": 183,
+            "target": "Model.integer"
+          },
+          {
+            "start": 184,
+            "end": 192,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 260,
+            "end": 266,
+            "target": "Model.demand"
+          },
+          {
+            "start": 267,
+            "end": 271,
+            "target": "Model.text"
+          },
+          {
+            "start": 272,
+            "end": 280,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 347,
+            "end": 355,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 393,
+            "end": 402,
+            "target": "has_field"
+          },
+          {
+            "start": 424,
+            "end": 427,
+            "target": "not"
+          },
+          {
+            "start": 428,
+            "end": 437,
+            "target": "has_field"
+          },
+          {
+            "start": 479,
+            "end": 488,
+            "target": "has_field"
+          },
+          {
+            "start": 511,
+            "end": 514,
+            "target": "not"
+          },
+          {
+            "start": 515,
+            "end": 524,
+            "target": "has_field"
+          },
+          {
+            "start": 546,
+            "end": 552,
+            "target": "Model.demand"
+          },
+          {
+            "start": 600,
+            "end": 606,
+            "target": "Model.fields"
+          },
+          {
+            "start": 705,
+            "end": 708,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 709,
+            "end": 723,
+            "target": "Model.validate_table"
+          },
+          {
+            "start": 725,
+            "end": 728,
+            "target": "Model.arr"
+          },
+          {
+            "start": 729,
+            "end": 737,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 761,
+            "end": 767,
+            "target": "Model.demand"
+          },
+          {
+            "start": 768,
+            "end": 774,
+            "target": "Model.unique"
+          },
+          {
+            "start": 775,
+            "end": 778,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 866,
+            "end": 869,
+            "target": "Model.arr"
+          },
+          {
+            "start": 870,
+            "end": 878,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 903,
+            "end": 909,
+            "target": "Model.demand"
+          },
+          {
+            "start": 910,
+            "end": 916,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 957,
+            "end": 969,
+            "target": "Commands.run_commands"
+          },
+          {
+            "start": 1015,
+            "end": 1018,
+            "target": "Model.arr"
+          },
+          {
+            "start": 1019,
+            "end": 1027,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 1060,
+            "end": 1063,
+            "target": "sof"
+          },
+          {
+            "start": 1082,
+            "end": 1096,
+            "target": "validate_query"
+          },
+          {
+            "start": 1118,
+            "end": 1121,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 1150,
+            "end": 1154,
+            "target": "Binder.bind"
+          },
+          {
+            "start": 1155,
+            "end": 1164,
+            "target": "Parser.parse_sql"
+          },
+          {
+            "start": 1165,
+            "end": 1169,
+            "target": "Model.text"
+          },
+          {
+            "start": 1170,
+            "end": 1178,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 1205,
+            "end": 1212,
+            "target": "Engine.execute"
+          },
+          {
+            "start": 1216,
+            "end": 1221,
+            "target": "Model.truth"
+          },
+          {
+            "start": 1222,
+            "end": 1230,
+            "target": "Model.getfield"
+          },
+          {
+            "start": 1252,
+            "end": 1260,
+            "target": "Engine.optimize"
+          },
+          {
+            "start": 1308,
+            "end": 1312,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1321,
+            "end": 1326,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1346,
+            "end": 1350,
+            "target": "Json.Json"
+          },
+          {
+            "start": 1364,
+            "end": 1368,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Parser.parse_sql",
+      "old": {
+        "id": "Parser.parse_sql",
+        "name": "parse_sql",
+        "module": "Parser",
+        "kind": "value",
+        "hash": "b37bd6c146f12589c085b6649a24b1f7619e4e61b893842dfd47895293c2126b",
+        "ty": "(String) -> Model.Query ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 11 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 23,
+            "target": "Model.Query"
+          },
+          {
+            "start": 27,
+            "end": 39,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn parse_sql(s : String) : Query = eval_state(lex(s, 0), query)",
+        "span": {
+          "start": 7023,
+          "end": 7086
+        },
+        "vis": "public",
+        "types": "13 1 2 21 10 174 1 3 175 1 1 2 6 5 176",
+        "tokens": "0 2 0 10 1 1 2 1 1 1 6 3 0 1 1 1 1 1 1 5 2 1 1 1 11 1 1 3 1 1 1 1 1 1 1 5 0 1 1 0 1 1 6 1 1",
+        "refs": [
+          {
+            "start": 17,
+            "end": 23,
+            "target": "String"
+          },
+          {
+            "start": 27,
+            "end": 32,
+            "target": "Model.Query"
+          },
+          {
+            "start": 35,
+            "end": 45,
+            "target": "Control.State.eval_state"
+          },
+          {
+            "start": 46,
+            "end": 49,
+            "target": "Parser@lex"
+          },
+          {
+            "start": 57,
+            "end": 62,
+            "target": "Parser@query"
+          }
+        ]
+      },
+      "new": {
+        "id": "Parser.parse_sql",
+        "name": "parse_sql",
+        "module": "Parser",
+        "kind": "value",
+        "hash": "83fc74cc7e2e3fea9cf0954b9956bc66cfacc1658917fe0fbd9d8df2318ac2c9",
+        "ty": "(String) -> Model.Query ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 11 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 23,
+            "target": "Model.Query"
+          },
+          {
+            "start": 27,
+            "end": 39,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn parse_sql(s : String) : Query = eval_state(lex(s, 0), query)",
+        "span": {
+          "start": 7023,
+          "end": 7086
+        },
+        "vis": "public",
+        "types": "13 1 2 21 10 216 1 3 217 1 1 2 6 5 218",
+        "tokens": "0 2 0 10 1 1 2 1 1 1 6 3 0 1 1 1 1 1 1 5 2 1 1 1 11 1 1 3 1 1 1 1 1 1 1 5 0 1 1 0 1 1 6 1 1",
+        "refs": [
+          {
+            "start": 17,
+            "end": 23,
+            "target": "String"
+          },
+          {
+            "start": 27,
+            "end": 32,
+            "target": "Model.Query"
+          },
+          {
+            "start": 35,
+            "end": 45,
+            "target": "Control.State.eval_state"
+          },
+          {
+            "start": 46,
+            "end": 49,
+            "target": "Parser@lex"
+          },
+          {
+            "start": 57,
+            "end": 62,
+            "target": "Parser@query"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "decode_work",
+      "old": {
+        "id": "decode_work",
+        "name": "decode_work",
+        "module": "main",
+        "kind": "value",
+        "hash": "9fd5519a0d343b681bf4a0490a7932ec22b1620f6d88755de5324b78d2ec43e2",
+        "ty": "(String) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 21,
+            "target": "Json.Json"
+          },
+          {
+            "start": 25,
+            "end": 37,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn decode_work(line : String) : Json =\n  match decode_lossy(line) of\n    Ok(request) => work(request)\n    Err(_) => error_response(\"INVALID_INPUT\")",
+        "span": {
+          "start": 1459,
+          "end": 1606
+        },
+        "types": "15 4 2 28 12 184 1 4 2 12 7 42 5 4 185 1 7 42 16 14 139",
+        "tokens": "0 2 0 12 1 1 5 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 13 1 1 4 1 1 1 2 0 5 2 2 0 1 1 7 1 1 1 2 1 5 1 1 7 1 1 5 3 2 0 1 1 1 1 1 1 2 1 15 1 1 0 15 4 0 1 1",
+        "refs": [
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          },
+          {
+            "start": 32,
+            "end": 36,
+            "target": "Json.Json"
+          },
+          {
+            "start": 47,
+            "end": 59,
+            "target": "Json.decode_lossy"
+          },
+          {
+            "start": 73,
+            "end": 75,
+            "target": "Result"
+          },
+          {
+            "start": 88,
+            "end": 92,
+            "target": "work"
+          },
+          {
+            "start": 106,
+            "end": 109,
+            "target": "Result"
+          },
+          {
+            "start": 116,
+            "end": 130,
+            "target": "error_response"
+          }
+        ]
+      },
+      "new": {
+        "id": "decode_work",
+        "name": "decode_work",
+        "module": "main",
+        "kind": "value",
+        "hash": "099736c38f988da40f24474a39c831f9e79d07fe12688a350e5e7c62e10566d5",
+        "ty": "(String) -> Json.Json ! {Model.Domain}",
+        "ty_tokens": "0 1 1 0 6 3 0 1 1 1 2 1 1 9 2 1 1 1 1 1 1 0 12 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 21,
+            "target": "Json.Json"
+          },
+          {
+            "start": 25,
+            "end": 37,
+            "target": "Model.Domain"
+          }
+        ],
+        "effects": "{Model.Domain}",
+        "eff_tokens": "0 1 1 0 12 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 13,
+            "target": "Model.Domain"
+          }
+        ],
+        "source": "fn decode_work(line : String) : Json =\n  match decode_lossy(line) of\n    Ok(request) => work(request)\n    Err(_) => error_response(\"INVALID_INPUT\")",
+        "span": {
+          "start": 2093,
+          "end": 2240
+        },
+        "types": "15 4 2 28 12 223 1 4 2 12 7 42 5 4 224 1 7 42 16 14 45",
+        "tokens": "0 2 0 12 1 1 5 1 1 1 6 3 0 1 1 1 1 1 1 4 2 1 1 1 3 5 0 13 1 1 4 1 1 1 2 0 5 2 2 0 1 1 7 1 1 1 2 1 5 1 1 7 1 1 5 3 2 0 1 1 1 1 1 1 2 1 15 1 1 0 15 4 0 1 1",
+        "refs": [
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          },
+          {
+            "start": 32,
+            "end": 36,
+            "target": "Json.Json"
+          },
+          {
+            "start": 47,
+            "end": 59,
+            "target": "Json.decode_lossy"
+          },
+          {
+            "start": 73,
+            "end": 75,
+            "target": "Result"
+          },
+          {
+            "start": 88,
+            "end": 92,
+            "target": "work"
+          },
+          {
+            "start": 106,
+            "end": 109,
+            "target": "Result"
+          },
+          {
+            "start": 116,
+            "end": 130,
+            "target": "error_response"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "main",
+      "old": {
+        "id": "main",
+        "name": "main",
+        "module": "main",
+        "kind": "value",
+        "hash": "7f24882739cc65d3059130d0a8d96d412f5f173b950a098784b4741ea091450f",
+        "ty": "() -> Unit ! {IO}",
+        "ty_tokens": "0 1 1 0 1 1 1 2 1 1 4 3 1 1 1 1 1 1 0 2 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Unit"
+          },
+          {
+            "start": 14,
+            "end": 16,
+            "target": "IO"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 1 0 2 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 3,
+            "target": "IO"
+          }
+        ],
+        "source": "fn main() =\n  let line = read_line()\n  let response =\n    handle decode_work(line) with\n      never reject(code) => error_response(code)\n      return result => result\n  println(encode(response))",
+        "span": {
+          "start": 1608,
+          "end": 1802
+        },
+        "types": "14 180 186",
+        "tokens": "0 2 0 5 1 1 0 1 1 1 1 1 3 3 0 6 1 1 10 1 1 0 1 1 3 3 0 10 1 1 5 6 0 12 1 1 4 1 1 1 4 0 19 1 1 4 1 1 1 2 1 15 1 1 4 1 1 7 6 0 8 2 1 17 1 1 6 1 1 8 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 25,
+            "end": 34,
+            "target": "read_line"
+          },
+          {
+            "start": 65,
+            "end": 76,
+            "target": "decode_work"
+          },
+          {
+            "start": 116,
+            "end": 130,
+            "target": "error_response"
+          },
+          {
+            "start": 169,
+            "end": 176,
+            "target": "println"
+          },
+          {
+            "start": 177,
+            "end": 183,
+            "target": "Json.encode"
+          }
+        ]
+      },
+      "new": {
+        "id": "main",
+        "name": "main",
+        "module": "main",
+        "kind": "value",
+        "hash": "0b5e886ca3ffecfef07134064b346303adaf2b136cf9053ec04188828356a7ad",
+        "ty": "() -> Unit ! {IO}",
+        "ty_tokens": "0 1 1 0 1 1 1 2 1 1 4 3 1 1 1 1 1 1 0 2 2 0 1 1",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Unit"
+          },
+          {
+            "start": 14,
+            "end": 16,
+            "target": "IO"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 1 0 2 2 0 1 1",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 3,
+            "target": "IO"
+          }
+        ],
+        "source": "fn main() =\n  let line = read_line()\n  let response =\n    handle decode_work(line) with\n      never reject(code) => error_response(code)\n      return result => result\n  println(encode(response))",
+        "span": {
+          "start": 2242,
+          "end": 2436
+        },
+        "types": "14 180 225",
+        "tokens": "0 2 0 5 1 1 0 1 1 1 1 1 3 3 0 6 1 1 10 1 1 0 1 1 3 3 0 10 1 1 5 6 0 12 1 1 4 1 1 1 4 0 19 1 1 4 1 1 1 2 1 15 1 1 4 1 1 7 6 0 8 2 1 17 1 1 6 1 1 8 1 1 0 1 1",
+        "refs": [
+          {
+            "start": 25,
+            "end": 34,
+            "target": "read_line"
+          },
+          {
+            "start": 65,
+            "end": 76,
+            "target": "decode_work"
+          },
+          {
+            "start": 116,
+            "end": 130,
+            "target": "error_response"
+          },
+          {
+            "start": 169,
+            "end": 176,
+            "target": "println"
+          },
+          {
+            "start": 177,
+            "end": 183,
+            "target": "Json.encode"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": {
+    "added": [
+      {
+        "kind": "calls",
+        "from": "Commands.initial_store",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.initial_store",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.initial_store",
+        "to": "Data.List.range"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.initial_store",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.initial_store",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.run_commands",
+        "to": "Commands.initial_store"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands.run_commands",
+        "to": "Commands@process"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@change_row"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@command_int"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@command_text"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@find_live"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@replace_live"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@row_at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@update_row"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Commands@valid_row"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Data.List.append"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Model.demand"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "Model.elem"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "eqInt"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@apply_change",
+        "to": "not"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@change_row",
+        "to": "Commands@command_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@changed_names",
+        "to": "Commands@command_text"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@changed_names",
+        "to": "Commands@unique_names"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@changed_names",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Commands@command_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Commands@command_fields"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Commands@command_int"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Commands@command_text"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Commands@table_name_shape"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@check_change_shape",
+        "to": "Model.demand"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_field",
+        "to": "Commands@command_lookup"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "Data.Foldable.all"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "Model.demand"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_fields",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_int",
+        "to": "Commands@command_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_int",
+        "to": "Model.demand"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@command_text",
+        "to": "Commands@command_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@database_of",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@find_live",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@find_view",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@has_view",
+        "to": "Data.Foldable.any"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@has_view",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Commands@database_of"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Commands@refresh_plan"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Data.Foldable.any"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Engine.execute"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "Model.elem"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "eqStr"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@maintain",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@process",
+        "to": "Commands@bad"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@process",
+        "to": "Commands@run_command"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@refresh_plan",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@refresh_plan",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@refresh_plan",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@refresh_plan",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@remove_view",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@row_at",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@row_at",
+        "to": "id"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Binder.bind"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@apply_change"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@changed_names"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@check_change_shape"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@command_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@command_fields"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@command_text"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@database_of"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@find_view"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@good"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@has_view"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@maintain"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@remove_view"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@result_with_revision"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@unique_names"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Commands@view_name_ok"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Data.List.append"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Engine.execute"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Engine.optimize"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Model.demand"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "Parser.parse_sql"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "not"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@run_command",
+        "to": "sof"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@table_name_shape",
+        "to": "Data.Foldable.all"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@table_name_shape",
+        "to": "Data.List.range"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@table_name_shape",
+        "to": "Model.digit"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@table_name_shape",
+        "to": "Model.letter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@table_name_shape",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@unique_names",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@update_row",
+        "to": "id"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Commands@bounded_value"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Data.Foldable.all"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Data.List.range"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Model.at"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Model.is_null"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "Model.value_type"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@valid_row",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@view_name_ok",
+        "to": "Data.Foldable.all"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@view_name_ok",
+        "to": "Data.List.range"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@view_name_ok",
+        "to": "Model.digit"
+      },
+      {
+        "kind": "calls",
+        "from": "Commands@view_name_ok",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "has_field",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "has_field",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "has_field",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "has_field",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "work",
+        "to": "Commands.run_commands"
+      },
+      {
+        "kind": "calls",
+        "from": "work",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "work",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "work",
+        "to": "has_field"
+      },
+      {
+        "kind": "calls",
+        "from": "work",
+        "to": "not"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.LiveTable",
+        "to": "Commands.StoredRow"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.LiveTable",
+        "to": "Model.Column"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.Store",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.Store",
+        "to": "Commands.View"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.View",
+        "to": "Model.Plan"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.initial_store",
+        "to": "Commands.Store"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.initial_store",
+        "to": "Model.Table"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands.run_commands",
+        "to": "Model.Table"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@CommandResult",
+        "to": "Commands.Store"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@apply_change",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@database_of",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@database_of",
+        "to": "Model.Table"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@find_live",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@find_view",
+        "to": "Commands.View"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@has_view",
+        "to": "Commands.View"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@maintain",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@maintain",
+        "to": "Commands.View"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@process",
+        "to": "Commands.Store"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@refresh_plan",
+        "to": "Model.Plan"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@refresh_plan",
+        "to": "Model.Table"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@remove_view",
+        "to": "Commands.View"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@replace_live",
+        "to": "Commands.LiveTable"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@row_at",
+        "to": "Commands.StoredRow"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@run_command",
+        "to": "Commands.Store"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@run_command",
+        "to": "Commands@CommandResult"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@update_row",
+        "to": "Commands.StoredRow"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Commands@valid_row",
+        "to": "Model.Column"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@apply_change",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@change_row",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@changed_names",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@check_change_shape",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@command_field",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@command_fields",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@command_int",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@command_lookup",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@command_text",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@find_live",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@find_view",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@row_at",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "performs",
+        "from": "Commands@run_command",
+        "to": "Model.Domain"
+      },
+      {
+        "kind": "handles",
+        "from": "Commands@process",
+        "to": "Model.Domain"
+      }
+    ]
+  }
+}

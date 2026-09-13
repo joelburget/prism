@@ -1,0 +1,13 @@
+{
+  "repository_revision": "82cb3474cdbd12f21e95936ad723996de4984bf4",
+  "source_files_sha256": {
+    "web/viewer.html": "60a5552b2245f0f23a52e2edaaa7bf3ae9c45403f96ad2ad922a5fe72e389d7d",
+    "web/src/viewer-context.ts": "a686d9993de715e22fdd51d960c78bbcbc0fb48e2a0a988092f02de47f170ca9",
+    "web/src/viewer-diff.ts": "4ec44c6dbc0116eed967cf2ff8028c257116d35426fe67571132dad031ac737c",
+    "web/src/viewer-model.ts": "7e3be1ac30580b1f475068c48dccc12c3a7f38038fdfb6b822df63f577e384ee",
+    "web/src/viewer-review.ts": "dc0264ba8e2aee555bc91f261291b3c531bbf5dc6a91fac353959a02c152f0c6",
+    "web/src/viewer.css": "c54fe0c214ae3f621bb34393db2ed66a54968f6725f82dbb9379809b800bffeb",
+    "web/src/viewer.ts": "3903e855b54b071fda8cde9c5ac5302c145f972b565dd90547ddd6c8639d0ac3"
+  },
+  "build": "Vite production build of web/viewer.html; configFile=false, base=./, publicDir=false; no viewer source edits."
+}

@@ -1,0 +1,5468 @@
+{
+  "envelope": {
+    "format": "prism-index-diff-v1",
+    "compiler": "0.20.0",
+    "old": {
+      "title": "workflow-recovery",
+      "contract": "f195e30173578ed5128a86d253a868e643e586c77be9483d878a62a2ad27924f",
+      "token_classes": [
+        "kw",
+        "ctor",
+        "op",
+        "ty",
+        "num",
+        "str",
+        "lit",
+        "com"
+      ],
+      "type_table": [
+        "Domain.StepStatus",
+        "Domain.RunStatus",
+        "Domain.StepState",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(String) -> Json.Json",
+        "(Domain.StepStatus) -> String",
+        "(Int) -> Json.Json",
+        "Domain.RunState",
+        "(Domain.RunStatus) -> String",
+        "(Bool) -> Json.Json",
+        "(List(Json.Json)) -> Json.Json",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(Domain.StepState) -> Json.Json",
+        "Domain.Snapshot",
+        "(Domain.RunState) -> Json.Json",
+        "(Domain.Snapshot) -> List((String, Json.Json))",
+        "Domain.ActionKey",
+        "Domain.ServiceCall",
+        "(Domain.ActionKey) -> Json.Json",
+        "Domain.Effect",
+        "Domain.Simulator",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(Domain.Simulator) -> Domain.Snapshot",
+        "(Domain.ServiceCall) -> Json.Json",
+        "(Domain.Effect) -> Json.Json",
+        "(Domain.Snapshot) -> Json.Json",
+        "List((String, Json.Json))",
+        "Result(Domain.Simulator, String)",
+        "(Domain.Simulator) -> Json.Json",
+        "String",
+        "() -> Domain.MockService",
+        "Int",
+        "Domain.StepDefinition",
+        "Bool",
+        "List(Domain.StepState)",
+        "List(Domain.StepDefinition)",
+        "((String) -> Bool, List(String)) -> Bool ! {e0}",
+        "((Domain.StepState) -> Bool, List(Domain.StepState)) -> Bool",
+        "forall a. (a) -> Option(a)",
+        "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action) ! {e0}",
+        "forall a. Option(a)",
+        "List(Domain.RunState)",
+        "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "Domain.Action",
+        "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action) ! {e0}",
+        "Domain.Workflow",
+        "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "(Domain.Simulator, Domain.Workflow) -> Option(Domain.Action)",
+        "(Domain.RunState, Domain.StepState) -> Domain.RunState",
+        "(Domain.Simulator, Domain.RunState) -> Domain.Simulator",
+        "(Domain.MockService, Domain.ActionKey, Int, Int) -> Domain.MockService",
+        "((Domain.StepState) -> Bool, List(Domain.StepState)) -> Bool ! {e0}",
+        "Domain.MockService",
+        "Domain.Command",
+        "((Domain.RunState) -> Bool, List(Domain.RunState)) -> Bool ! {e0}",
+        "forall a e. (e) -> Result(a, e)",
+        "(Int, Domain.StepDefinition) -> Domain.StepState",
+        "forall a e. (a) -> Result(a, e)",
+        "(Domain.Simulator, Domain.Workflow) -> Domain.Simulator",
+        "() -> Int",
+        "List(Domain.Command)",
+        "(Domain.Simulator, Domain.Workflow, Domain.Command) -> Result(Domain.Simulator, String)",
+        "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String) ! {e0}",
+        "((Domain.StepDefinition) -> Bool, List(Domain.StepDefinition)) -> Bool ! {e0}",
+        "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String)",
+        "() -> Domain.Simulator",
+        "List(String)",
+        "(Bool) -> Bool",
+        "(String, List(String)) -> Bool ! {e0}",
+        "(List(String)) -> Bool ! {e0}",
+        "Json.Json",
+        "forall a b. ((a, b)) -> a",
+        "(String, Json.Json)",
+        "(Bool, String) -> Result(Unit, String)",
+        "(List(String)) -> Bool",
+        "(String, List(String)) -> Bool",
+        "(((String, Json.Json)) -> Bool, List((String, Json.Json))) -> Option((String, Json.Json)) ! {e0}",
+        "forall a b. ((a, b)) -> b",
+        "(String) -> Int",
+        "(String, Int) -> Int",
+        "(String, Int) -> Bool ! {e0}",
+        "(String, Int) -> Bool",
+        "List(Json.Json)",
+        "forall a. List(a)",
+        "(Json.Json) -> Result(String, String)",
+        "(List(Json.Json)) -> Result(List(String), String) ! {e0}",
+        "forall a. (a, List(a)) -> List(a)",
+        "(Json.Json, List(String), List(String)) -> Result(List((String, Json.Json)), String)",
+        "(List((String, Json.Json)), String) -> Json.Json",
+        "(Json.Json) -> Result(List(Json.Json), String)",
+        "(List(Json.Json)) -> Result(List(String), String)",
+        "(Json.Json, Int, Int) -> Result(Int, String)",
+        "(List((String, Json.Json)), String, Json.Json) -> Json.Json",
+        "(Json.Json) -> Result(Domain.StepDefinition, String)",
+        "(List(Json.Json)) -> Result(List(Domain.StepDefinition), String) ! {e0}",
+        "Domain.Checkpoint",
+        "(String) -> Domain.Command",
+        "(Int) -> Domain.Command",
+        "(List((String, Json.Json))) -> Result(Option(Domain.Checkpoint), String)",
+        "(Option(Domain.Checkpoint)) -> Domain.Command",
+        "Option(Domain.Checkpoint)",
+        "(Json.Json) -> Result(Domain.Command, String)",
+        "(List(Json.Json)) -> Result(List(Domain.Command), String) ! {e0}",
+        "forall a. (List(a)) -> Bool",
+        "forall e0 a. ((a) -> Bool ! {e0}, List(a)) -> List(a) ! {e0}",
+        "(List(Domain.StepDefinition), List(String)) -> Bool ! {e0}",
+        "((String) -> Bool, List(String)) -> Bool",
+        "(List(Domain.StepDefinition), List(String)) -> Bool",
+        "(List(Json.Json)) -> Result(List(Domain.StepDefinition), String)",
+        "(List(Json.Json)) -> Result(List(Domain.Command), String)",
+        "(List(Domain.StepDefinition)) -> Result(Unit, String)",
+        "forall e0 a b c. ((c) -> b ! {e0}, Result(a, c)) -> Result(a, b) ! {e0}",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(Json.Json) -> Result(Domain.Workflow, String)",
+        "(Domain.Workflow) -> Result(Domain.Simulator, String)",
+        "forall a. (a) -> Unit ! {IO}",
+        "(Json.Json) -> String",
+        "(Result(Domain.Simulator, String)) -> Json.Json",
+        "(String) -> Result(Domain.Simulator, String)",
+        "() -> String ! {Console}"
+      ]
+    },
+    "new": {
+      "title": "workflow-recovery",
+      "contract": "36532b161b947272bf98302541c7b99de2ded11981d635ada759fe7d93af40b9",
+      "token_classes": [
+        "kw",
+        "ctor",
+        "op",
+        "ty",
+        "num",
+        "str",
+        "lit",
+        "com"
+      ],
+      "type_table": [
+        "Domain.StepStatus",
+        "Domain.RunStatus",
+        "Domain.StepState",
+        "(List((String, Json.Json))) -> Json.Json",
+        "(String) -> Json.Json",
+        "(Domain.StepStatus) -> String",
+        "(Int) -> Json.Json",
+        "Domain.RunState",
+        "(Domain.RunStatus) -> String",
+        "(Bool) -> Json.Json",
+        "(List(Json.Json)) -> Json.Json",
+        "forall e0 a b. ((b) -> a ! {e0}, List(b)) -> List(a) ! {e0}",
+        "(Domain.StepState) -> Json.Json",
+        "Domain.Snapshot",
+        "(Domain.RunState) -> Json.Json",
+        "(Domain.Snapshot) -> List((String, Json.Json))",
+        "Domain.ActionKey",
+        "Domain.ServiceCall",
+        "(Domain.ActionKey) -> Json.Json",
+        "Domain.Effect",
+        "Domain.Simulator",
+        "forall a. (List(a), List(a)) -> List(a)",
+        "(Domain.Simulator) -> Domain.Snapshot",
+        "(Domain.ServiceCall) -> Json.Json",
+        "(Domain.Effect) -> Json.Json",
+        "(Domain.Snapshot) -> Json.Json",
+        "List((String, Json.Json))",
+        "Result(Domain.Simulator, String)",
+        "(Domain.Simulator) -> Json.Json",
+        "String",
+        "() -> Domain.MockService",
+        "Int",
+        "Domain.StepDefinition",
+        "Bool",
+        "List(Domain.StepState)",
+        "List(Domain.StepDefinition)",
+        "((String) -> Bool, List(String)) -> Bool ! {e0}",
+        "((Domain.StepState) -> Bool, List(Domain.StepState)) -> Bool",
+        "forall a. (a) -> Option(a)",
+        "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action) ! {e0}",
+        "forall a. Option(a)",
+        "List(Domain.RunState)",
+        "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "Domain.Action",
+        "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action) ! {e0}",
+        "Domain.Workflow",
+        "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "Option(Domain.Checkpoint)",
+        "(Domain.Simulator, Domain.Workflow) -> Option(Domain.Action)",
+        "forall a e. (a) -> Result(a, e)",
+        "(Domain.RunState, Domain.StepState) -> Domain.RunState",
+        "(Domain.Simulator, Domain.RunState) -> Domain.Simulator",
+        "Domain.Checkpoint",
+        "(Domain.MockService, Domain.ActionKey, Int, Int, Int, Bool) -> (Domain.MockService, String)",
+        "forall a b. ((a, b)) -> a",
+        "(Domain.MockService, String)",
+        "forall a b. ((a, b)) -> b",
+        "() -> Int",
+        "forall a e. (e) -> Result(a, e)",
+        "((Domain.StepState) -> Bool, List(Domain.StepState)) -> Bool ! {e0}",
+        "((Domain.RunState) -> Bool, List(Domain.RunState)) -> Option(Domain.RunState) ! {e0}",
+        "Domain.Command",
+        "(Bool) -> Bool",
+        "((Domain.RunState) -> Bool, List(Domain.RunState)) -> Bool ! {e0}",
+        "(Int, Domain.StepDefinition) -> Domain.StepState",
+        "(Domain.Simulator, Domain.Workflow, Option(Domain.Checkpoint)) -> Result(Domain.Simulator, String)",
+        "(Domain.Simulator, String) -> Result(Domain.Simulator, String)",
+        "List(Domain.Command)",
+        "(Domain.Simulator, Domain.Workflow, Domain.Command) -> Result(Domain.Simulator, String)",
+        "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String) ! {e0}",
+        "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String)",
+        "() -> Domain.Simulator",
+        "Domain.MockService",
+        "((Domain.Effect) -> Bool, List(Domain.Effect)) -> Bool ! {e0}",
+        "(Domain.ActionKey, Domain.ActionKey) -> Bool",
+        "(Domain.MockService, Domain.ActionKey) -> Bool",
+        "(List(Domain.ServiceCall)) -> Int ! {e0}",
+        "forall e0 a. ((a) -> Bool ! {e0}, List(a)) -> List(a) ! {e0}",
+        "List(String)",
+        "(String, List(String)) -> Bool ! {e0}",
+        "(List(String)) -> Bool ! {e0}",
+        "Json.Json",
+        "(String, Json.Json)",
+        "(Bool, String) -> Result(Unit, String)",
+        "(List(String)) -> Bool",
+        "(String, List(String)) -> Bool",
+        "(((String, Json.Json)) -> Bool, List((String, Json.Json))) -> Option((String, Json.Json)) ! {e0}",
+        "(String) -> Int",
+        "(String, Int) -> Int",
+        "(String, Int) -> Bool ! {e0}",
+        "(String, Int) -> Bool",
+        "List(Json.Json)",
+        "forall a. List(a)",
+        "(Json.Json) -> Result(String, String)",
+        "(List(Json.Json)) -> Result(List(String), String) ! {e0}",
+        "forall a. (a, List(a)) -> List(a)",
+        "(Json.Json, List(String), List(String)) -> Result(List((String, Json.Json)), String)",
+        "(List((String, Json.Json)), String) -> Json.Json",
+        "(Json.Json) -> Result(List(Json.Json), String)",
+        "(List(Json.Json)) -> Result(List(String), String)",
+        "(Json.Json, Int, Int) -> Result(Int, String)",
+        "(List((String, Json.Json)), String, Json.Json) -> Json.Json",
+        "(Json.Json) -> Result(Domain.StepDefinition, String)",
+        "(List(Json.Json)) -> Result(List(Domain.StepDefinition), String) ! {e0}",
+        "(String) -> Domain.Command",
+        "(Int) -> Domain.Command",
+        "(List((String, Json.Json))) -> Result(Option(Domain.Checkpoint), String)",
+        "(Option(Domain.Checkpoint)) -> Domain.Command",
+        "(Json.Json) -> Result(Domain.Command, String)",
+        "(List(Json.Json)) -> Result(List(Domain.Command), String) ! {e0}",
+        "forall a. (List(a)) -> Bool",
+        "(List(Domain.StepDefinition), List(String)) -> Bool ! {e0}",
+        "((Domain.StepDefinition) -> Bool, List(Domain.StepDefinition)) -> Bool ! {e0}",
+        "((String) -> Bool, List(String)) -> Bool",
+        "(List(Domain.StepDefinition), List(String)) -> Bool",
+        "(List(Json.Json)) -> Result(List(Domain.StepDefinition), String)",
+        "(List(Json.Json)) -> Result(List(Domain.Command), String)",
+        "(List(Domain.StepDefinition)) -> Result(Unit, String)",
+        "(Json.Json) -> Result(Domain.Workflow, String)",
+        "forall e0 a b c. ((c) -> b ! {e0}, Result(a, c)) -> Result(a, b) ! {e0}",
+        "(String) -> Result(Json.Json, Json.JsonError)",
+        "(Domain.Workflow) -> Result(Domain.Simulator, String)",
+        "forall a. (a) -> Unit ! {IO}",
+        "(Json.Json) -> String",
+        "(Result(Domain.Simulator, String)) -> Json.Json",
+        "(String) -> Result(Domain.Simulator, String)",
+        "() -> String ! {Console}"
+      ]
+    },
+    "counts": {
+      "added": 5,
+      "removed": 0,
+      "moved": 0,
+      "changed": 11,
+      "cone": 11,
+      "cosmetic": 1,
+      "unchanged": 38
+    }
+  },
+  "entries": [
+    {
+      "status": "added",
+      "id": "Runner@cancel_run",
+      "new": {
+        "id": "Runner@cancel_run",
+        "name": "cancel_run",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "5293f22f09e754e4115af54fc6a0d20b9944479fb810713ee548ca0a00a38efa",
+        "ty": "(Domain.Simulator, String) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 6 3 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 25,
+            "target": "String"
+          },
+          {
+            "start": 30,
+            "end": 36,
+            "target": "Result"
+          },
+          {
+            "start": 37,
+            "end": 53,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 55,
+            "end": 61,
+            "target": "String"
+          }
+        ],
+        "source": "fn cancel_run(sim : Simulator, id : String) : Result(Simulator, String) =\n  match find(\\(run) -> run.id == id, sim.runs) of\n    None => Err(\"UNKNOWN_RUN\")\n    Some(run) =>\n      if run.status == Completed || run.status == RunFailed || run.status == RunCancelled then Ok(sim)\n      else\n        let steps = map(\\(step) -> if step.status == Pending then StepState { ..step, status = Cancelled } else step, run.steps)\n        let status = if any(\\(step) -> step.status == Running, steps) then Cancelling else RunCancelled\n        Ok(replace_run(sim, RunState { ..run, steps = steps, status = status, cancel_requested = true }))",
+        "span": {
+          "start": 4666,
+          "end": 5290
+        },
+        "types": "14 3 20 14 2 29 49 4 60 11 3 7 7 2 29 2 3 20 22 3 58 25 3 7 14 3 7 11 9 1 4 3 7 11 9 1 4 3 7 11 12 1 6 2 49 1 3 20 33 3 11 15 4 2 11 7 0 20 4 2 11 9 0 8 4 2 2 3 7 32 3 59 12 4 2 11 7 0 2 5 34 7 10 1 6 12 1 9 2 49 1 11 51 1 3 20 15 3 7 10 5 34 11 6 1",
+        "tokens": "0 2 0 11 1 2 4 1 2 1 9 1 0 1 2 4 1 2 1 6 3 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 5 1 2 0 1 2 0 1 2 3 1 2 1 2 2 4 1 2 3 2 2 3 1 2 4 1 2 4 1 2 1 2 0 5 4 1 1 2 2 1 3 1 0 1 2 0 13 5 0 1 2 5 4 1 0 1 2 3 1 2 1 2 2 7 2 0 4 1 2 7 2 2 1 9 1 1 2 2 4 1 2 7 2 2 1 9 1 1 2 2 4 1 2 7 2 2 1 12 1 1 4 0 1 2 1 0 1 2 3 1 2 7 4 0 9 3 0 7 1 2 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 1 2 0 5 1 2 7 2 2 1 7 1 1 4 0 1 9 1 1 1 2 1 2 2 4 1 2 8 1 2 1 9 1 1 1 2 1 4 0 5 1 2 4 1 2 5 1 2 9 3 0 8 1 2 1 2 0 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 5 1 2 7 2 2 1 7 1 0 1 2 6 1 2 1 4 0 1 10 1 1 4 0 1 12 1 9 2 1 0 1 2 11 1 2 3 1 2 1 8 1 1 1 2 1 2 2 3 1 2 7 1 2 6 1 2 8 1 2 7 1 2 18 1 2 1 4 6 1 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 36,
+            "end": 42,
+            "target": "String"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "Result"
+          },
+          {
+            "start": 53,
+            "end": 62,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 64,
+            "end": 70,
+            "target": "String"
+          },
+          {
+            "start": 82,
+            "end": 86,
+            "target": "Data.Foldable.find"
+          },
+          {
+            "start": 128,
+            "end": 132,
+            "target": "Option"
+          },
+          {
+            "start": 136,
+            "end": 139,
+            "target": "Result"
+          },
+          {
+            "start": 159,
+            "end": 163,
+            "target": "Option"
+          },
+          {
+            "start": 195,
+            "end": 204,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 222,
+            "end": 231,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 249,
+            "end": 261,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 267,
+            "end": 269,
+            "target": "Result"
+          },
+          {
+            "start": 306,
+            "end": 309,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 339,
+            "end": 346,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 352,
+            "end": 361,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 381,
+            "end": 390,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 439,
+            "end": 442,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 469,
+            "end": 476,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 490,
+            "end": 500,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 506,
+            "end": 518,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 527,
+            "end": 529,
+            "target": "Result"
+          },
+          {
+            "start": 530,
+            "end": 541,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 547,
+            "end": 555,
+            "target": "Domain.RunState"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Service.call_service",
+      "new": {
+        "id": "Service.call_service",
+        "name": "call_service",
+        "module": "Service",
+        "kind": "value",
+        "hash": "184f5c9aa95de5e5c3a393db914969ab46186f5b47e3356f90657bc041cff96e",
+        "ty": "(Domain.MockService, Domain.ActionKey, Int, Int, Int, Bool) -> (Domain.MockService, String)",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 16 1 0 1 2 1 3 3 0 1 2 1 3 3 0 1 2 1 3 3 0 1 2 1 4 3 0 1 2 1 2 2 1 1 2 0 18 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 21,
+            "end": 37,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 39,
+            "end": 42,
+            "target": "Int"
+          },
+          {
+            "start": 44,
+            "end": 47,
+            "target": "Int"
+          },
+          {
+            "start": 49,
+            "end": 52,
+            "target": "Int"
+          },
+          {
+            "start": 54,
+            "end": 58,
+            "target": "Bool"
+          },
+          {
+            "start": 64,
+            "end": 82,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 84,
+            "end": 90,
+            "target": "String"
+          }
+        ],
+        "source": "fn call_service(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int, lookup_only : Bool) : (MockService, String) =\n  let found = has_effect(service, key)\n  let failed_calls = length(filter(\\(call) -> same_key(call.key, key) && call.outcome == \"transient\", service.calls))\n  let outcome =\n    if lookup_only then (if found then \"found\" else \"missing\")\n    elif found then \"replayed\"\n    elif failed_calls < failures then \"transient\"\n    else \"applied\"\n  let updated = MockService {\n    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt,\n      kind = if lookup_only then \"lookup\" else \"execute\", outcome = outcome }]),\n    effects = if outcome == \"applied\" then append(service.effects, [Effect { key = key, amount = amount }]) else service.effects\n  }\n  (updated, outcome)",
+        "span": {
+          "start": 509,
+          "end": 1335
+        },
+        "vis": "public",
+        "types": "16 7 72 16 3 16 14 6 31 8 7 31 8 8 31 8 11 33 49 10 75 1 7 72 2 3 16 23 6 76 1 6 77 12 8 74 1 4 17 6 3 16 5 4 17 25 7 72 32 11 33 10 5 33 39 5 33 26 12 31 3 8 31 79 6 21 1 7 72 29 3 16 12 7 31 18 11 33 41 7 29 23 7 29 19 6 21 1 7 72 26 3 16 11 6 31 10 7 72 16 7 72 2 7 29",
+        "tokens": "0 2 0 13 1 2 8 1 2 1 11 1 0 1 2 5 1 2 1 9 1 0 1 2 8 1 2 1 3 3 0 1 2 9 1 2 1 3 3 0 1 2 10 1 2 1 3 3 0 1 2 13 1 2 1 4 3 0 1 2 1 1 2 1 1 2 0 11 1 0 1 2 1 6 3 0 1 2 1 1 2 3 3 0 7 1 2 11 1 2 7 1 2 4 1 2 3 3 0 14 1 2 7 1 2 6 1 2 0 1 2 0 1 2 4 1 2 1 2 2 9 1 2 4 1 2 3 1 2 4 1 2 1 2 2 5 1 2 8 2 2 1 11 5 0 1 2 8 1 2 5 1 2 0 1 2 3 3 0 9 1 2 5 2 0 13 4 0 1 1 2 0 2 0 7 4 0 1 7 5 1 4 0 1 9 5 0 1 2 5 4 0 7 4 0 1 10 5 5 4 0 14 1 2 10 4 0 1 11 5 5 4 0 1 9 5 3 3 0 9 1 2 1 11 1 1 1 2 11 1 2 7 1 2 7 1 2 5 1 2 1 1 2 0 11 1 1 1 2 5 1 2 4 1 2 9 1 2 8 1 2 12 1 2 1 2 0 13 4 0 1 8 5 1 4 0 1 9 5 0 1 2 9 1 2 9 1 2 0 1 2 0 1 2 0 1 2 13 1 2 1 2 0 9 2 2 1 9 5 1 4 0 7 1 2 7 1 2 7 1 2 1 1 2 0 6 1 1 1 2 5 1 2 4 1 2 8 1 2 8 1 2 0 1 2 0 1 2 1 4 0 8 1 2 10 1 2 3 1 2 7 1 2 8 1 2",
+        "refs": [
+          {
+            "start": 26,
+            "end": 37,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 45,
+            "end": 54,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 65,
+            "end": 68,
+            "target": "Int"
+          },
+          {
+            "start": 80,
+            "end": 83,
+            "target": "Int"
+          },
+          {
+            "start": 96,
+            "end": 99,
+            "target": "Int"
+          },
+          {
+            "start": 115,
+            "end": 119,
+            "target": "Bool"
+          },
+          {
+            "start": 124,
+            "end": 135,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 137,
+            "end": 143,
+            "target": "String"
+          },
+          {
+            "start": 161,
+            "end": 171,
+            "target": "Service.has_effect"
+          },
+          {
+            "start": 207,
+            "end": 213,
+            "target": "Data.Foldable.length"
+          },
+          {
+            "start": 214,
+            "end": 220,
+            "target": "Data.List.filter"
+          },
+          {
+            "start": 232,
+            "end": 240,
+            "target": "Service@same_key"
+          },
+          {
+            "start": 499,
+            "end": 510,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 525,
+            "end": 531,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 548,
+            "end": 559,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 716,
+            "end": 722,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 741,
+            "end": 747,
+            "target": "Domain.Effect"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Service.has_effect",
+      "new": {
+        "id": "Service.has_effect",
+        "name": "has_effect",
+        "module": "Service",
+        "kind": "value",
+        "hash": "b80903a86951a6472ec7d5c784a04261315a2ed3da975b8c5d11ef168ffa3271",
+        "ty": "(Domain.MockService, Domain.ActionKey) -> Bool",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 16 1 0 1 2 1 2 2 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 21,
+            "end": 37,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 42,
+            "end": 46,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn has_effect(service : MockService, key : ActionKey) : Bool =\n  any(\\(entry) -> same_key(entry.key, key), service.effects)",
+        "span": {
+          "start": 300,
+          "end": 423
+        },
+        "vis": "public",
+        "types": "14 7 72 16 3 16 25 3 73 13 8 74 1 5 19 6 3 16 3 7 72",
+        "tokens": "0 2 0 11 1 2 8 1 2 1 11 1 0 1 2 5 1 2 1 9 1 0 1 2 1 1 2 1 4 3 1 1 2 6 1 2 0 1 2 0 1 2 5 1 2 1 2 2 9 1 2 5 1 2 3 1 2 4 1 2 0 1 2 8 1 2 7 1 2",
+        "refs": [
+          {
+            "start": 24,
+            "end": 35,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 43,
+            "end": 52,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 56,
+            "end": 60,
+            "target": "Bool"
+          },
+          {
+            "start": 65,
+            "end": 68,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 81,
+            "end": 89,
+            "target": "Service@same_key"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Service@same_key",
+      "new": {
+        "id": "Service@same_key",
+        "name": "same_key",
+        "module": "Service",
+        "kind": "value",
+        "hash": "5e14b865874ba26a5e8d75bf8ecebe208c2558802840d80c160ce962e9449e9c",
+        "ty": "(Domain.ActionKey, Domain.ActionKey) -> Bool",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 16 1 0 1 2 1 2 2 1 4 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 19,
+            "end": 35,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 40,
+            "end": 44,
+            "target": "Bool"
+          }
+        ],
+        "source": "fn same_key(a : ActionKey, b : ActionKey) : Bool =\n  a.run_id == b.run_id && a.step_id == b.step_id",
+        "span": {
+          "start": 195,
+          "end": 294
+        },
+        "types": "12 1 16 14 1 16 25 1 16 11 1 16 11 1 16 12 1 16",
+        "tokens": "0 2 0 9 1 2 2 1 2 1 9 1 0 1 2 3 1 2 1 9 1 0 1 2 1 1 2 1 4 3 1 1 2 4 1 2 7 2 2 2 1 2 7 2 2 2 1 2 8 2 2 2 1 2",
+        "refs": [
+          {
+            "start": 16,
+            "end": 25,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 31,
+            "end": 40,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Bool"
+          }
+        ]
+      }
+    },
+    {
+      "status": "added",
+      "id": "Validation.parse_request",
+      "new": {
+        "id": "Validation.parse_request",
+        "name": "parse_request",
+        "module": "Validation",
+        "kind": "value",
+        "hash": "e2992b3a17429f4db7a9acf1ad5a95c901b01cb5ce101e06e09bfa66344e70fa",
+        "ty": "(Json.Json) -> Result(Domain.Workflow, String)",
+        "ty_tokens": "0 1 2 0 9 1 0 1 2 1 2 2 1 6 1 0 1 2 0 15 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 10,
+            "target": "Json.Json"
+          },
+          {
+            "start": 15,
+            "end": 21,
+            "target": "Result"
+          },
+          {
+            "start": 22,
+            "end": 37,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 39,
+            "end": 45,
+            "target": "String"
+          }
+        ],
+        "source": "fn parse_request(raw : Json) : Result(Workflow, String) =\n  let obj = fields(raw, [\"protocol_version\", \"task\", \"input\"], [])?\n  let _ = integer(get_field(obj, \"protocol_version\"), 1, 1)?\n  let valid_task = match get_field(obj, \"task\") of\n    JStr(name) => name == \"workflow-recovery\"\n    _ => false\n  let _ = ensure(valid_task, \"INVALID_INPUT\")?\n  parse_workflow(get_field(obj, \"input\"))",
+        "span": {
+          "start": 6205,
+          "end": 6592
+        },
+        "vis": "public",
+        "types": "17 3 81 50 6 96 1 3 81 56 7 100 1 9 97 1 3 26 55 9 97 1 3 26 22 4 29 5 4 29 49 6 83 1 10 33 22 14 118 1 9 97 1 3 26",
+        "tokens": "0 2 0 14 1 2 4 1 2 1 4 1 0 1 2 1 1 2 1 6 1 0 1 2 0 8 1 0 1 2 1 6 3 0 1 2 1 1 2 3 3 0 5 1 2 7 1 2 3 1 2 1 1 2 0 18 5 0 1 2 1 6 5 0 1 2 1 7 5 0 1 2 0 1 2 1 1 2 0 1 2 0 1 2 0 1 2 3 3 0 3 1 2 8 1 2 9 1 2 3 1 2 1 18 5 0 1 2 0 1 2 1 1 4 0 1 2 1 1 4 0 1 2 0 1 2 3 3 0 12 1 2 1 5 0 10 1 2 3 1 2 1 6 5 0 1 2 1 2 0 5 4 1 0 1 2 4 1 2 1 2 2 6 2 2 1 19 5 7 2 2 1 5 6 3 3 0 3 1 2 7 1 2 10 1 2 1 15 5 0 1 2 0 1 2 17 1 2 9 1 2 3 1 2 1 7 5 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 27,
+            "target": "Json.Json"
+          },
+          {
+            "start": 31,
+            "end": 37,
+            "target": "Result"
+          },
+          {
+            "start": 38,
+            "end": 46,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 48,
+            "end": 54,
+            "target": "String"
+          },
+          {
+            "start": 70,
+            "end": 76,
+            "target": "Validation@fields"
+          },
+          {
+            "start": 70,
+            "end": 124,
+            "target": "Result"
+          },
+          {
+            "start": 136,
+            "end": 143,
+            "target": "Validation@integer"
+          },
+          {
+            "start": 136,
+            "end": 185,
+            "target": "Result"
+          },
+          {
+            "start": 144,
+            "end": 153,
+            "target": "Validation.get_field"
+          },
+          {
+            "start": 212,
+            "end": 221,
+            "target": "Validation.get_field"
+          },
+          {
+            "start": 309,
+            "end": 315,
+            "target": "Validation@ensure"
+          },
+          {
+            "start": 309,
+            "end": 344,
+            "target": "Result"
+          },
+          {
+            "start": 348,
+            "end": 362,
+            "target": "Validation.parse_workflow"
+          },
+          {
+            "start": 363,
+            "end": 372,
+            "target": "Validation.get_field"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Domain.RunStatus",
+      "old": {
+        "id": "Domain.RunStatus",
+        "name": "RunStatus",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "38ac6e563c822eddbf7c7ec09ade98bd04a4afe08d80c452fad94f4badf5ed5f",
+        "source": "type RunStatus = Active | Completed deriving (Eq)",
+        "span": {
+          "start": 583,
+          "end": 632
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 9 1 1 1 2 1 6 1 1 1 2 1 9 1 1 8 0 1 1 2 0 2 1 0 1 2",
+        "members": [
+          {
+            "name": "Active",
+            "start": 17,
+            "end": 23
+          },
+          {
+            "name": "Completed",
+            "start": 26,
+            "end": 35
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 14,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 46,
+            "end": 48,
+            "target": "Eq"
+          }
+        ]
+      },
+      "new": {
+        "id": "Domain.RunStatus",
+        "name": "RunStatus",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "673ff689e0824e408835626ff048186037ad970e512ac60b94a6d99a6b6e3b8b",
+        "source": "type RunStatus = Active | Completed | RunFailed | Cancelling | RunCancelled deriving (Eq)",
+        "span": {
+          "start": 628,
+          "end": 717
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 9 1 1 1 2 1 6 1 1 1 2 1 9 1 1 1 2 1 9 1 1 1 2 1 10 1 1 1 2 1 12 1 1 8 0 1 1 2 0 2 1 0 1 2",
+        "members": [
+          {
+            "name": "Active",
+            "start": 17,
+            "end": 23
+          },
+          {
+            "name": "Completed",
+            "start": 26,
+            "end": 35
+          },
+          {
+            "name": "RunFailed",
+            "start": 38,
+            "end": 47
+          },
+          {
+            "name": "Cancelling",
+            "start": 50,
+            "end": 60
+          },
+          {
+            "name": "RunCancelled",
+            "start": 63,
+            "end": 75
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 14,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 86,
+            "end": 88,
+            "target": "Eq"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Domain.ServiceCall",
+      "old": {
+        "id": "Domain.ServiceCall",
+        "name": "ServiceCall",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "1fd47b289b55e290c3ba0fb49fbcce631c5449017612a646696ac42249dcba2a",
+        "source": "type ServiceCall = ServiceCall { key: ActionKey, attempt: Int }",
+        "span": {
+          "start": 930,
+          "end": 993
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 11 1 1 1 2 1 11 1 1 1 2 4 1 2 1 9 1 0 1 2 8 1 2 1 3 3 1 1 2",
+        "members": [
+          {
+            "name": "ServiceCall",
+            "start": 5,
+            "end": 16
+          }
+        ],
+        "refs": [
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 38,
+            "end": 47,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 58,
+            "end": 61,
+            "target": "Int"
+          }
+        ]
+      },
+      "new": {
+        "id": "Domain.ServiceCall",
+        "name": "ServiceCall",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "686e1cf7152d1089d33291b1518a7e227f9140e79ee052d3a7be495c66995dd5",
+        "source": "type ServiceCall = ServiceCall { key: ActionKey, attempt: Int, kind: String, outcome: String }",
+        "span": {
+          "start": 1015,
+          "end": 1109
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 11 1 1 1 2 1 11 1 1 1 2 4 1 2 1 9 1 0 1 2 8 1 2 1 3 3 0 1 2 5 1 2 1 6 3 0 1 2 8 1 2 1 6 3 1 1 2",
+        "members": [
+          {
+            "name": "ServiceCall",
+            "start": 5,
+            "end": 16
+          }
+        ],
+        "refs": [
+          {
+            "start": 19,
+            "end": 30,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 38,
+            "end": 47,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 58,
+            "end": 61,
+            "target": "Int"
+          },
+          {
+            "start": 69,
+            "end": 75,
+            "target": "String"
+          },
+          {
+            "start": 86,
+            "end": 92,
+            "target": "String"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Domain.StepStatus",
+      "old": {
+        "id": "Domain.StepStatus",
+        "name": "StepStatus",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "9578e8328e6c2be713bafd92c40279e74323efe6cf89a18093332397d8a23a74",
+        "source": "type StepStatus = Pending | Running | Succeeded deriving (Eq)",
+        "span": {
+          "start": 517,
+          "end": 578
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 10 1 1 1 2 1 7 1 1 1 2 1 7 1 1 1 2 1 9 1 1 8 0 1 1 2 0 2 1 0 1 2",
+        "members": [
+          {
+            "name": "Pending",
+            "start": 18,
+            "end": 25
+          },
+          {
+            "name": "Running",
+            "start": 28,
+            "end": 35
+          },
+          {
+            "name": "Succeeded",
+            "start": 38,
+            "end": 47
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 15,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 58,
+            "end": 60,
+            "target": "Eq"
+          }
+        ]
+      },
+      "new": {
+        "id": "Domain.StepStatus",
+        "name": "StepStatus",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "adbba2a8cb30915a9761169a03cca7a47b8e46f5b330182f86d1646efa29d9d5",
+        "source": "type StepStatus = Pending | Running | Succeeded | Failed | Blocked | Cancelled deriving (Eq)",
+        "span": {
+          "start": 531,
+          "end": 623
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 10 1 1 1 2 1 7 1 1 1 2 1 7 1 1 1 2 1 9 1 1 1 2 1 6 1 1 1 2 1 7 1 1 1 2 1 9 1 1 8 0 1 1 2 0 2 1 0 1 2",
+        "members": [
+          {
+            "name": "Pending",
+            "start": 18,
+            "end": 25
+          },
+          {
+            "name": "Running",
+            "start": 28,
+            "end": 35
+          },
+          {
+            "name": "Succeeded",
+            "start": 38,
+            "end": 47
+          },
+          {
+            "name": "Failed",
+            "start": 50,
+            "end": 56
+          },
+          {
+            "name": "Blocked",
+            "start": 59,
+            "end": 66
+          },
+          {
+            "name": "Cancelled",
+            "start": 69,
+            "end": 78
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 15,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 89,
+            "end": 91,
+            "target": "Eq"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Output@call_json",
+      "old": {
+        "id": "Output@call_json",
+        "name": "call_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "bbe1cac82999099f337f90110c2c385c72aecca88893551f57fdf91a007e9952",
+        "ty": "(Domain.ServiceCall) -> Json.Json",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 24,
+            "end": 33,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn call_json(call : ServiceCall) : Json =\n  JObj([(\"kind\", JStr(\"execute\")), (\"key\", key_json(call.key)),\n    (\"attempt\", JInt(call.attempt)), (\"outcome\", JStr(\"applied\"))])",
+        "span": {
+          "start": 1137,
+          "end": 1310
+        },
+        "types": "13 4 17 27 4 3 11 4 4 22 8 18 1 4 17 24 4 6 1 4 17 24 4 4",
+        "tokens": "0 2 0 10 1 2 5 1 2 1 11 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 6 5 0 1 2 1 4 1 0 1 2 0 9 5 0 1 2 0 1 2 0 1 2 1 1 2 0 5 5 0 1 2 9 1 2 4 1 2 3 1 2 0 1 2 0 1 2 5 1 2 0 9 5 0 1 2 1 4 1 0 1 2 4 1 2 7 1 2 0 1 2 0 1 2 1 1 2 0 9 5 0 1 2 1 4 1 0 1 2 0 9 5 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 31,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 35,
+            "end": 39,
+            "target": "Json.Json"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 59,
+            "end": 63,
+            "target": "Json.Json"
+          },
+          {
+            "start": 85,
+            "end": 93,
+            "target": "Output@key_json"
+          },
+          {
+            "start": 122,
+            "end": 126,
+            "target": "Json.Json"
+          },
+          {
+            "start": 155,
+            "end": 159,
+            "target": "Json.Json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@call_json",
+        "name": "call_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "20c048b702b5dc3d0c480d45d771e255ea29632e226c2a4d0e1fc678be18d246",
+        "ty": "(Domain.ServiceCall) -> Json.Json",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 24,
+            "end": 33,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn call_json(call : ServiceCall) : Json =\n  JObj([(\"kind\", JStr(call.kind)), (\"key\", key_json(call.key)),\n    (\"attempt\", JInt(call.attempt)), (\"outcome\", JStr(call.outcome))])",
+        "span": {
+          "start": 1303,
+          "end": 1479
+        },
+        "types": "13 4 17 27 4 3 11 4 4 1 4 17 17 8 18 1 4 17 24 4 6 1 4 17 24 4 4 1 4 17",
+        "tokens": "0 2 0 10 1 2 5 1 2 1 11 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 6 5 0 1 2 1 4 1 0 1 2 4 1 2 4 1 2 0 1 2 0 1 2 1 1 2 0 5 5 0 1 2 9 1 2 4 1 2 3 1 2 0 1 2 0 1 2 5 1 2 0 9 5 0 1 2 1 4 1 0 1 2 4 1 2 7 1 2 0 1 2 0 1 2 1 1 2 0 9 5 0 1 2 1 4 1 0 1 2 4 1 2 7 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 31,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 35,
+            "end": 39,
+            "target": "Json.Json"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 59,
+            "end": 63,
+            "target": "Json.Json"
+          },
+          {
+            "start": 85,
+            "end": 93,
+            "target": "Output@key_json"
+          },
+          {
+            "start": 122,
+            "end": 126,
+            "target": "Json.Json"
+          },
+          {
+            "start": 155,
+            "end": 159,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Output@run_status",
+      "old": {
+        "id": "Output@run_status",
+        "name": "run_status",
+        "module": "Output",
+        "kind": "value",
+        "hash": "89bbc691b39cb609100627b2c9136ebb25e45c2e09481de0995fc11a670b4cbe",
+        "ty": "(Domain.RunStatus) -> String",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          }
+        ],
+        "source": "fn run_status(status : RunStatus) : String =\n  match status of\n    Active => \"active\"\n    Completed => \"succeeded\"",
+        "span": {
+          "start": 303,
+          "end": 417
+        },
+        "types": "14 6 1 33 6 1",
+        "tokens": "0 2 0 11 1 2 7 1 2 1 9 1 0 1 2 1 1 2 1 6 3 1 1 2 3 5 0 8 2 0 5 6 1 1 2 2 1 8 5 5 9 1 1 2 2 1 11 5",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 36,
+            "end": 42,
+            "target": "String"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@run_status",
+        "name": "run_status",
+        "module": "Output",
+        "kind": "value",
+        "hash": "6a75ed11f6845759d53197b710142c6452519181602473be9c4143d43e05b35e",
+        "ty": "(Domain.RunStatus) -> String",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 22,
+            "end": 28,
+            "target": "String"
+          }
+        ],
+        "source": "fn run_status(status : RunStatus) : String =\n  match status of\n    Active => \"active\"\n    Completed => \"succeeded\"\n    RunFailed => \"failed\"\n    Cancelling => \"cancelling\"\n    RunCancelled => \"cancelled\"",
+        "span": {
+          "start": 380,
+          "end": 583
+        },
+        "types": "14 6 1 33 6 1",
+        "tokens": "0 2 0 11 1 2 7 1 2 1 9 1 0 1 2 1 1 2 1 6 3 1 1 2 3 5 0 8 2 0 5 6 1 1 2 2 1 8 5 5 9 1 1 2 2 1 11 5 5 9 1 1 2 2 1 8 5 5 10 1 1 2 2 1 12 5 5 12 1 1 2 2 1 11 5",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 36,
+            "end": 42,
+            "target": "String"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Output@step_status",
+      "old": {
+        "id": "Output@step_status",
+        "name": "step_status",
+        "module": "Output",
+        "kind": "value",
+        "hash": "784e21418c8d8f7445b93de904aaac230365dda1f7e062ae739a803a21c76350",
+        "ty": "(Domain.StepStatus) -> String",
+        "ty_tokens": "0 1 2 0 17 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 18,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 23,
+            "end": 29,
+            "target": "String"
+          }
+        ],
+        "source": "fn step_status(status : StepStatus) : String =\n  match status of\n    Pending => \"pending\"\n    Running => \"running\"\n    Succeeded => \"succeeded\"",
+        "span": {
+          "start": 158,
+          "end": 301
+        },
+        "types": "15 6 0 34 6 0",
+        "tokens": "0 2 0 12 1 2 7 1 2 1 10 1 0 1 2 1 1 2 1 6 3 1 1 2 3 5 0 8 2 0 5 7 1 1 2 2 1 9 5 5 7 1 1 2 2 1 9 5 5 9 1 1 2 2 1 11 5",
+        "refs": [
+          {
+            "start": 24,
+            "end": 34,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 38,
+            "end": 44,
+            "target": "String"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@step_status",
+        "name": "step_status",
+        "module": "Output",
+        "kind": "value",
+        "hash": "727212b10262a0d82139fdfdf863ad91170b304c65a2455ecc3ce1ef0780a7bc",
+        "ty": "(Domain.StepStatus) -> String",
+        "ty_tokens": "0 1 2 0 17 1 0 1 2 1 2 2 1 6 3",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 18,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 23,
+            "end": 29,
+            "target": "String"
+          }
+        ],
+        "source": "fn step_status(status : StepStatus) : String =\n  match status of\n    Pending => \"pending\"\n    Running => \"running\"\n    Succeeded => \"succeeded\"\n    Failed => \"failed\"\n    Blocked => \"blocked\"\n    Cancelled => \"cancelled\"",
+        "span": {
+          "start": 158,
+          "end": 378
+        },
+        "types": "15 6 0 34 6 0",
+        "tokens": "0 2 0 12 1 2 7 1 2 1 10 1 0 1 2 1 1 2 1 6 3 1 1 2 3 5 0 8 2 0 5 7 1 1 2 2 1 9 5 5 7 1 1 2 2 1 9 5 5 9 1 1 2 2 1 11 5 5 6 1 1 2 2 1 8 5 5 7 1 1 2 2 1 9 5 5 9 1 1 2 2 1 11 5",
+        "refs": [
+          {
+            "start": 24,
+            "end": 34,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 38,
+            "end": 44,
+            "target": "String"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Runner.apply_command",
+      "old": {
+        "id": "Runner.apply_command",
+        "name": "apply_command",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "21565fe153b0f66da7bbf7b942509df650a6e210f95118b43f90b1f5a6696661",
+        "ty": "(Domain.Simulator, Domain.Workflow, Domain.Command) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 14 1 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 36,
+            "end": 50,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 55,
+            "end": 61,
+            "target": "Result"
+          },
+          {
+            "start": 62,
+            "end": 78,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 80,
+            "end": 86,
+            "target": "String"
+          }
+        ],
+        "source": "fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : Result(Simulator, String) =\n  match command of\n    Start(id) =>\n      if any(\\(run) -> run.id == id, sim.runs) then Err(\"DUPLICATE_RUN\")\n      else\n        let run = RunState { id = id, status = Active, cancel_requested = false,\n          steps = map(\\(definition) -> new_step(sim.now, definition), workflow.steps) }\n        Ok(Simulator { ..sim, runs = append(sim.runs, [run]) })\n    Tick(None) => Ok(tick(sim, workflow))\n    Advance(by) =>\n      if sim.now + by > time_limit() then Err(\"TIME_OVERFLOW\")\n      else Ok(Simulator { ..sim, now = sim.now + by })\n    Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })\n    _ => Err(\"UNSUPPORTED_FEATURE\")",
+        "span": {
+          "start": 3235,
+          "end": 4003
+        },
+        "vis": "public",
+        "types": "17 3 20 14 8 45 13 7 53 50 7 53 14 2 29 14 3 54 11 3 7 7 2 29 2 3 20 12 3 55 63 2 29 11 6 1 46 3 11 18 8 56 1 3 20 6 10 32 3 8 45 18 2 57 15 3 20 9 6 21 1 3 20 8 3 7 24 2 57 1 4 58 1 3 20 2 8 45 15 2 31 14 3 20 7 2 31 3 10 59 8 3 55 29 2 57 15 3 20 8 3 20 7 2 31 19 2 57 15 3 20 17 6 21 1 3 20 16 8 22 1 3 20 16 3 55",
+        "tokens": "0 2 0 14 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 9 1 2 1 7 1 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 9 2 0 5 5 1 0 1 2 2 1 2 1 2 2 7 2 0 4 1 2 0 1 2 0 1 2 3 1 2 1 2 2 4 1 2 3 2 2 3 1 2 4 1 2 4 1 2 1 4 0 1 3 1 0 1 2 0 15 5 0 1 2 7 4 0 9 3 0 5 1 2 1 8 1 1 1 2 4 1 2 3 1 2 8 1 2 1 6 1 0 1 2 18 1 2 1 5 6 0 1 2 17 1 2 4 1 2 0 1 2 0 1 2 10 1 2 1 2 2 9 1 2 3 1 2 3 1 2 11 1 2 0 1 2 9 1 2 5 1 2 1 1 2 9 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 6 1 2 7 1 2 3 1 2 4 1 2 1 1 2 3 1 2 0 1 2 1 1 2 0 1 2 5 4 1 0 1 2 0 4 1 0 1 2 1 2 2 1 2 1 0 1 2 4 1 2 3 1 2 9 1 2 0 1 2 5 7 1 0 1 2 2 1 2 1 2 2 7 2 0 4 1 2 4 1 2 4 1 2 11 1 2 0 1 2 1 4 0 1 3 1 0 1 2 0 15 5 0 1 2 7 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 5 1 2 4 1 2 4 1 2 4 1 2 0 1 2 5 7 1 1 2 2 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 14 1 2 7 1 2 3 1 2 12 1 2 1 1 2 8 1 2 3 1 2 0 1 2 0 1 2 1 1 2 0 1 2 7 2 2 1 3 1 0 1 2 0 21 5 0 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 45,
+            "end": 53,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 65,
+            "end": 72,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 76,
+            "end": 82,
+            "target": "Result"
+          },
+          {
+            "start": 83,
+            "end": 92,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 94,
+            "end": 100,
+            "target": "String"
+          },
+          {
+            "start": 149,
+            "end": 152,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 192,
+            "end": 195,
+            "target": "Result"
+          },
+          {
+            "start": 242,
+            "end": 250,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 271,
+            "end": 277,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 323,
+            "end": 326,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 344,
+            "end": 352,
+            "target": "Runner@new_step"
+          },
+          {
+            "start": 401,
+            "end": 403,
+            "target": "Result"
+          },
+          {
+            "start": 404,
+            "end": 413,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 430,
+            "end": 436,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 466,
+            "end": 470,
+            "target": "Option"
+          },
+          {
+            "start": 475,
+            "end": 477,
+            "target": "Result"
+          },
+          {
+            "start": 478,
+            "end": 482,
+            "target": "Runner.tick"
+          },
+          {
+            "start": 542,
+            "end": 552,
+            "target": "Domain.time_limit"
+          },
+          {
+            "start": 560,
+            "end": 563,
+            "target": "Result"
+          },
+          {
+            "start": 592,
+            "end": 594,
+            "target": "Result"
+          },
+          {
+            "start": 595,
+            "end": 604,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 651,
+            "end": 653,
+            "target": "Result"
+          },
+          {
+            "start": 654,
+            "end": 663,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 688,
+            "end": 694,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 714,
+            "end": 722,
+            "target": "Runner.snapshot"
+          },
+          {
+            "start": 742,
+            "end": 745,
+            "target": "Result"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner.apply_command",
+        "name": "apply_command",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "a67703a0f30da3e0d3d3076eddc0c954c878e45bf01b8eeb30cdfe23d52ef3ab",
+        "ty": "(Domain.Simulator, Domain.Workflow, Domain.Command) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 14 1 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 36,
+            "end": 50,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 55,
+            "end": 61,
+            "target": "Result"
+          },
+          {
+            "start": 62,
+            "end": 78,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 80,
+            "end": 86,
+            "target": "String"
+          }
+        ],
+        "source": "fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : Result(Simulator, String) =\n  match command of\n    Start(id) =>\n      if not(sim.up) then Err(\"PROCESS_DOWN\")\n      elif any(\\(run) -> run.id == id, sim.runs) then Err(\"DUPLICATE_RUN\")\n      else\n        let run = RunState { id = id, status = Active, cancel_requested = false,\n          steps = map(\\(definition) -> new_step(sim.now, definition), workflow.steps) }\n        Ok(Simulator { ..sim, runs = append(sim.runs, [run]) })\n    Tick(checkpoint) =>\n      if not(sim.up) then Err(\"PROCESS_DOWN\") else tick(sim, workflow, checkpoint)\n    Crash =>\n      if not(sim.up) then Err(\"PROCESS_DOWN\") else Ok(Simulator { ..sim, up = false })\n    Restart =>\n      if sim.up then Err(\"PROCESS_UP\") else Ok(Simulator { ..sim, up = true })\n    Cancel(id) =>\n      if not(sim.up) then Err(\"PROCESS_DOWN\") else cancel_run(sim, id)\n    Advance(by) =>\n      if sim.now + by > time_limit() then Err(\"TIME_OVERFLOW\")\n      else Ok(Simulator { ..sim, now = sim.now + by })\n    Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })",
+        "span": {
+          "start": 5296,
+          "end": 6424
+        },
+        "vis": "public",
+        "types": "17 3 20 14 8 45 13 7 61 50 7 61 14 2 29 14 3 62 1 3 20 10 3 58 28 3 63 11 3 7 7 2 29 2 3 20 12 3 58 63 2 29 11 6 1 46 3 11 18 8 64 1 3 20 6 10 32 3 8 45 18 2 49 15 3 20 9 6 21 1 3 20 8 3 7 15 10 47 14 3 62 1 3 20 10 3 58 22 4 65 1 3 20 2 8 45 2 10 47 24 3 62 1 3 20 10 3 58 22 2 49 15 3 20 40 3 20 9 3 58 20 2 49 15 3 20 26 2 29 14 3 62 1 3 20 10 3 58 22 10 66 1 3 20 2 2 29 14 2 31 14 3 20 7 2 31 3 10 57 8 3 58 29 2 49 15 3 20 8 3 20 7 2 31 19 2 49 15 3 20 17 6 21 1 3 20 16 8 22 1 3 20",
+        "tokens": "0 2 0 14 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 9 1 2 1 7 1 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 9 2 0 5 5 1 0 1 2 2 1 2 1 2 2 7 2 0 4 1 2 3 1 2 2 1 2 1 4 0 1 3 1 0 1 2 0 14 5 0 1 2 7 4 0 4 1 2 0 1 2 0 1 2 3 1 2 1 2 2 4 1 2 3 2 2 3 1 2 4 1 2 4 1 2 1 4 0 1 3 1 0 1 2 0 15 5 0 1 2 7 4 0 9 3 0 5 1 2 1 8 1 1 1 2 4 1 2 3 1 2 8 1 2 1 6 1 0 1 2 18 1 2 1 5 6 0 1 2 17 1 2 4 1 2 0 1 2 0 1 2 10 1 2 1 2 2 9 1 2 3 1 2 3 1 2 11 1 2 0 1 2 9 1 2 5 1 2 1 1 2 9 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 6 1 2 7 1 2 3 1 2 4 1 2 1 1 2 3 1 2 0 1 2 1 1 2 0 1 2 5 4 1 0 1 2 10 1 2 1 2 2 7 2 0 4 1 2 3 1 2 2 1 2 1 4 0 1 3 1 0 1 2 0 14 5 0 1 2 1 4 0 5 1 2 3 1 2 9 1 2 11 1 2 5 5 1 1 2 2 7 2 0 4 1 2 3 1 2 2 1 2 1 4 0 1 3 1 0 1 2 0 14 5 0 1 2 1 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 4 1 2 1 5 6 1 1 2 0 1 2 5 7 1 1 2 2 7 2 0 4 1 2 3 4 0 1 3 1 0 1 2 0 12 5 0 1 2 1 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 4 1 2 1 4 6 1 1 2 0 1 2 5 6 1 0 1 2 2 1 2 1 2 2 7 2 0 4 1 2 3 1 2 2 1 2 1 4 0 1 3 1 0 1 2 0 14 5 0 1 2 1 4 0 11 1 2 3 1 2 3 1 2 5 7 1 0 1 2 2 1 2 1 2 2 7 2 0 4 1 2 4 1 2 4 1 2 11 1 2 0 1 2 1 4 0 1 3 1 0 1 2 0 15 5 0 1 2 7 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 5 1 2 4 1 2 4 1 2 4 1 2 0 1 2 5 7 1 1 2 2 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 3 1 2 14 1 2 7 1 2 3 1 2 12 1 2 1 1 2 8 1 2 3 1 2 0 1 2 0 1 2 1 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 45,
+            "end": 53,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 65,
+            "end": 72,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 76,
+            "end": 82,
+            "target": "Result"
+          },
+          {
+            "start": 83,
+            "end": 92,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 94,
+            "end": 100,
+            "target": "String"
+          },
+          {
+            "start": 149,
+            "end": 152,
+            "target": "not"
+          },
+          {
+            "start": 166,
+            "end": 169,
+            "target": "Result"
+          },
+          {
+            "start": 197,
+            "end": 200,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 240,
+            "end": 243,
+            "target": "Result"
+          },
+          {
+            "start": 290,
+            "end": 298,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 319,
+            "end": 325,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 371,
+            "end": 374,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 392,
+            "end": 400,
+            "target": "Runner@new_step"
+          },
+          {
+            "start": 449,
+            "end": 451,
+            "target": "Result"
+          },
+          {
+            "start": 452,
+            "end": 461,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 478,
+            "end": 484,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 538,
+            "end": 541,
+            "target": "not"
+          },
+          {
+            "start": 555,
+            "end": 558,
+            "target": "Result"
+          },
+          {
+            "start": 580,
+            "end": 584,
+            "target": "Runner.tick"
+          },
+          {
+            "start": 634,
+            "end": 637,
+            "target": "not"
+          },
+          {
+            "start": 651,
+            "end": 654,
+            "target": "Result"
+          },
+          {
+            "start": 676,
+            "end": 678,
+            "target": "Result"
+          },
+          {
+            "start": 679,
+            "end": 688,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 748,
+            "end": 751,
+            "target": "Result"
+          },
+          {
+            "start": 771,
+            "end": 773,
+            "target": "Result"
+          },
+          {
+            "start": 774,
+            "end": 783,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 833,
+            "end": 836,
+            "target": "not"
+          },
+          {
+            "start": 850,
+            "end": 853,
+            "target": "Result"
+          },
+          {
+            "start": 875,
+            "end": 885,
+            "target": "Runner@cancel_run"
+          },
+          {
+            "start": 938,
+            "end": 948,
+            "target": "Domain.time_limit"
+          },
+          {
+            "start": 956,
+            "end": 959,
+            "target": "Result"
+          },
+          {
+            "start": 988,
+            "end": 990,
+            "target": "Result"
+          },
+          {
+            "start": 991,
+            "end": 1000,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 1047,
+            "end": 1049,
+            "target": "Result"
+          },
+          {
+            "start": 1050,
+            "end": 1059,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 1084,
+            "end": 1090,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 1110,
+            "end": 1118,
+            "target": "Runner.snapshot"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Runner.simulate",
+      "old": {
+        "id": "Runner.simulate",
+        "name": "simulate",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "391e65fb867be09e9064d987889a40de36be16a898239c12fc2ae1d0acebde1f",
+        "ty": "(Domain.Workflow) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 21,
+            "end": 27,
+            "target": "Result"
+          },
+          {
+            "start": 28,
+            "end": 44,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "String"
+          }
+        ],
+        "source": "fn simulate(workflow : Workflow) : Result(Simulator, String) =\n  if any(\\(step) -> step.failures > 0, workflow.steps) then Err(\"UNSUPPORTED_FEATURE\")\n  else run_commands(new_simulator(), workflow, workflow.commands)",
+        "span": {
+          "start": 4283,
+          "end": 4498
+        },
+        "vis": "public",
+        "types": "12 8 45 48 3 63 12 4 32 15 8 45 13 3 55 31 12 64 1 13 65 4 8 45 2 8 45",
+        "tokens": "0 2 0 9 1 2 9 1 2 1 8 1 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 2 0 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 5 1 2 9 1 2 1 1 4 0 1 2 9 1 2 5 1 2 1 4 0 1 3 1 0 1 2 0 21 5 0 1 2 3 4 0 13 1 2 13 1 2 0 1 2 0 1 2 9 1 2 9 1 2 8 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 31,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Result"
+          },
+          {
+            "start": 42,
+            "end": 51,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 53,
+            "end": 59,
+            "target": "String"
+          },
+          {
+            "start": 68,
+            "end": 71,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 123,
+            "end": 126,
+            "target": "Result"
+          },
+          {
+            "start": 157,
+            "end": 169,
+            "target": "Runner@run_commands"
+          },
+          {
+            "start": 170,
+            "end": 183,
+            "target": "Runner.new_simulator"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner.simulate",
+        "name": "simulate",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "e852d1072d587321390a5ffeed76dcccca08ef52d81da3f991eff67496afdd86",
+        "ty": "(Domain.Workflow) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 21,
+            "end": 27,
+            "target": "Result"
+          },
+          {
+            "start": 28,
+            "end": 44,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 46,
+            "end": 52,
+            "target": "String"
+          }
+        ],
+        "source": "fn simulate(workflow : Workflow) : Result(Simulator, String) =\n  run_commands(new_simulator(), workflow, workflow.commands)",
+        "span": {
+          "start": 6704,
+          "end": 6827
+        },
+        "vis": "public",
+        "types": "12 8 45 45 12 70 1 13 71 4 8 45 2 8 45",
+        "tokens": "0 2 0 9 1 2 9 1 2 1 8 1 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 15 1 2 13 1 2 0 1 2 0 1 2 9 1 2 9 1 2 8 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 31,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Result"
+          },
+          {
+            "start": 42,
+            "end": 51,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 53,
+            "end": 59,
+            "target": "String"
+          },
+          {
+            "start": 65,
+            "end": 77,
+            "target": "Runner@run_commands"
+          },
+          {
+            "start": 78,
+            "end": 91,
+            "target": "Runner.new_simulator"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Runner.tick",
+      "old": {
+        "id": "Runner.tick",
+        "name": "tick",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "445a49fee2ed2c098cdc87c38032d08f95a7553e73b68ba10fbc8312bc437dfe",
+        "ty": "(Domain.Simulator, Domain.Workflow) -> Domain.Simulator",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 2 2 1 16 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 39,
+            "end": 55,
+            "target": "Domain.Simulator"
+          }
+        ],
+        "source": "fn tick(sim : Simulator, workflow : Workflow) : Simulator =\n  match select_action(sim, workflow) of\n    None => sim\n    Some(action) =>\n      let running =\n        if action.step.status == Pending then\n          StepState { ..action.step, status = Running, attempts = action.step.attempts + 1 }\n        else action.step\n      let begun_run = replace_step(action.run, running)\n      let begun = replace_run(sim, begun_run)\n      let key = ActionKey { run_id = action.run.id, step_id = running.id }\n      let service = execute(begun.service, key, action.definition.amount, running.attempts)\n      let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })\n      let finished =\n        if all(\\(step) -> step.status == Succeeded, completed.steps) then\n          RunState { ..completed, status = Completed }\n        else completed\n      replace_run(Simulator { ..begun, service = service }, finished)",
+        "span": {
+          "start": 2307,
+          "end": 3229
+        },
+        "vis": "public",
+        "types": "8 3 20 14 8 45 35 13 47 1 3 20 2 8 45 17 3 20 10 6 43 36 6 43 16 7 0 30 6 43 16 7 0 13 6 43 34 6 43 28 12 48 1 6 43 6 7 2 20 11 49 1 3 20 2 9 7 39 6 43 19 7 2 26 7 50 1 5 20 10 3 16 2 6 43 20 7 2 33 12 48 1 9 7 16 7 2 11 9 0 36 3 51 12 4 2 11 9 0 2 9 7 36 9 7 11 9 1 16 9 7 7 11 49 15 5 20 12 7 52 4 8 7",
+        "tokens": "0 2 0 5 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 1 1 2 1 9 1 1 1 2 3 5 0 14 1 2 3 1 2 9 1 2 1 2 0 5 4 1 1 2 2 9 4 1 0 1 2 6 1 2 1 2 2 7 3 0 9 1 2 9 2 0 7 1 2 4 1 2 7 2 2 1 7 1 1 4 0 11 9 1 1 1 2 1 2 2 6 1 2 4 1 2 8 1 2 1 7 1 0 1 2 10 1 2 7 1 2 4 1 2 9 1 2 1 1 4 1 1 2 9 4 0 7 1 2 11 3 0 11 1 2 13 1 2 6 1 2 3 1 2 8 1 2 7 3 0 7 1 2 12 1 2 3 1 2 10 1 2 7 3 0 5 1 2 1 9 1 1 1 2 8 1 2 7 1 2 3 1 2 2 1 2 9 1 2 8 1 2 3 1 2 7 3 0 9 1 2 8 1 2 5 1 2 7 1 2 4 1 2 7 1 2 10 1 2 6 1 2 8 1 2 8 1 2 7 3 0 11 1 2 13 1 2 9 1 2 1 9 1 1 1 2 1 2 2 7 1 2 8 1 2 1 9 1 1 1 2 0 1 2 7 3 0 10 1 2 9 2 0 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 5 1 2 7 2 2 1 9 1 0 1 2 10 1 2 5 1 2 1 4 0 11 8 1 1 1 2 1 2 2 9 1 2 8 1 2 1 9 1 1 1 2 9 4 0 28 1 2 0 9 1 1 1 2 1 2 2 5 1 2 9 1 2 9 1 2 0 1 2 9 1 2",
+        "refs": [
+          {
+            "start": 14,
+            "end": 23,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 36,
+            "end": 44,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 48,
+            "end": 57,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 68,
+            "end": 81,
+            "target": "Runner.select_action"
+          },
+          {
+            "start": 104,
+            "end": 108,
+            "target": "Option"
+          },
+          {
+            "start": 120,
+            "end": 124,
+            "target": "Option"
+          },
+          {
+            "start": 189,
+            "end": 196,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 212,
+            "end": 221,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 248,
+            "end": 255,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 342,
+            "end": 354,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 394,
+            "end": 405,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 438,
+            "end": 447,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 517,
+            "end": 524,
+            "target": "Service.execute"
+          },
+          {
+            "start": 611,
+            "end": 623,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 635,
+            "end": 644,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 667,
+            "end": 676,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 712,
+            "end": 715,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 742,
+            "end": 751,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 785,
+            "end": 793,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 818,
+            "end": 827,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 859,
+            "end": 870,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 871,
+            "end": 880,
+            "target": "Domain.Simulator"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner.tick",
+        "name": "tick",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "168fc079f20f342a3a3e9f0b7245e0f39cccd1c23ecb7d4268d51c868f114cba",
+        "ty": "(Domain.Simulator, Domain.Workflow, Option(Domain.Checkpoint)) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 6 1 0 1 2 0 17 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 36,
+            "end": 42,
+            "target": "Option"
+          },
+          {
+            "start": 43,
+            "end": 60,
+            "target": "Domain.Checkpoint"
+          },
+          {
+            "start": 66,
+            "end": 72,
+            "target": "Result"
+          },
+          {
+            "start": 73,
+            "end": 89,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 91,
+            "end": 97,
+            "target": "String"
+          }
+        ],
+        "source": "fn tick(sim : Simulator, workflow : Workflow, checkpoint : Option(Checkpoint)) : Result(Simulator, String) =\n  match select_action(sim, workflow) of\n    None => Ok(sim)\n    Some(action) =>\n      let running =\n        if action.step.status == Pending then\n          StepState { ..action.step, status = Running, attempts = action.step.attempts + 1 }\n        else action.step\n      let begun_run = replace_step(action.run, running)\n      let begun = replace_run(sim, begun_run)\n      if checkpoint == Some(AfterBegin) then Ok(Simulator { ..begun, up = false })\n      else\n        let key = ActionKey { run_id = action.run.id, step_id = running.id }\n        let cancelling = begun_run.status == Cancelling\n        let response = call_service(begun.service, key, action.definition.amount, running.attempts, action.definition.failures, cancelling)\n        let called = Simulator { ..begun, service = fst(response) }\n        let outcome = snd(response)\n        if checkpoint == Some(AfterCall) then Ok(Simulator { ..called, up = false })\n        elif cancelling then\n          let reconciled = replace_step(begun_run, StepState { ..running,\n            status = if outcome == \"found\" then Succeeded else Cancelled })\n          Ok(replace_run(called, RunState { ..reconciled, status = RunCancelled }))\n        elif outcome == \"transient\" then\n          if running.attempts < workflow.max_attempts then\n            if sim.now + workflow.retry_delay > time_limit() then Err(\"TIME_OVERFLOW\")\n            else\n              let retry = StepState { ..running, status = Pending, ready_at = sim.now + workflow.retry_delay }\n              Ok(replace_run(called, replace_step(begun_run, retry)))\n          else\n            let failed = replace_step(begun_run, StepState { ..running, status = Failed })\n            let blocked = map(\\(step) -> if step.status == Pending then StepState { ..step, status = Blocked } else step, failed.steps)\n            Ok(replace_run(called, RunState { ..failed, status = RunFailed, steps = blocked }))\n        else\n          let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })\n          let finished =\n            if all(\\(step) -> step.status == Succeeded, completed.steps) then\n              RunState { ..completed, status = Completed }\n            else completed\n          Ok(replace_run(called, finished))",
+        "span": {
+          "start": 2307,
+          "end": 4664
+        },
+        "vis": "public",
+        "types": "8 3 20 14 8 45 13 10 47 61 13 48 1 3 20 2 8 45 17 2 49 1 3 20 11 6 43 36 6 43 16 7 0 30 6 43 16 7 0 13 6 43 34 6 43 28 12 50 1 6 43 6 7 2 20 11 51 1 3 20 2 9 7 11 10 47 4 4 38 1 10 52 7 2 49 15 5 20 66 6 43 19 7 2 31 9 7 11 10 1 24 12 53 1 5 20 10 3 16 2 6 43 20 7 2 11 6 43 22 10 33 37 5 20 12 3 54 1 8 55 26 3 56 1 8 55 13 10 47 4 4 38 1 9 52 7 2 49 15 6 20 29 10 33 33 12 50 1 9 7 16 7 2 26 7 29 17 9 0 6 9 0 14 2 49 1 11 51 1 6 20 15 10 7 11 12 1 18 7 29 34 7 2 12 8 45 34 3 20 7 8 45 15 10 57 8 3 58 75 7 2 11 7 0 13 3 20 7 8 45 29 2 49 1 11 51 1 6 20 2 12 50 1 9 7 2 5 2 44 12 50 1 9 7 16 7 2 11 6 0 30 3 11 15 4 2 11 7 0 20 4 2 11 7 0 8 4 2 2 6 7 20 2 49 1 11 51 1 6 20 15 6 7 11 9 1 10 7 34 44 12 50 1 9 7 16 7 2 11 9 0 44 3 59 12 4 2 11 9 0 2 9 7 40 9 7 11 9 1 20 9 7 11 2 49 1 11 51 1 6 20 2 8 7",
+        "tokens": "0 2 0 5 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 12 1 2 1 6 1 0 1 2 0 10 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 14 1 2 3 1 2 9 1 2 1 2 0 5 4 1 1 2 2 1 2 1 0 1 2 3 1 2 5 4 1 0 1 2 6 1 2 1 2 2 7 3 0 9 1 2 9 2 0 7 1 2 4 1 2 7 2 2 1 7 1 1 4 0 11 9 1 1 1 2 1 2 2 6 1 2 4 1 2 8 1 2 1 7 1 0 1 2 10 1 2 7 1 2 4 1 2 9 1 2 1 1 4 1 1 2 9 4 0 7 1 2 11 3 0 11 1 2 13 1 2 6 1 2 3 1 2 8 1 2 7 3 0 7 1 2 12 1 2 3 1 2 10 1 2 7 2 0 12 2 2 1 4 1 0 1 2 0 10 1 0 1 2 1 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 5 1 2 4 1 2 1 5 6 1 1 2 0 1 2 7 4 0 9 3 0 5 1 2 1 9 1 1 1 2 8 1 2 7 1 2 3 1 2 2 1 2 9 1 2 8 1 2 3 1 2 9 3 0 12 1 2 10 1 2 7 2 2 1 10 1 9 3 0 10 1 2 13 1 2 5 1 2 7 1 2 4 1 2 7 1 2 10 1 2 6 1 2 8 1 2 8 1 2 7 1 2 10 1 2 8 1 2 11 1 2 9 3 0 8 1 2 1 9 1 1 1 2 1 2 2 5 1 2 9 1 2 4 1 2 8 1 2 1 1 2 9 3 0 9 1 2 4 1 2 8 1 2 9 2 0 12 2 2 1 4 1 0 1 2 0 9 1 0 1 2 1 4 0 1 2 1 0 1 2 0 9 1 1 1 2 1 2 2 6 1 2 4 1 2 1 5 6 1 1 2 0 1 2 9 4 0 12 4 0 11 3 0 12 1 2 13 1 2 9 1 2 1 9 1 1 1 2 1 2 2 7 1 2 20 1 2 1 2 0 9 2 2 1 7 5 1 4 0 1 9 1 1 4 0 1 9 1 1 1 2 0 1 2 11 2 1 0 1 2 11 1 2 6 1 2 1 8 1 1 1 2 1 2 2 10 1 2 8 1 2 1 12 1 1 1 2 0 1 2 0 1 2 9 4 0 9 2 2 1 11 5 1 4 0 11 2 0 8 1 2 9 1 2 9 1 2 13 4 0 13 2 0 4 1 2 4 1 2 9 1 2 12 1 2 11 1 2 0 1 2 1 4 0 1 3 1 0 1 2 0 15 5 0 1 2 13 4 0 15 3 0 7 1 2 1 9 1 1 1 2 1 2 2 7 1 2 8 1 2 1 7 1 0 1 2 10 1 2 4 1 2 4 1 2 9 1 2 12 1 2 15 2 1 0 1 2 11 1 2 6 1 2 13 1 2 9 1 2 6 1 2 0 1 2 0 1 2 11 4 0 13 3 0 8 1 2 13 1 2 9 1 2 1 9 1 1 1 2 1 2 2 7 1 2 8 1 2 1 6 1 1 1 2 0 1 2 13 3 0 9 1 2 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 1 2 0 5 1 2 7 2 2 1 7 1 1 4 0 1 9 1 1 1 2 1 2 2 4 1 2 8 1 2 1 7 1 1 1 2 1 4 0 5 1 2 7 1 2 5 1 2 13 2 1 0 1 2 11 1 2 6 1 2 1 8 1 1 1 2 1 2 2 6 1 2 8 1 2 1 9 1 0 1 2 7 1 2 9 1 2 0 1 2 0 1 2 9 4 0 11 3 0 11 1 2 13 1 2 9 1 2 1 9 1 1 1 2 1 2 2 7 1 2 8 1 2 1 9 1 1 1 2 0 1 2 11 3 0 10 1 2 13 2 0 4 1 2 0 1 2 0 1 2 4 1 2 1 2 2 5 1 2 7 2 2 1 9 1 0 1 2 10 1 2 5 1 2 1 4 0 15 8 1 1 1 2 1 2 2 9 1 2 8 1 2 1 9 1 1 1 2 13 4 0 21 2 1 0 1 2 11 1 2 6 1 2 9 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 14,
+            "end": 23,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 36,
+            "end": 44,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 59,
+            "end": 65,
+            "target": "Option"
+          },
+          {
+            "start": 66,
+            "end": 76,
+            "target": "Domain.Checkpoint"
+          },
+          {
+            "start": 81,
+            "end": 87,
+            "target": "Result"
+          },
+          {
+            "start": 88,
+            "end": 97,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 99,
+            "end": 105,
+            "target": "String"
+          },
+          {
+            "start": 117,
+            "end": 130,
+            "target": "Runner.select_action"
+          },
+          {
+            "start": 153,
+            "end": 157,
+            "target": "Option"
+          },
+          {
+            "start": 161,
+            "end": 163,
+            "target": "Result"
+          },
+          {
+            "start": 173,
+            "end": 177,
+            "target": "Option"
+          },
+          {
+            "start": 242,
+            "end": 249,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 265,
+            "end": 274,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 301,
+            "end": 308,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 395,
+            "end": 407,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 447,
+            "end": 458,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 498,
+            "end": 502,
+            "target": "Option"
+          },
+          {
+            "start": 503,
+            "end": 513,
+            "target": "Domain.Checkpoint"
+          },
+          {
+            "start": 520,
+            "end": 522,
+            "target": "Result"
+          },
+          {
+            "start": 523,
+            "end": 532,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 587,
+            "end": 596,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 691,
+            "end": 701,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 725,
+            "end": 737,
+            "target": "Service.call_service"
+          },
+          {
+            "start": 863,
+            "end": 872,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 894,
+            "end": 897,
+            "target": "fst"
+          },
+          {
+            "start": 932,
+            "end": 935,
+            "target": "snd"
+          },
+          {
+            "start": 971,
+            "end": 975,
+            "target": "Option"
+          },
+          {
+            "start": 976,
+            "end": 985,
+            "target": "Domain.Checkpoint"
+          },
+          {
+            "start": 992,
+            "end": 994,
+            "target": "Result"
+          },
+          {
+            "start": 995,
+            "end": 1004,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 1087,
+            "end": 1099,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 1111,
+            "end": 1120,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 1182,
+            "end": 1191,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1197,
+            "end": 1206,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1220,
+            "end": 1222,
+            "target": "Result"
+          },
+          {
+            "start": 1223,
+            "end": 1234,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 1243,
+            "end": 1251,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 1277,
+            "end": 1289,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 1442,
+            "end": 1452,
+            "target": "Domain.time_limit"
+          },
+          {
+            "start": 1460,
+            "end": 1463,
+            "target": "Result"
+          },
+          {
+            "start": 1524,
+            "end": 1533,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 1556,
+            "end": 1563,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1623,
+            "end": 1625,
+            "target": "Result"
+          },
+          {
+            "start": 1626,
+            "end": 1637,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 1646,
+            "end": 1658,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 1719,
+            "end": 1731,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 1743,
+            "end": 1752,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 1775,
+            "end": 1781,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1811,
+            "end": 1814,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 1844,
+            "end": 1851,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1857,
+            "end": 1866,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 1886,
+            "end": 1893,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 1933,
+            "end": 1935,
+            "target": "Result"
+          },
+          {
+            "start": 1936,
+            "end": 1947,
+            "target": "Runner@replace_run"
+          },
+          {
+            "start": 1956,
+            "end": 1964,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 1986,
+            "end": 1995,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 2056,
+            "end": 2068,
+            "target": "Runner@replace_step"
+          },
+          {
+            "start": 2080,
+            "end": 2089,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 2112,
+            "end": 2121,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 2165,
+            "end": 2168,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 2195,
+            "end": 2204,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 2242,
+            "end": 2250,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 2275,
+            "end": 2284,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 2324,
+            "end": 2326,
+            "target": "Result"
+          },
+          {
+            "start": 2327,
+            "end": 2338,
+            "target": "Runner@replace_run"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "Service.execute",
+      "old": {
+        "id": "Service.execute",
+        "name": "execute",
+        "module": "Service",
+        "kind": "value",
+        "hash": "5072c8987f35bf349ff127902bf8928e9f04ffa46087e85263a6eb015af2488a",
+        "ty": "(Domain.MockService, Domain.ActionKey, Int, Int) -> Domain.MockService",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 16 1 0 1 2 1 3 3 0 1 2 1 3 3 0 1 2 1 2 2 1 18 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 21,
+            "end": 37,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 39,
+            "end": 42,
+            "target": "Int"
+          },
+          {
+            "start": 44,
+            "end": 47,
+            "target": "Int"
+          },
+          {
+            "start": 52,
+            "end": 70,
+            "target": "Domain.MockService"
+          }
+        ],
+        "source": "fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =\n  MockService {\n    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),\n    effects = append(service.effects, [Effect { key = key, amount = amount }])\n  }",
+        "span": {
+          "start": 363,
+          "end": 640
+        },
+        "vis": "public",
+        "types": "11 7 52 16 3 16 14 6 31 8 7 31 52 6 21 1 7 52 29 3 16 12 7 31 20 6 21 1 7 52 26 3 16 11 6 31",
+        "tokens": "0 2 0 8 1 2 8 1 2 1 11 1 0 1 2 5 1 2 1 9 1 0 1 2 8 1 2 1 3 3 0 1 2 9 1 2 1 3 3 0 1 2 1 1 2 1 11 1 1 1 2 3 11 1 1 1 2 11 1 2 7 1 2 7 1 2 5 1 2 1 1 2 0 11 1 1 1 2 5 1 2 4 1 2 9 1 2 9 1 2 0 1 2 0 1 2 0 1 2 13 1 2 7 1 2 7 1 2 7 1 2 1 1 2 0 6 1 1 1 2 5 1 2 4 1 2 8 1 2 8 1 2 0 1 2 0 1 2 3 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 32,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 40,
+            "end": 49,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 60,
+            "end": 63,
+            "target": "Int"
+          },
+          {
+            "start": 75,
+            "end": 78,
+            "target": "Int"
+          },
+          {
+            "start": 82,
+            "end": 93,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 98,
+            "end": 109,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 124,
+            "end": 130,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 147,
+            "end": 158,
+            "target": "Domain.ServiceCall"
+          },
+          {
+            "start": 209,
+            "end": 215,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 234,
+            "end": 240,
+            "target": "Domain.Effect"
+          }
+        ]
+      },
+      "new": {
+        "id": "Service.execute",
+        "name": "execute",
+        "module": "Service",
+        "kind": "value",
+        "hash": "726622c42effac6f7da7d31a31ca476b160602ce5123e84bc9aa99a3b3982985",
+        "ty": "(Domain.MockService, Domain.ActionKey, Int, Int) -> Domain.MockService",
+        "ty_tokens": "0 1 2 0 18 1 0 1 2 1 16 1 0 1 2 1 3 3 0 1 2 1 3 3 0 1 2 1 2 2 1 18 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 19,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 21,
+            "end": 37,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 39,
+            "end": 42,
+            "target": "Int"
+          },
+          {
+            "start": 44,
+            "end": 47,
+            "target": "Int"
+          },
+          {
+            "start": 52,
+            "end": 70,
+            "target": "Domain.MockService"
+          }
+        ],
+        "source": "fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =\n  fst(call_service(service, key, amount, attempt, 0, false))",
+        "span": {
+          "start": 1341,
+          "end": 1497
+        },
+        "vis": "public",
+        "types": "11 7 72 16 3 16 14 6 31 8 7 31 26 3 54 1 12 53 1 7 72 2 3 16 2 6 31 2 7 31",
+        "tokens": "0 2 0 8 1 2 8 1 2 1 11 1 0 1 2 5 1 2 1 9 1 0 1 2 8 1 2 1 3 3 0 1 2 9 1 2 1 3 3 0 1 2 1 1 2 1 11 1 1 1 2 6 1 2 12 1 2 7 1 2 4 1 2 7 1 2 8 1 2 1 1 4 0 1 2 1 5 6 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 32,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 40,
+            "end": 49,
+            "target": "Domain.ActionKey"
+          },
+          {
+            "start": 60,
+            "end": 63,
+            "target": "Int"
+          },
+          {
+            "start": 75,
+            "end": 78,
+            "target": "Int"
+          },
+          {
+            "start": 82,
+            "end": 93,
+            "target": "Domain.MockService"
+          },
+          {
+            "start": 98,
+            "end": 101,
+            "target": "fst"
+          },
+          {
+            "start": 102,
+            "end": 114,
+            "target": "Service.call_service"
+          }
+        ]
+      }
+    },
+    {
+      "status": "changed",
+      "id": "handle_request",
+      "old": {
+        "id": "handle_request",
+        "name": "handle_request",
+        "module": "main",
+        "kind": "value",
+        "hash": "d3fee38554988246f8e281916ceade0deee34bf0a3249f0465352722284eb1e5",
+        "ty": "(String) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 6 3 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "Result"
+          },
+          {
+            "start": 19,
+            "end": 35,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 37,
+            "end": 43,
+            "target": "String"
+          }
+        ],
+        "source": "fn handle_request(line : String) : Result(Simulator, String) =\n  let request = map_err(\\(_) -> \"INVALID_INPUT\", decode_lossy(line))?\n  match request of\n    JObj(fields) =>\n      let workflow = parse_workflow(get_field(fields, \"input\"))?\n      simulate(workflow)\n    _ => Err(\"INVALID_INPUT\")",
+        "span": {
+          "start": 211,
+          "end": 502
+        },
+        "types": "18 4 29 57 7 111 26 12 112 1 4 29 12 7 70 13 6 26 26 14 113 1 9 88 1 6 26 19 8 114 1 8 45 11 3 55",
+        "tokens": "0 2 0 15 1 2 5 1 2 1 6 3 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 3 0 9 1 2 8 1 2 0 1 2 0 1 2 1 1 2 1 2 2 1 15 5 0 1 2 13 1 2 4 1 2 0 1 2 0 1 2 3 5 0 9 2 0 5 4 1 0 1 2 6 1 2 1 2 2 7 3 0 10 1 2 15 1 2 9 1 2 6 1 2 1 7 5 0 1 2 0 1 2 0 1 2 15 1 2 8 1 2 7 2 2 1 3 1 0 1 2 0 15 5 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 31,
+            "target": "String"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Result"
+          },
+          {
+            "start": 42,
+            "end": 51,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 53,
+            "end": 59,
+            "target": "String"
+          },
+          {
+            "start": 79,
+            "end": 86,
+            "target": "Data.Result.map_err"
+          },
+          {
+            "start": 79,
+            "end": 131,
+            "target": "Result"
+          },
+          {
+            "start": 112,
+            "end": 124,
+            "target": "Json.decode_lossy"
+          },
+          {
+            "start": 193,
+            "end": 207,
+            "target": "Validation.parse_workflow"
+          },
+          {
+            "start": 193,
+            "end": 235,
+            "target": "Result"
+          },
+          {
+            "start": 208,
+            "end": 217,
+            "target": "Validation.get_field"
+          },
+          {
+            "start": 243,
+            "end": 251,
+            "target": "Runner.simulate"
+          },
+          {
+            "start": 271,
+            "end": 274,
+            "target": "Result"
+          }
+        ]
+      },
+      "new": {
+        "id": "handle_request",
+        "name": "handle_request",
+        "module": "main",
+        "kind": "value",
+        "hash": "16700f14009cc8daeb00d4d85c6c24f78ed34a3e24a5534f99fb5a294dfb4743",
+        "ty": "(String) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 6 3 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "String"
+          },
+          {
+            "start": 12,
+            "end": 18,
+            "target": "Result"
+          },
+          {
+            "start": 19,
+            "end": 35,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 37,
+            "end": 43,
+            "target": "String"
+          }
+        ],
+        "source": "fn handle_request(line : String) : Result(Simulator, String) =\n  let request = map_err(\\(_) -> \"INVALID_INPUT\", decode_lossy(line))?\n  let workflow = parse_request(request)?\n  simulate(workflow)",
+        "span": {
+          "start": 211,
+          "end": 405
+        },
+        "types": "18 4 29 57 7 119 26 12 120 1 4 29 21 13 118 1 7 81 5 8 121 1 8 45",
+        "tokens": "0 2 0 15 1 2 5 1 2 1 6 3 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 3 0 9 1 2 8 1 2 0 1 2 0 1 2 1 1 2 1 2 2 1 15 5 0 1 2 13 1 2 4 1 2 0 1 2 0 1 2 3 3 0 10 1 2 14 1 2 7 1 2 0 1 2 11 1 2 8 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 31,
+            "target": "String"
+          },
+          {
+            "start": 35,
+            "end": 41,
+            "target": "Result"
+          },
+          {
+            "start": 42,
+            "end": 51,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 53,
+            "end": 59,
+            "target": "String"
+          },
+          {
+            "start": 79,
+            "end": 86,
+            "target": "Data.Result.map_err"
+          },
+          {
+            "start": 79,
+            "end": 131,
+            "target": "Result"
+          },
+          {
+            "start": 112,
+            "end": 124,
+            "target": "Json.decode_lossy"
+          },
+          {
+            "start": 150,
+            "end": 163,
+            "target": "Validation.parse_request"
+          },
+          {
+            "start": 150,
+            "end": 172,
+            "target": "Result"
+          },
+          {
+            "start": 176,
+            "end": 184,
+            "target": "Runner.simulate"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output.response_json",
+      "old": {
+        "id": "Output.response_json",
+        "name": "response_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "8dbb6e4fe00239afdeb6ef1719f0a59950e9f3029a2d8c80f52ee6da9172df34",
+        "ty": "(Result(Domain.Simulator, String)) -> Json.Json",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "Result"
+          },
+          {
+            "start": 8,
+            "end": 24,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 26,
+            "end": 32,
+            "target": "String"
+          },
+          {
+            "start": 38,
+            "end": 47,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn response_json(result : Result(Simulator, String)) : Json =\n  match result of\n    Ok(sim) => JObj([(\"ok\", JBool(true)), (\"result\", result_json(sim))])\n    Err(code) => JObj([(\"ok\", JBool(false)), (\"error\", JObj([(\"code\", JStr(code))]))])",
+        "span": {
+          "start": 1752,
+          "end": 1991
+        },
+        "vis": "public",
+        "types": "17 6 27 47 6 27 11 3 20 5 4 3 9 5 9 20 11 28 1 3 20 13 4 29 5 4 3 9 5 9 20 4 3 11 4 4 1 4 29",
+        "tokens": "0 2 0 14 1 2 7 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 0 1 2 1 1 2 1 4 1 1 1 2 3 5 0 8 2 0 5 2 1 0 1 2 3 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 5 1 0 1 2 0 4 6 0 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 12 1 2 3 1 2 0 1 2 0 1 2 0 1 2 5 3 1 0 1 2 4 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 5 1 0 1 2 0 5 6 0 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 0 1 2 0 1 2 0 6 5 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 26,
+            "end": 32,
+            "target": "Result"
+          },
+          {
+            "start": 33,
+            "end": 42,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 44,
+            "end": 50,
+            "target": "String"
+          },
+          {
+            "start": 55,
+            "end": 59,
+            "target": "Json.Json"
+          },
+          {
+            "start": 84,
+            "end": 86,
+            "target": "Result"
+          },
+          {
+            "start": 95,
+            "end": 99,
+            "target": "Json.Json"
+          },
+          {
+            "start": 108,
+            "end": 113,
+            "target": "Json.Json"
+          },
+          {
+            "start": 133,
+            "end": 144,
+            "target": "Output.result_json"
+          },
+          {
+            "start": 157,
+            "end": 160,
+            "target": "Result"
+          },
+          {
+            "start": 170,
+            "end": 174,
+            "target": "Json.Json"
+          },
+          {
+            "start": 183,
+            "end": 188,
+            "target": "Json.Json"
+          },
+          {
+            "start": 208,
+            "end": 212,
+            "target": "Json.Json"
+          },
+          {
+            "start": 223,
+            "end": 227,
+            "target": "Json.Json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output.response_json",
+        "name": "response_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "9767ede18e672cf1ecb58b93f88671428809dcbf6c012e3baec509ec81a74a46",
+        "ty": "(Result(Domain.Simulator, String)) -> Json.Json",
+        "ty_tokens": "0 1 2 0 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 7,
+            "target": "Result"
+          },
+          {
+            "start": 8,
+            "end": 24,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 26,
+            "end": 32,
+            "target": "String"
+          },
+          {
+            "start": 38,
+            "end": 47,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn response_json(result : Result(Simulator, String)) : Json =\n  match result of\n    Ok(sim) => JObj([(\"ok\", JBool(true)), (\"result\", result_json(sim))])\n    Err(code) => JObj([(\"ok\", JBool(false)), (\"error\", JObj([(\"code\", JStr(code))]))])",
+        "span": {
+          "start": 1921,
+          "end": 2160
+        },
+        "vis": "public",
+        "types": "17 6 27 47 6 27 11 3 20 5 4 3 9 5 9 20 11 28 1 3 20 13 4 29 5 4 3 9 5 9 20 4 3 11 4 4 1 4 29",
+        "tokens": "0 2 0 14 1 2 7 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 0 1 2 1 1 2 1 4 1 1 1 2 3 5 0 8 2 0 5 2 1 0 1 2 3 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 5 1 0 1 2 0 4 6 0 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 12 1 2 3 1 2 0 1 2 0 1 2 0 1 2 5 3 1 0 1 2 4 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 5 1 0 1 2 0 5 6 0 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 0 1 2 0 1 2 0 6 5 0 1 2 1 4 1 0 1 2 4 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 26,
+            "end": 32,
+            "target": "Result"
+          },
+          {
+            "start": 33,
+            "end": 42,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 44,
+            "end": 50,
+            "target": "String"
+          },
+          {
+            "start": 55,
+            "end": 59,
+            "target": "Json.Json"
+          },
+          {
+            "start": 84,
+            "end": 86,
+            "target": "Result"
+          },
+          {
+            "start": 95,
+            "end": 99,
+            "target": "Json.Json"
+          },
+          {
+            "start": 108,
+            "end": 113,
+            "target": "Json.Json"
+          },
+          {
+            "start": 133,
+            "end": 144,
+            "target": "Output.result_json"
+          },
+          {
+            "start": 157,
+            "end": 160,
+            "target": "Result"
+          },
+          {
+            "start": 170,
+            "end": 174,
+            "target": "Json.Json"
+          },
+          {
+            "start": 183,
+            "end": 188,
+            "target": "Json.Json"
+          },
+          {
+            "start": 208,
+            "end": 212,
+            "target": "Json.Json"
+          },
+          {
+            "start": 223,
+            "end": 227,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output.result_json",
+      "old": {
+        "id": "Output.result_json",
+        "name": "result_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "35df7e8696e205d87ef86080fc70a7230a150c742bf85081fbb1bee75c2f7eef",
+        "ty": "(Domain.Simulator) -> Json.Json",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn result_json(sim : Simulator) : Json =\n  let final_fields = append(snapshot_fields(snapshot(sim)),\n    [(\"calls\", JArr(map(call_json, sim.service.calls))), (\"effects\", JArr(map(effect_json, sim.service.effects)))])\n  JObj([(\"observations\", JArr(map(snapshot_json, sim.observations))), (\"final\", JObj(final_fields))])",
+        "span": {
+          "start": 1428,
+          "end": 1746
+        },
+        "vis": "public",
+        "types": "15 3 20 44 6 21 1 15 15 1 8 22 1 3 20 19 4 10 1 3 11 1 9 23 2 3 20 31 4 10 1 3 11 1 11 24 2 3 20 24 4 3 19 4 10 1 3 11 1 13 25 2 3 20 28 4 3 1 12 26",
+        "tokens": "0 2 0 12 1 2 4 1 2 1 9 1 0 1 2 1 1 2 1 4 1 1 1 2 3 3 0 14 1 2 7 1 2 15 1 2 8 1 2 3 1 2 0 1 2 0 1 2 5 1 2 0 1 2 0 7 5 0 1 2 1 4 1 0 1 2 3 1 2 9 1 2 4 1 2 7 1 2 5 1 2 0 1 2 0 1 2 0 1 2 1 1 2 0 9 5 0 1 2 1 4 1 0 1 2 3 1 2 11 1 2 4 1 2 7 1 2 7 1 2 0 1 2 0 1 2 0 1 2 0 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 14 5 0 1 2 1 4 1 0 1 2 3 1 2 13 1 2 4 1 2 12 1 2 0 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 12 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 34,
+            "end": 38,
+            "target": "Json.Json"
+          },
+          {
+            "start": 62,
+            "end": 68,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 69,
+            "end": 84,
+            "target": "Output@snapshot_fields"
+          },
+          {
+            "start": 85,
+            "end": 93,
+            "target": "Runner.snapshot"
+          },
+          {
+            "start": 116,
+            "end": 120,
+            "target": "Json.Json"
+          },
+          {
+            "start": 121,
+            "end": 124,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 125,
+            "end": 134,
+            "target": "Output@call_json"
+          },
+          {
+            "start": 170,
+            "end": 174,
+            "target": "Json.Json"
+          },
+          {
+            "start": 175,
+            "end": 178,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 179,
+            "end": 190,
+            "target": "Output@effect_json"
+          },
+          {
+            "start": 219,
+            "end": 223,
+            "target": "Json.Json"
+          },
+          {
+            "start": 242,
+            "end": 246,
+            "target": "Json.Json"
+          },
+          {
+            "start": 247,
+            "end": 250,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 251,
+            "end": 264,
+            "target": "Output@snapshot_json"
+          },
+          {
+            "start": 297,
+            "end": 301,
+            "target": "Json.Json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output.result_json",
+        "name": "result_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "d96863c45aab0376e51671fe47d5861c0930e763c4e5a520f5440f7132564b20",
+        "ty": "(Domain.Simulator) -> Json.Json",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn result_json(sim : Simulator) : Json =\n  let final_fields = append(snapshot_fields(snapshot(sim)),\n    [(\"calls\", JArr(map(call_json, sim.service.calls))), (\"effects\", JArr(map(effect_json, sim.service.effects)))])\n  JObj([(\"observations\", JArr(map(snapshot_json, sim.observations))), (\"final\", JObj(final_fields))])",
+        "span": {
+          "start": 1597,
+          "end": 1915
+        },
+        "vis": "public",
+        "types": "15 3 20 44 6 21 1 15 15 1 8 22 1 3 20 19 4 10 1 3 11 1 9 23 2 3 20 31 4 10 1 3 11 1 11 24 2 3 20 24 4 3 19 4 10 1 3 11 1 13 25 2 3 20 28 4 3 1 12 26",
+        "tokens": "0 2 0 12 1 2 4 1 2 1 9 1 0 1 2 1 1 2 1 4 1 1 1 2 3 3 0 14 1 2 7 1 2 15 1 2 8 1 2 3 1 2 0 1 2 0 1 2 5 1 2 0 1 2 0 7 5 0 1 2 1 4 1 0 1 2 3 1 2 9 1 2 4 1 2 7 1 2 5 1 2 0 1 2 0 1 2 0 1 2 1 1 2 0 9 5 0 1 2 1 4 1 0 1 2 3 1 2 11 1 2 4 1 2 7 1 2 7 1 2 0 1 2 0 1 2 0 1 2 0 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 14 5 0 1 2 1 4 1 0 1 2 3 1 2 13 1 2 4 1 2 12 1 2 0 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 12 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 34,
+            "end": 38,
+            "target": "Json.Json"
+          },
+          {
+            "start": 62,
+            "end": 68,
+            "target": "Data.List.append"
+          },
+          {
+            "start": 69,
+            "end": 84,
+            "target": "Output@snapshot_fields"
+          },
+          {
+            "start": 85,
+            "end": 93,
+            "target": "Runner.snapshot"
+          },
+          {
+            "start": 116,
+            "end": 120,
+            "target": "Json.Json"
+          },
+          {
+            "start": 121,
+            "end": 124,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 125,
+            "end": 134,
+            "target": "Output@call_json"
+          },
+          {
+            "start": 170,
+            "end": 174,
+            "target": "Json.Json"
+          },
+          {
+            "start": 175,
+            "end": 178,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 179,
+            "end": 190,
+            "target": "Output@effect_json"
+          },
+          {
+            "start": 219,
+            "end": 223,
+            "target": "Json.Json"
+          },
+          {
+            "start": 242,
+            "end": 246,
+            "target": "Json.Json"
+          },
+          {
+            "start": 247,
+            "end": 250,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 251,
+            "end": 264,
+            "target": "Output@snapshot_json"
+          },
+          {
+            "start": 297,
+            "end": 301,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output@run_json",
+      "old": {
+        "id": "Output@run_json",
+        "name": "run_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "e80f394226e38ae8e3a7a005413e212d73352fae667ee5eeb19acb84c8d352c7",
+        "ty": "(Domain.RunState) -> Json.Json",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn run_json(run : RunState) : Json =\n  JObj([(\"id\", JStr(run.id)), (\"status\", JStr(run_status(run.status))),\n    (\"cancel_requested\", JBool(run.cancel_requested)), (\"steps\", JArr(map(step_json, run.steps)))])",
+        "span": {
+          "start": 610,
+          "end": 818
+        },
+        "types": "12 3 7 24 4 3 9 4 4 1 3 7 18 4 4 1 10 8 1 3 7 37 5 9 1 3 7 31 4 10 1 3 11 1 9 12 2 3 7",
+        "tokens": "0 2 0 9 1 2 4 1 2 1 8 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 4 1 0 1 2 3 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 1 4 1 0 1 2 10 1 2 3 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 18 5 0 1 2 1 5 1 0 1 2 3 1 2 16 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 3 1 2 9 1 2 4 1 2 5 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 18,
+            "end": 26,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 30,
+            "end": 34,
+            "target": "Json.Json"
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 56,
+            "target": "Json.Json"
+          },
+          {
+            "start": 78,
+            "end": 82,
+            "target": "Json.Json"
+          },
+          {
+            "start": 83,
+            "end": 93,
+            "target": "Output@run_status"
+          },
+          {
+            "start": 134,
+            "end": 139,
+            "target": "Json.Json"
+          },
+          {
+            "start": 174,
+            "end": 178,
+            "target": "Json.Json"
+          },
+          {
+            "start": 179,
+            "end": 182,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 183,
+            "end": 192,
+            "target": "Output@step_json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@run_json",
+        "name": "run_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "2f56f9d72365ca26cd0fb42e1c5cb96cd3eca7a82a7fdb8672f9cb565840f0c3",
+        "ty": "(Domain.RunState) -> Json.Json",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn run_json(run : RunState) : Json =\n  JObj([(\"id\", JStr(run.id)), (\"status\", JStr(run_status(run.status))),\n    (\"cancel_requested\", JBool(run.cancel_requested)), (\"steps\", JArr(map(step_json, run.steps)))])",
+        "span": {
+          "start": 776,
+          "end": 984
+        },
+        "types": "12 3 7 24 4 3 9 4 4 1 3 7 18 4 4 1 10 8 1 3 7 37 5 9 1 3 7 31 4 10 1 3 11 1 9 12 2 3 7",
+        "tokens": "0 2 0 9 1 2 4 1 2 1 8 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 4 1 0 1 2 3 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 1 4 1 0 1 2 10 1 2 3 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 18 5 0 1 2 1 5 1 0 1 2 3 1 2 16 1 2 0 1 2 0 1 2 1 1 2 0 7 5 0 1 2 1 4 1 0 1 2 3 1 2 9 1 2 4 1 2 5 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 18,
+            "end": 26,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 30,
+            "end": 34,
+            "target": "Json.Json"
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "target": "Json.Json"
+          },
+          {
+            "start": 52,
+            "end": 56,
+            "target": "Json.Json"
+          },
+          {
+            "start": 78,
+            "end": 82,
+            "target": "Json.Json"
+          },
+          {
+            "start": 83,
+            "end": 93,
+            "target": "Output@run_status"
+          },
+          {
+            "start": 134,
+            "end": 139,
+            "target": "Json.Json"
+          },
+          {
+            "start": 174,
+            "end": 178,
+            "target": "Json.Json"
+          },
+          {
+            "start": 179,
+            "end": 182,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 183,
+            "end": 192,
+            "target": "Output@step_json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output@snapshot_fields",
+      "old": {
+        "id": "Output@snapshot_fields",
+        "name": "snapshot_fields",
+        "module": "Output",
+        "kind": "value",
+        "hash": "b045a416f4166f2f54eca652f0fe8ec38f456d3f1122fce587d0af92811e18a9",
+        "ty": "(Domain.Snapshot) -> List((String, Json.Json))",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 6 3 0 1 2 1 9 1 0 1 2 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 27,
+            "end": 33,
+            "target": "String"
+          },
+          {
+            "start": 35,
+            "end": 44,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn snapshot_fields(state : Snapshot) : List((String, Json)) =\n  [(\"now\", JInt(state.now)), (\"up\", JBool(state.up)), (\"runs\", JArr(map(run_json, state.runs)))]",
+        "span": {
+          "start": 820,
+          "end": 978
+        },
+        "types": "19 5 13 49 4 6 1 5 13 15 5 9 1 5 13 16 4 10 1 3 11 1 8 14 2 5 13",
+        "tokens": "0 2 0 16 1 2 6 1 2 1 8 1 0 1 2 1 1 2 1 4 1 0 1 2 0 1 2 0 6 3 0 1 2 1 4 1 0 1 2 0 1 2 1 1 2 3 1 2 0 1 2 0 5 5 0 1 2 1 4 1 0 1 2 5 1 2 3 1 2 0 1 2 0 1 2 1 1 2 0 4 5 0 1 2 1 5 1 0 1 2 5 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 6 5 0 1 2 1 4 1 0 1 2 3 1 2 8 1 2 6 1 2 4 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 27,
+            "end": 35,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "target": "List"
+          },
+          {
+            "start": 45,
+            "end": 51,
+            "target": "String"
+          },
+          {
+            "start": 53,
+            "end": 57,
+            "target": "Json.Json"
+          },
+          {
+            "start": 73,
+            "end": 77,
+            "target": "Json.Json"
+          },
+          {
+            "start": 98,
+            "end": 103,
+            "target": "Json.Json"
+          },
+          {
+            "start": 125,
+            "end": 129,
+            "target": "Json.Json"
+          },
+          {
+            "start": 130,
+            "end": 133,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 134,
+            "end": 142,
+            "target": "Output@run_json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@snapshot_fields",
+        "name": "snapshot_fields",
+        "module": "Output",
+        "kind": "value",
+        "hash": "5f6d427e6ae300a98cfea26fe824430166f4d685f9073de131bae678a9505399",
+        "ty": "(Domain.Snapshot) -> List((String, Json.Json))",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 4 1 0 1 2 0 1 2 0 6 3 0 1 2 1 9 1 0 1 2 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 21,
+            "end": 25,
+            "target": "List"
+          },
+          {
+            "start": 27,
+            "end": 33,
+            "target": "String"
+          },
+          {
+            "start": 35,
+            "end": 44,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn snapshot_fields(state : Snapshot) : List((String, Json)) =\n  [(\"now\", JInt(state.now)), (\"up\", JBool(state.up)), (\"runs\", JArr(map(run_json, state.runs)))]",
+        "span": {
+          "start": 986,
+          "end": 1144
+        },
+        "types": "19 5 13 49 4 6 1 5 13 15 5 9 1 5 13 16 4 10 1 3 11 1 8 14 2 5 13",
+        "tokens": "0 2 0 16 1 2 6 1 2 1 8 1 0 1 2 1 1 2 1 4 1 0 1 2 0 1 2 0 6 3 0 1 2 1 4 1 0 1 2 0 1 2 1 1 2 3 1 2 0 1 2 0 5 5 0 1 2 1 4 1 0 1 2 5 1 2 3 1 2 0 1 2 0 1 2 1 1 2 0 4 5 0 1 2 1 5 1 0 1 2 5 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 6 5 0 1 2 1 4 1 0 1 2 3 1 2 8 1 2 6 1 2 4 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 27,
+            "end": 35,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 39,
+            "end": 43,
+            "target": "List"
+          },
+          {
+            "start": 45,
+            "end": 51,
+            "target": "String"
+          },
+          {
+            "start": 53,
+            "end": 57,
+            "target": "Json.Json"
+          },
+          {
+            "start": 73,
+            "end": 77,
+            "target": "Json.Json"
+          },
+          {
+            "start": 98,
+            "end": 103,
+            "target": "Json.Json"
+          },
+          {
+            "start": 125,
+            "end": 129,
+            "target": "Json.Json"
+          },
+          {
+            "start": 130,
+            "end": 133,
+            "target": "Data.List.map"
+          },
+          {
+            "start": 134,
+            "end": 142,
+            "target": "Output@run_json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output@snapshot_json",
+      "old": {
+        "id": "Output@snapshot_json",
+        "name": "snapshot_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "1686802a6c15eb398d8c40fd2125af5daf062665e8fb70c9f824ec3ed0b4e2f5",
+        "ty": "(Domain.Snapshot) -> Json.Json",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))",
+        "span": {
+          "start": 980,
+          "end": 1052
+        },
+        "types": "17 5 13 22 4 3 1 15 15 1 5 13",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 8 1 0 1 2 1 1 2 1 4 1 1 1 2 1 4 1 0 1 2 15 1 2 5 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 33,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "Json.Json"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 49,
+            "end": 64,
+            "target": "Output@snapshot_fields"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@snapshot_json",
+        "name": "snapshot_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "995eff32fcc36a0548d8af4738af7454ae090d838303534f81d3f6a38897995f",
+        "ty": "(Domain.Snapshot) -> Json.Json",
+        "ty_tokens": "0 1 2 0 15 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 16,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 21,
+            "end": 30,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))",
+        "span": {
+          "start": 1146,
+          "end": 1218
+        },
+        "types": "17 5 13 22 4 3 1 15 15 1 5 13",
+        "tokens": "0 2 0 14 1 2 6 1 2 1 8 1 0 1 2 1 1 2 1 4 1 1 1 2 1 4 1 0 1 2 15 1 2 5 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 25,
+            "end": 33,
+            "target": "Domain.Snapshot"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "Json.Json"
+          },
+          {
+            "start": 44,
+            "end": 48,
+            "target": "Json.Json"
+          },
+          {
+            "start": 49,
+            "end": 64,
+            "target": "Output@snapshot_fields"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Output@step_json",
+      "old": {
+        "id": "Output@step_json",
+        "name": "step_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "503b3f00bca68375d6b7588e9e651abf768535989b8f243088daf277c6f7e0ff",
+        "ty": "(Domain.StepState) -> Json.Json",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn step_json(step : StepState) : Json =\n  JObj([(\"id\", JStr(step.id)), (\"status\", JStr(step_status(step.status))),\n    (\"attempts\", JInt(step.attempts)), (\"ready_at\", JInt(step.ready_at))])",
+        "span": {
+          "start": 419,
+          "end": 608
+        },
+        "types": "13 4 2 25 4 3 9 4 4 1 4 2 18 4 4 1 11 5 1 4 2 29 4 6 1 4 2 26 4 6 1 4 2",
+        "tokens": "0 2 0 10 1 2 5 1 2 1 9 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 4 1 0 1 2 4 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 1 4 1 0 1 2 11 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 10 5 0 1 2 1 4 1 0 1 2 4 1 2 8 1 2 0 1 2 0 1 2 1 1 2 0 10 5 0 1 2 1 4 1 0 1 2 4 1 2 8 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Json.Json"
+          },
+          {
+            "start": 42,
+            "end": 46,
+            "target": "Json.Json"
+          },
+          {
+            "start": 55,
+            "end": 59,
+            "target": "Json.Json"
+          },
+          {
+            "start": 82,
+            "end": 86,
+            "target": "Json.Json"
+          },
+          {
+            "start": 87,
+            "end": 98,
+            "target": "Output@step_status"
+          },
+          {
+            "start": 132,
+            "end": 136,
+            "target": "Json.Json"
+          },
+          {
+            "start": 167,
+            "end": 171,
+            "target": "Json.Json"
+          }
+        ]
+      },
+      "new": {
+        "id": "Output@step_json",
+        "name": "step_json",
+        "module": "Output",
+        "kind": "value",
+        "hash": "73d5675b3629e9c5cab12036b77ad58b7f4a74f61d039935dc3866a61e66edfb",
+        "ty": "(Domain.StepState) -> Json.Json",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 2 2 1 9 1",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Json.Json"
+          }
+        ],
+        "source": "fn step_json(step : StepState) : Json =\n  JObj([(\"id\", JStr(step.id)), (\"status\", JStr(step_status(step.status))),\n    (\"attempts\", JInt(step.attempts)), (\"ready_at\", JInt(step.ready_at))])",
+        "span": {
+          "start": 585,
+          "end": 774
+        },
+        "types": "13 4 2 25 4 3 9 4 4 1 4 2 18 4 4 1 11 5 1 4 2 29 4 6 1 4 2 26 4 6 1 4 2",
+        "tokens": "0 2 0 10 1 2 5 1 2 1 9 1 0 1 2 1 1 2 1 4 1 1 1 2 3 4 1 0 1 2 0 1 2 0 1 2 0 4 5 0 1 2 1 4 1 0 1 2 4 1 2 2 1 2 0 1 2 0 1 2 1 1 2 0 8 5 0 1 2 1 4 1 0 1 2 11 1 2 4 1 2 6 1 2 0 1 2 0 1 2 0 1 2 5 1 2 0 10 5 0 1 2 1 4 1 0 1 2 4 1 2 8 1 2 0 1 2 0 1 2 1 1 2 0 10 5 0 1 2 1 4 1 0 1 2 4 1 2 8 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 29,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 33,
+            "end": 37,
+            "target": "Json.Json"
+          },
+          {
+            "start": 42,
+            "end": 46,
+            "target": "Json.Json"
+          },
+          {
+            "start": 55,
+            "end": 59,
+            "target": "Json.Json"
+          },
+          {
+            "start": 82,
+            "end": 86,
+            "target": "Json.Json"
+          },
+          {
+            "start": 87,
+            "end": 98,
+            "target": "Output@step_status"
+          },
+          {
+            "start": 132,
+            "end": 136,
+            "target": "Json.Json"
+          },
+          {
+            "start": 167,
+            "end": 171,
+            "target": "Json.Json"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Runner.select_action",
+      "old": {
+        "id": "Runner.select_action",
+        "name": "select_action",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "ccb8c4505be7372294251a15f660d10fa915d6beb29fabc3898a2178963427b1",
+        "ty": "(Domain.Simulator, Domain.Workflow) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 39,
+            "end": 45,
+            "target": "Option"
+          },
+          {
+            "start": 46,
+            "end": 59,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_action(sim : Simulator, workflow : Workflow) : Option(Action) =\n  -- Resume the oldest in-flight attempt before scanning ready pending work.\n  match select_run(sim.now, true, sim.runs, workflow.steps) of\n    Some(action) => Some(action)\n    None => select_run(sim.now, false, sim.runs, workflow.steps)",
+        "span": {
+          "start": 1626,
+          "end": 1937
+        },
+        "vis": "public",
+        "types": "17 3 20 14 8 45 117 10 46 1 3 20 12 3 20 7 8 45 20 6 43 5 4 38 1 6 43 14 10 46 1 3 20 13 3 20 7 8 45",
+        "tokens": "0 2 0 14 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 74 7 3 5 0 11 1 2 3 1 2 3 1 2 1 4 6 0 1 2 4 1 2 4 1 2 9 1 2 5 1 2 1 2 0 5 4 1 0 1 2 6 1 2 1 2 2 1 4 1 0 1 2 6 1 2 5 4 1 1 2 2 11 1 2 3 1 2 3 1 2 1 5 6 0 1 2 4 1 2 4 1 2 9 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 45,
+            "end": 53,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 57,
+            "end": 63,
+            "target": "Option"
+          },
+          {
+            "start": 64,
+            "end": 70,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 159,
+            "end": 169,
+            "target": "Runner@select_run"
+          },
+          {
+            "start": 218,
+            "end": 222,
+            "target": "Option"
+          },
+          {
+            "start": 234,
+            "end": 238,
+            "target": "Option"
+          },
+          {
+            "start": 251,
+            "end": 255,
+            "target": "Option"
+          },
+          {
+            "start": 259,
+            "end": 269,
+            "target": "Runner@select_run"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner.select_action",
+        "name": "select_action",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "2267d2f76fc450afb3b50ab01bc630d331ab5865158ae3631a28ed32b6a12862",
+        "ty": "(Domain.Simulator, Domain.Workflow) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 39,
+            "end": 45,
+            "target": "Option"
+          },
+          {
+            "start": 46,
+            "end": 59,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_action(sim : Simulator, workflow : Workflow) : Option(Action) =\n  -- Resume the oldest in-flight attempt before scanning ready pending work.\n  match select_run(sim.now, true, sim.runs, workflow.steps) of\n    Some(action) => Some(action)\n    None => select_run(sim.now, false, sim.runs, workflow.steps)",
+        "span": {
+          "start": 1626,
+          "end": 1937
+        },
+        "vis": "public",
+        "types": "17 3 20 14 8 45 117 10 46 1 3 20 12 3 20 7 8 45 20 6 43 5 4 38 1 6 43 14 10 46 1 3 20 13 3 20 7 8 45",
+        "tokens": "0 2 0 14 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 74 7 3 5 0 11 1 2 3 1 2 3 1 2 1 4 6 0 1 2 4 1 2 4 1 2 9 1 2 5 1 2 1 2 0 5 4 1 0 1 2 6 1 2 1 2 2 1 4 1 0 1 2 6 1 2 5 4 1 1 2 2 11 1 2 3 1 2 3 1 2 1 5 6 0 1 2 4 1 2 4 1 2 9 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 23,
+            "end": 32,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 45,
+            "end": 53,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 57,
+            "end": 63,
+            "target": "Option"
+          },
+          {
+            "start": 64,
+            "end": 70,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 159,
+            "end": 169,
+            "target": "Runner@select_run"
+          },
+          {
+            "start": 218,
+            "end": 222,
+            "target": "Option"
+          },
+          {
+            "start": 234,
+            "end": 238,
+            "target": "Option"
+          },
+          {
+            "start": 251,
+            "end": 255,
+            "target": "Option"
+          },
+          {
+            "start": 259,
+            "end": 269,
+            "target": "Runner@select_run"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Runner@run_commands",
+      "old": {
+        "id": "Runner@run_commands",
+        "name": "run_commands",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "743450548a2d0dec58a03d3063ecefa5f582b04d9f8948f2b4043317db2cafc8",
+        "ty": "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "List"
+          },
+          {
+            "start": 41,
+            "end": 55,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 61,
+            "end": 67,
+            "target": "Result"
+          },
+          {
+            "start": 68,
+            "end": 84,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 86,
+            "end": 92,
+            "target": "String"
+          }
+        ],
+        "source": "fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =\n  match commands of\n    Nil => Ok(sim)\n    Cons(command, rest) =>\n      let next = apply_command(sim, workflow, command)?\n      run_commands(next, workflow, rest)",
+        "span": {
+          "start": 4005,
+          "end": 4277
+        },
+        "types": "16 3 20 14 8 45 13 8 60 56 8 60 15 2 57 1 3 20 11 7 53 2 4 60 22 13 61 1 3 20 2 8 45 2 7 53 9 12 62 1 4 20 2 8 45 2 4 60",
+        "tokens": "0 2 0 13 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 10 1 2 1 4 1 0 1 2 0 7 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 10 2 0 5 3 1 1 2 2 1 2 1 0 1 2 3 1 2 5 4 1 0 1 2 7 1 2 5 1 2 1 2 2 7 3 0 6 1 2 14 1 2 3 1 2 9 1 2 8 1 2 0 1 2 19 1 2 4 1 2 9 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 44,
+            "end": 52,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 65,
+            "end": 69,
+            "target": "List"
+          },
+          {
+            "start": 70,
+            "end": 77,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 82,
+            "end": 88,
+            "target": "Result"
+          },
+          {
+            "start": 89,
+            "end": 98,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 100,
+            "end": 106,
+            "target": "String"
+          },
+          {
+            "start": 134,
+            "end": 137,
+            "target": "List"
+          },
+          {
+            "start": 141,
+            "end": 143,
+            "target": "Result"
+          },
+          {
+            "start": 153,
+            "end": 157,
+            "target": "List"
+          },
+          {
+            "start": 193,
+            "end": 206,
+            "target": "Runner.apply_command"
+          },
+          {
+            "start": 193,
+            "end": 230,
+            "target": "Result"
+          },
+          {
+            "start": 238,
+            "end": 250,
+            "target": "Runner@run_commands"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner@run_commands",
+        "name": "run_commands",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "8bb35a42b16abc529836e8f68621b22f5938aa20db43ce5ab600b0e63d7d069e",
+        "ty": "(Domain.Simulator, Domain.Workflow, List(Domain.Command)) -> Result(Domain.Simulator, String)",
+        "ty_tokens": "0 1 2 0 16 1 0 1 2 1 15 1 0 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 16 1 0 1 2 1 6 3 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 17,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 19,
+            "end": 34,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "List"
+          },
+          {
+            "start": 41,
+            "end": 55,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 61,
+            "end": 67,
+            "target": "Result"
+          },
+          {
+            "start": 68,
+            "end": 84,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 86,
+            "end": 92,
+            "target": "String"
+          }
+        ],
+        "source": "fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =\n  match commands of\n    Nil => Ok(sim)\n    Cons(command, rest) =>\n      let next = apply_command(sim, workflow, command)?\n      run_commands(next, workflow, rest)",
+        "span": {
+          "start": 6426,
+          "end": 6698
+        },
+        "types": "16 3 20 14 8 45 13 8 67 56 8 67 15 2 49 1 3 20 11 7 61 2 4 67 22 13 68 1 3 20 2 8 45 2 7 61 9 12 69 1 4 20 2 8 45 2 4 67",
+        "tokens": "0 2 0 13 1 2 4 1 2 1 9 1 0 1 2 10 1 2 1 8 1 0 1 2 10 1 2 1 4 1 0 1 2 0 7 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 9 1 0 1 2 1 6 3 0 1 2 1 1 2 3 5 0 10 2 0 5 3 1 1 2 2 1 2 1 0 1 2 3 1 2 5 4 1 0 1 2 7 1 2 5 1 2 1 2 2 7 3 0 6 1 2 14 1 2 3 1 2 9 1 2 8 1 2 0 1 2 19 1 2 4 1 2 9 1 2 5 1 2",
+        "refs": [
+          {
+            "start": 22,
+            "end": 31,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 44,
+            "end": 52,
+            "target": "Domain.Workflow"
+          },
+          {
+            "start": 65,
+            "end": 69,
+            "target": "List"
+          },
+          {
+            "start": 70,
+            "end": 77,
+            "target": "Domain.Command"
+          },
+          {
+            "start": 82,
+            "end": 88,
+            "target": "Result"
+          },
+          {
+            "start": 89,
+            "end": 98,
+            "target": "Domain.Simulator"
+          },
+          {
+            "start": 100,
+            "end": 106,
+            "target": "String"
+          },
+          {
+            "start": 134,
+            "end": 137,
+            "target": "List"
+          },
+          {
+            "start": 141,
+            "end": 143,
+            "target": "Result"
+          },
+          {
+            "start": 153,
+            "end": 157,
+            "target": "List"
+          },
+          {
+            "start": 193,
+            "end": 206,
+            "target": "Runner.apply_command"
+          },
+          {
+            "start": 193,
+            "end": 230,
+            "target": "Result"
+          },
+          {
+            "start": 238,
+            "end": 250,
+            "target": "Runner@run_commands"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Runner@select_run",
+      "old": {
+        "id": "Runner@select_run",
+        "name": "select_run",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "d94d48b2afbb42981e54e902c4fe7384f6760df49eeff92eadc438143fb67233",
+        "ty": "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 3 3 0 1 2 1 4 3 0 1 2 1 4 1 0 1 2 0 15 1 0 1 2 0 1 2 1 4 1 0 1 2 0 21 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 4,
+            "target": "Int"
+          },
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Bool"
+          },
+          {
+            "start": 12,
+            "end": 16,
+            "target": "List"
+          },
+          {
+            "start": 17,
+            "end": 32,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 35,
+            "end": 39,
+            "target": "List"
+          },
+          {
+            "start": 40,
+            "end": 61,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 67,
+            "end": 73,
+            "target": "Option"
+          },
+          {
+            "start": 74,
+            "end": 87,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_run(now : Int, inflight : Bool, runs : List(RunState), definitions : List(StepDefinition)) : Option(Action) =\n  match runs of\n    Nil => None\n    Cons(run, rest) =>\n      match select_step(now, inflight, run, run.steps, definitions) of\n        Some(action) => Some(action)\n        None => select_run(now, inflight, rest, definitions)",
+        "span": {
+          "start": 1277,
+          "end": 1620
+        },
+        "types": "14 3 31 8 8 33 9 4 41 19 11 35 52 4 41 15 4 40 10 3 7 2 4 41 17 11 42 1 3 31 2 8 33 2 3 7 2 3 7 8 11 35 18 6 43 5 4 38 1 6 43 18 10 44 1 3 31 2 8 33 2 4 41 2 11 35",
+        "tokens": "0 2 0 11 1 2 4 1 2 1 3 3 0 1 2 10 1 2 1 4 3 0 1 2 6 1 2 1 4 1 0 1 2 0 8 1 0 1 2 0 1 2 13 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 5 0 6 2 0 5 3 1 1 2 2 1 4 1 5 4 1 0 1 2 3 1 2 5 1 2 1 2 2 7 5 0 12 1 2 3 1 2 9 1 2 4 1 2 4 1 2 5 1 2 12 1 2 1 2 0 9 4 1 0 1 2 6 1 2 1 2 2 1 4 1 0 1 2 6 1 2 9 4 1 1 2 2 11 1 2 3 1 2 9 1 2 5 1 2 12 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 23,
+            "target": "Int"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "Bool"
+          },
+          {
+            "start": 49,
+            "end": 53,
+            "target": "List"
+          },
+          {
+            "start": 54,
+            "end": 62,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 79,
+            "end": 83,
+            "target": "List"
+          },
+          {
+            "start": 84,
+            "end": 98,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 103,
+            "end": 109,
+            "target": "Option"
+          },
+          {
+            "start": 110,
+            "end": 116,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 140,
+            "end": 143,
+            "target": "List"
+          },
+          {
+            "start": 147,
+            "end": 151,
+            "target": "Option"
+          },
+          {
+            "start": 156,
+            "end": 160,
+            "target": "List"
+          },
+          {
+            "start": 187,
+            "end": 198,
+            "target": "Runner@select_step"
+          },
+          {
+            "start": 254,
+            "end": 258,
+            "target": "Option"
+          },
+          {
+            "start": 270,
+            "end": 274,
+            "target": "Option"
+          },
+          {
+            "start": 291,
+            "end": 295,
+            "target": "Option"
+          },
+          {
+            "start": 299,
+            "end": 309,
+            "target": "Runner@select_run"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner@select_run",
+        "name": "select_run",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "b8ba8928e6057162b6bc655086770925e2ee421d6d93885e59562e37883fd553",
+        "ty": "(Int, Bool, List(Domain.RunState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 3 3 0 1 2 1 4 3 0 1 2 1 4 1 0 1 2 0 15 1 0 1 2 0 1 2 1 4 1 0 1 2 0 21 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 4,
+            "target": "Int"
+          },
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Bool"
+          },
+          {
+            "start": 12,
+            "end": 16,
+            "target": "List"
+          },
+          {
+            "start": 17,
+            "end": 32,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 35,
+            "end": 39,
+            "target": "List"
+          },
+          {
+            "start": 40,
+            "end": 61,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 67,
+            "end": 73,
+            "target": "Option"
+          },
+          {
+            "start": 74,
+            "end": 87,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_run(now : Int, inflight : Bool, runs : List(RunState), definitions : List(StepDefinition)) : Option(Action) =\n  match runs of\n    Nil => None\n    Cons(run, rest) =>\n      match select_step(now, inflight, run, run.steps, definitions) of\n        Some(action) => Some(action)\n        None => select_run(now, inflight, rest, definitions)",
+        "span": {
+          "start": 1277,
+          "end": 1620
+        },
+        "types": "14 3 31 8 8 33 9 4 41 19 11 35 52 4 41 15 4 40 10 3 7 2 4 41 17 11 42 1 3 31 2 8 33 2 3 7 2 3 7 8 11 35 18 6 43 5 4 38 1 6 43 18 10 44 1 3 31 2 8 33 2 4 41 2 11 35",
+        "tokens": "0 2 0 11 1 2 4 1 2 1 3 3 0 1 2 10 1 2 1 4 3 0 1 2 6 1 2 1 4 1 0 1 2 0 8 1 0 1 2 0 1 2 13 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 5 0 6 2 0 5 3 1 1 2 2 1 4 1 5 4 1 0 1 2 3 1 2 5 1 2 1 2 2 7 5 0 12 1 2 3 1 2 9 1 2 4 1 2 4 1 2 5 1 2 12 1 2 1 2 0 9 4 1 0 1 2 6 1 2 1 2 2 1 4 1 0 1 2 6 1 2 9 4 1 1 2 2 11 1 2 3 1 2 9 1 2 5 1 2 12 1 2",
+        "refs": [
+          {
+            "start": 20,
+            "end": 23,
+            "target": "Int"
+          },
+          {
+            "start": 36,
+            "end": 40,
+            "target": "Bool"
+          },
+          {
+            "start": 49,
+            "end": 53,
+            "target": "List"
+          },
+          {
+            "start": 54,
+            "end": 62,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 79,
+            "end": 83,
+            "target": "List"
+          },
+          {
+            "start": 84,
+            "end": 98,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 103,
+            "end": 109,
+            "target": "Option"
+          },
+          {
+            "start": 110,
+            "end": 116,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 140,
+            "end": 143,
+            "target": "List"
+          },
+          {
+            "start": 147,
+            "end": 151,
+            "target": "Option"
+          },
+          {
+            "start": 156,
+            "end": 160,
+            "target": "List"
+          },
+          {
+            "start": 187,
+            "end": 198,
+            "target": "Runner@select_step"
+          },
+          {
+            "start": 254,
+            "end": 258,
+            "target": "Option"
+          },
+          {
+            "start": 270,
+            "end": 274,
+            "target": "Option"
+          },
+          {
+            "start": 291,
+            "end": 295,
+            "target": "Option"
+          },
+          {
+            "start": 299,
+            "end": 309,
+            "target": "Runner@select_run"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "Runner@select_step",
+      "old": {
+        "id": "Runner@select_step",
+        "name": "select_step",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "d6126fe00d93089156314258434b7bdd27b33e834af4db8350d816fdd4aa7587",
+        "ty": "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 3 3 0 1 2 1 4 3 0 1 2 1 15 1 0 1 2 1 4 1 0 1 2 0 16 1 0 1 2 0 1 2 1 4 1 0 1 2 0 21 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 4,
+            "target": "Int"
+          },
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Bool"
+          },
+          {
+            "start": 12,
+            "end": 27,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 29,
+            "end": 33,
+            "target": "List"
+          },
+          {
+            "start": 34,
+            "end": 50,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 53,
+            "end": 57,
+            "target": "List"
+          },
+          {
+            "start": 58,
+            "end": 79,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 85,
+            "end": 91,
+            "target": "Option"
+          },
+          {
+            "start": 92,
+            "end": 105,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =\n  match (states, definitions) of\n    (Cons(step, more_states), Cons(definition, more_definitions)) =>\n      let ready =\n        if inflight then step.status == Running\n        else run.status == Active && step.status == Pending && step.ready_at <= now\n          && all(\\(dep) -> any(\\(s) -> s.id == dep && s.status == Succeeded, run.steps), definition.needs)\n      if ready then Some(Action { run = run, step = step, definition = definition })\n      else select_step(now, inflight, run, more_states, more_definitions)\n    _ => None",
+        "span": {
+          "start": 604,
+          "end": 1275
+        },
+        "types": "15 3 31 8 8 33 9 3 7 13 6 34 20 11 35 53 6 34 2 11 35 15 4 2 2 11 34 8 10 32 2 16 35 35 8 33 6 4 2 11 7 0 14 3 7 11 6 1 4 4 2 11 7 0 4 4 2 13 3 31 14 3 36 11 3 37 9 1 2 7 3 29 4 1 2 11 9 0 2 3 7 9 10 32 17 5 33 6 4 38 16 3 7 9 4 2 15 10 32 15 11 39 1 3 31 2 8 33 2 3 7 2 11 34 2 16 35 11 4 40",
+        "tokens": "0 2 0 12 1 2 4 1 2 1 3 3 0 1 2 10 1 2 1 4 3 0 1 2 5 1 2 1 8 1 0 1 2 8 1 2 1 4 1 0 1 2 0 9 1 0 1 2 0 1 2 13 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 5 0 1 1 2 6 1 2 12 1 2 1 2 0 5 1 2 0 4 1 0 1 2 4 1 2 12 1 2 0 1 2 1 4 1 0 1 2 10 1 2 17 1 2 0 1 2 1 2 2 7 3 0 7 1 2 9 2 0 10 4 0 5 1 2 7 2 2 1 7 1 9 4 0 4 1 2 7 2 2 1 6 1 1 2 2 5 1 2 7 2 2 1 7 1 1 2 2 5 1 2 9 2 2 15 2 2 4 1 2 0 1 2 0 1 2 3 1 2 1 2 2 4 1 2 0 1 2 0 1 2 1 1 2 1 2 2 2 1 2 3 2 2 5 2 2 2 1 2 7 2 2 1 9 1 0 1 2 4 1 2 5 1 2 0 1 2 11 1 2 5 1 2 7 2 0 7 4 0 1 4 1 0 1 2 0 6 1 1 1 2 5 1 2 4 1 2 6 1 2 5 1 2 12 1 2 12 1 2 0 1 2 7 4 0 12 1 2 3 1 2 9 1 2 4 1 2 12 1 2 17 1 2 7 2 2 1 4 1",
+        "refs": [
+          {
+            "start": 21,
+            "end": 24,
+            "target": "Int"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "Bool"
+          },
+          {
+            "start": 49,
+            "end": 57,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 68,
+            "end": 72,
+            "target": "List"
+          },
+          {
+            "start": 73,
+            "end": 82,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 99,
+            "end": 103,
+            "target": "List"
+          },
+          {
+            "start": 104,
+            "end": 118,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 123,
+            "end": 129,
+            "target": "Option"
+          },
+          {
+            "start": 130,
+            "end": 136,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 178,
+            "end": 182,
+            "target": "List"
+          },
+          {
+            "start": 203,
+            "end": 207,
+            "target": "List"
+          },
+          {
+            "start": 300,
+            "end": 307,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 335,
+            "end": 341,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 360,
+            "end": 367,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 405,
+            "end": 408,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 419,
+            "end": 422,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 458,
+            "end": 467,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 519,
+            "end": 523,
+            "target": "Option"
+          },
+          {
+            "start": 524,
+            "end": 530,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 595,
+            "end": 606,
+            "target": "Runner@select_step"
+          },
+          {
+            "start": 667,
+            "end": 671,
+            "target": "Option"
+          }
+        ]
+      },
+      "new": {
+        "id": "Runner@select_step",
+        "name": "select_step",
+        "module": "Runner",
+        "kind": "value",
+        "hash": "c93e193c490f8ccd6278eb34e7615fe27deb1a9119a54b32f337a0cff83560c1",
+        "ty": "(Int, Bool, Domain.RunState, List(Domain.StepState), List(Domain.StepDefinition)) -> Option(Domain.Action)",
+        "ty_tokens": "0 1 2 0 3 3 0 1 2 1 4 3 0 1 2 1 15 1 0 1 2 1 4 1 0 1 2 0 16 1 0 1 2 0 1 2 1 4 1 0 1 2 0 21 1 0 1 2 0 1 2 1 2 2 1 6 1 0 1 2 0 13 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 1,
+            "end": 4,
+            "target": "Int"
+          },
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Bool"
+          },
+          {
+            "start": 12,
+            "end": 27,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 29,
+            "end": 33,
+            "target": "List"
+          },
+          {
+            "start": 34,
+            "end": 50,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 53,
+            "end": 57,
+            "target": "List"
+          },
+          {
+            "start": 58,
+            "end": 79,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 85,
+            "end": 91,
+            "target": "Option"
+          },
+          {
+            "start": 92,
+            "end": 105,
+            "target": "Domain.Action"
+          }
+        ],
+        "source": "fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =\n  match (states, definitions) of\n    (Cons(step, more_states), Cons(definition, more_definitions)) =>\n      let ready =\n        if inflight then step.status == Running\n        else run.status == Active && step.status == Pending && step.ready_at <= now\n          && all(\\(dep) -> any(\\(s) -> s.id == dep && s.status == Succeeded, run.steps), definition.needs)\n      if ready then Some(Action { run = run, step = step, definition = definition })\n      else select_step(now, inflight, run, more_states, more_definitions)\n    _ => None",
+        "span": {
+          "start": 604,
+          "end": 1275
+        },
+        "types": "15 3 31 8 8 33 9 3 7 13 6 34 20 11 35 53 6 34 2 11 35 15 4 2 2 11 34 8 10 32 2 16 35 35 8 33 6 4 2 11 7 0 14 3 7 11 6 1 4 4 2 11 7 0 4 4 2 13 3 31 14 3 36 11 3 37 9 1 2 7 3 29 4 1 2 11 9 0 2 3 7 9 10 32 17 5 33 6 4 38 16 3 7 9 4 2 15 10 32 15 11 39 1 3 31 2 8 33 2 3 7 2 11 34 2 16 35 11 4 40",
+        "tokens": "0 2 0 12 1 2 4 1 2 1 3 3 0 1 2 10 1 2 1 4 3 0 1 2 5 1 2 1 8 1 0 1 2 8 1 2 1 4 1 0 1 2 0 9 1 0 1 2 0 1 2 13 1 2 1 4 1 0 1 2 0 14 1 0 1 2 0 1 2 1 1 2 1 6 1 0 1 2 0 6 1 0 1 2 1 1 2 3 5 0 1 1 2 6 1 2 12 1 2 1 2 0 5 1 2 0 4 1 0 1 2 4 1 2 12 1 2 0 1 2 1 4 1 0 1 2 10 1 2 17 1 2 0 1 2 1 2 2 7 3 0 7 1 2 9 2 0 10 4 0 5 1 2 7 2 2 1 7 1 9 4 0 4 1 2 7 2 2 1 6 1 1 2 2 5 1 2 7 2 2 1 7 1 1 2 2 5 1 2 9 2 2 15 2 2 4 1 2 0 1 2 0 1 2 3 1 2 1 2 2 4 1 2 0 1 2 0 1 2 1 1 2 1 2 2 2 1 2 3 2 2 5 2 2 2 1 2 7 2 2 1 9 1 0 1 2 4 1 2 5 1 2 0 1 2 11 1 2 5 1 2 7 2 0 7 4 0 1 4 1 0 1 2 0 6 1 1 1 2 5 1 2 4 1 2 6 1 2 5 1 2 12 1 2 12 1 2 0 1 2 7 4 0 12 1 2 3 1 2 9 1 2 4 1 2 12 1 2 17 1 2 7 2 2 1 4 1",
+        "refs": [
+          {
+            "start": 21,
+            "end": 24,
+            "target": "Int"
+          },
+          {
+            "start": 37,
+            "end": 41,
+            "target": "Bool"
+          },
+          {
+            "start": 49,
+            "end": 57,
+            "target": "Domain.RunState"
+          },
+          {
+            "start": 68,
+            "end": 72,
+            "target": "List"
+          },
+          {
+            "start": 73,
+            "end": 82,
+            "target": "Domain.StepState"
+          },
+          {
+            "start": 99,
+            "end": 103,
+            "target": "List"
+          },
+          {
+            "start": 104,
+            "end": 118,
+            "target": "Domain.StepDefinition"
+          },
+          {
+            "start": 123,
+            "end": 129,
+            "target": "Option"
+          },
+          {
+            "start": 130,
+            "end": 136,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 178,
+            "end": 182,
+            "target": "List"
+          },
+          {
+            "start": 203,
+            "end": 207,
+            "target": "List"
+          },
+          {
+            "start": 300,
+            "end": 307,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 335,
+            "end": 341,
+            "target": "Domain.RunStatus"
+          },
+          {
+            "start": 360,
+            "end": 367,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 405,
+            "end": 408,
+            "target": "Data.Foldable.all"
+          },
+          {
+            "start": 419,
+            "end": 422,
+            "target": "Data.Foldable.any"
+          },
+          {
+            "start": 458,
+            "end": 467,
+            "target": "Domain.StepStatus"
+          },
+          {
+            "start": 519,
+            "end": 523,
+            "target": "Option"
+          },
+          {
+            "start": 524,
+            "end": 530,
+            "target": "Domain.Action"
+          },
+          {
+            "start": 595,
+            "end": 606,
+            "target": "Runner@select_step"
+          },
+          {
+            "start": 667,
+            "end": 671,
+            "target": "Option"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cone",
+      "id": "main",
+      "old": {
+        "id": "main",
+        "name": "main",
+        "module": "main",
+        "kind": "value",
+        "hash": "f179b4038ef9bde19be20e909043689e492b2c08683f6a884a73cc3119e31562",
+        "ty": "() -> Unit ! {IO}",
+        "ty_tokens": "0 1 2 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 2 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Unit"
+          },
+          {
+            "start": 14,
+            "end": 16,
+            "target": "IO"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 2 0 2 1 0 1 2",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 3,
+            "target": "IO"
+          }
+        ],
+        "source": "fn main() = println(encode(response_json(handle_request(read_line()))))",
+        "span": {
+          "start": 504,
+          "end": 575
+        },
+        "types": "12 7 115 1 6 116 1 13 117 1 14 118 1 9 119",
+        "tokens": "0 2 0 5 1 2 0 1 2 1 1 2 8 1 2 6 1 2 13 1 2 14 1 2 9 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 12,
+            "end": 19,
+            "target": "println"
+          },
+          {
+            "start": 20,
+            "end": 26,
+            "target": "Json.encode"
+          },
+          {
+            "start": 27,
+            "end": 40,
+            "target": "Output.response_json"
+          },
+          {
+            "start": 41,
+            "end": 55,
+            "target": "handle_request"
+          },
+          {
+            "start": 56,
+            "end": 65,
+            "target": "read_line"
+          }
+        ]
+      },
+      "new": {
+        "id": "main",
+        "name": "main",
+        "module": "main",
+        "kind": "value",
+        "hash": "9af517d393ef3c14c71d7f580a11ebf856e53915da7e430f726a1184fd4748b7",
+        "ty": "() -> Unit ! {IO}",
+        "ty_tokens": "0 1 2 0 1 2 1 2 2 1 4 3 1 1 2 1 1 2 0 2 1 0 1 2",
+        "ty_refs": [
+          {
+            "start": 6,
+            "end": 10,
+            "target": "Unit"
+          },
+          {
+            "start": 14,
+            "end": 16,
+            "target": "IO"
+          }
+        ],
+        "effects": "{IO}",
+        "eff_tokens": "0 1 2 0 2 1 0 1 2",
+        "eff_refs": [
+          {
+            "start": 1,
+            "end": 3,
+            "target": "IO"
+          }
+        ],
+        "source": "fn main() = println(encode(response_json(handle_request(read_line()))))",
+        "span": {
+          "start": 407,
+          "end": 478
+        },
+        "types": "12 7 122 1 6 123 1 13 124 1 14 125 1 9 126",
+        "tokens": "0 2 0 5 1 2 0 1 2 1 1 2 8 1 2 6 1 2 13 1 2 14 1 2 9 1 2 0 1 2 0 1 2 0 1 2 0 1 2 0 1 2",
+        "refs": [
+          {
+            "start": 12,
+            "end": 19,
+            "target": "println"
+          },
+          {
+            "start": 20,
+            "end": 26,
+            "target": "Json.encode"
+          },
+          {
+            "start": 27,
+            "end": 40,
+            "target": "Output.response_json"
+          },
+          {
+            "start": 41,
+            "end": 55,
+            "target": "handle_request"
+          },
+          {
+            "start": 56,
+            "end": 65,
+            "target": "read_line"
+          }
+        ]
+      }
+    },
+    {
+      "status": "cosmetic",
+      "id": "Domain.Checkpoint",
+      "old": {
+        "id": "Domain.Checkpoint",
+        "name": "Checkpoint",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "ac381dc12cad1d29462f0a2b95dff48a148c9f8fcce7581aef33a26205ff1233",
+        "source": "type Checkpoint = AfterBegin | AfterCall",
+        "span": {
+          "start": 204,
+          "end": 244
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 10 1 1 1 2 1 10 1 1 1 2 1 9 1",
+        "members": [
+          {
+            "name": "AfterBegin",
+            "start": 18,
+            "end": 28
+          },
+          {
+            "name": "AfterCall",
+            "start": 31,
+            "end": 40
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 15,
+            "target": "Domain.Checkpoint"
+          }
+        ]
+      },
+      "new": {
+        "id": "Domain.Checkpoint",
+        "name": "Checkpoint",
+        "module": "Domain",
+        "kind": "type",
+        "hash": "ac381dc12cad1d29462f0a2b95dff48a148c9f8fcce7581aef33a26205ff1233",
+        "source": "type Checkpoint = AfterBegin | AfterCall deriving (Eq)",
+        "span": {
+          "start": 204,
+          "end": 258
+        },
+        "vis": "public",
+        "tokens": "0 4 0 1 10 1 1 1 2 1 10 1 1 1 2 1 9 1 1 8 0 1 1 2 0 2 1 0 1 2",
+        "members": [
+          {
+            "name": "AfterBegin",
+            "start": 18,
+            "end": 28
+          },
+          {
+            "name": "AfterCall",
+            "start": 31,
+            "end": 40
+          }
+        ],
+        "refs": [
+          {
+            "start": 5,
+            "end": 15,
+            "target": "Domain.Checkpoint"
+          },
+          {
+            "start": 51,
+            "end": 53,
+            "target": "Eq"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": {
+    "added": [
+      {
+        "kind": "calls",
+        "from": "Runner.apply_command",
+        "to": "Runner@cancel_run"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.apply_command",
+        "to": "not"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Domain.Checkpoint"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Domain.RunStatus"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Domain.time_limit"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Option"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Service.call_service"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "snd"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Data.Foldable.any"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Data.Foldable.find"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Data.List.map"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Domain.RunStatus"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Domain.StepStatus"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "Runner@replace_run"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner@cancel_run",
+        "to": "id"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "Data.Foldable.length"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "Data.List.append"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "Data.List.filter"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "Service.has_effect"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "Service@same_key"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.call_service",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.execute",
+        "to": "Service.call_service"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.execute",
+        "to": "fst"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.has_effect",
+        "to": "Data.Foldable.any"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.has_effect",
+        "to": "Service@same_key"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.has_effect",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Validation.parse_request",
+        "to": "Validation.get_field"
+      },
+      {
+        "kind": "calls",
+        "from": "Validation.parse_request",
+        "to": "Validation.parse_workflow"
+      },
+      {
+        "kind": "calls",
+        "from": "Validation.parse_request",
+        "to": "Validation@ensure"
+      },
+      {
+        "kind": "calls",
+        "from": "Validation.parse_request",
+        "to": "Validation@fields"
+      },
+      {
+        "kind": "calls",
+        "from": "Validation.parse_request",
+        "to": "Validation@integer"
+      },
+      {
+        "kind": "calls",
+        "from": "handle_request",
+        "to": "Validation.parse_request"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Runner.tick",
+        "to": "Domain.Checkpoint"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Runner@cancel_run",
+        "to": "Domain.Simulator"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Service.call_service",
+        "to": "Domain.ActionKey"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Service.call_service",
+        "to": "Domain.MockService"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Service.has_effect",
+        "to": "Domain.ActionKey"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Service.has_effect",
+        "to": "Domain.MockService"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Service@same_key",
+        "to": "Domain.ActionKey"
+      },
+      {
+        "kind": "uses-type",
+        "from": "Validation.parse_request",
+        "to": "Domain.Workflow"
+      }
+    ],
+    "removed": [
+      {
+        "kind": "calls",
+        "from": "Runner.simulate",
+        "to": "Data.Foldable.any"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.simulate",
+        "to": "foldableList"
+      },
+      {
+        "kind": "calls",
+        "from": "Runner.tick",
+        "to": "Service.execute"
+      },
+      {
+        "kind": "calls",
+        "from": "Service.execute",
+        "to": "Data.List.append"
+      },
+      {
+        "kind": "calls",
+        "from": "handle_request",
+        "to": "Validation.get_field"
+      },
+      {
+        "kind": "calls",
+        "from": "handle_request",
+        "to": "Validation.parse_workflow"
+      }
+    ]
+  }
+}

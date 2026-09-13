@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/prism.png" />
+    <title>Prism code viewer</title>
+    <meta name="description" content="Read Prism code by definition rather than by file: every definition addressed by its content hash, with callers, callees, tests, and effects one click away in either direction." />
+    <meta name="theme-color" content="#2f6f4f" />
+    <script type="module" crossorigin src="./assets/viewer-YjofhGzV.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/viewer-H-0Y-q6N.css">
+  </head>
+  <body class="viewer-body">
+    <header>
+      <button id="rail-toggle" class="rail-toggle" aria-expanded="true" aria-controls="rail"
+        aria-label="Hide the definition list" data-tip="hide the definition list  ( \ )">&#9776;</button>
+      <a class="logo-link" href="https://github.com/sdiehl/prism" title="GitHub" target="_blank" rel="noopener"><img class="logo" src="/prism.png" alt="Prism" width="26" height="26" /></a>
+      <h1><b>Prism</b></h1>
+      <span class="tag" id="index-title">code viewer</span>
+      <div class="grow"></div>
+      <div class="controls">
+        <span id="diff-mode" class="seg" role="group" aria-label="Diff layout" hidden>
+          <button class="seg-btn" data-mode="split" aria-pressed="true" data-tip="old beside new">split</button>
+          <button class="seg-btn" data-mode="unified" aria-pressed="false" data-tip="old above new">unified</button>
+        </span>
+        <a class="ctl-link" href="../gallery/">Gallery</a>
+        <a class="ctl-link" href="../play/">Playground</a>
+        <a class="ctl-link" href="../viewer/">Viewer</a>
+        <a class="ctl-link" href="https://sdiehl.github.io/prism/" target="_blank" rel="noopener">Docs</a>
+      </div>
+    </header>
+    <main id="viewer-main" class="viewer-main">
+      <nav id="rail" class="rail" aria-label="Definitions">
+        <input id="search" class="rail-search" type="search" placeholder="Search definitions  ( / )" aria-label="Search definitions" autocomplete="off" spellcheck="false" />
+        <ul id="rail-list" class="rail-list"></ul>
+      </nav>
+      <section class="deck" aria-label="Working set">
+        <div id="status" class="status" role="status">loading the index&hellip;</div>
+        <div id="empty" class="empty" hidden>
+          <p>Pick a definition to open it here.</p>
+          <p class="empty-hint">
+            Every name in a body is a link to what it means. Everything the definition relates to
+            &mdash; callers, callees, the tests that reach it, the effects it performs &mdash; is
+            one click away too, in either direction. Mark one <b>read</b> and it remembers the
+            address you read it at, so a later visit can tell a reformat from a real edit.
+            <kbd>/</kbd> or <kbd>&#8984;K</kbd> searches, <kbd>\</kbd> hides the list.
+          </p>
+        </div>
+        <div id="cards" class="cards"></div>
+      </section>
+    </main>
+  </body>
+</html>
