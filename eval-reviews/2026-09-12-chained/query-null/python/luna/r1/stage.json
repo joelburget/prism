@@ -1,16 +1,16 @@
 {
-  "run_id": "run-806934f1b2bf",
-  "checkpoint": 1,
+  "run_id": "run-88ff56a4d811",
+  "checkpoint": 2,
   "model": "luna",
   "model_id": "gpt-5.6-luna",
   "task": "query-null",
   "language": "python",
   "source_available": true,
-  "source_sha256": "e09f43c7b9bc3558af62fab4f046652b693abe21c3c8e5fb8545b64b2a06f11b",
-  "passed": true,
-  "seconds": 191.6184288750519,
-  "tool_calls": 16,
+  "source_sha256": "852e31b3f3cf6ad74556cc103fedaca4b0f949b237558dffdc2c1f3c1ffd6ffb",
+  "passed": false,
+  "seconds": 143.57813512498979,
+  "tool_calls": 12,
   "flags": [],
-  "result_sha256": "5cd40b86a67c487d0e7b90c58f609ae58958364a929430175937140da1e2cf3e",
+  "result_sha256": "a8cca2c06e64881c513b74b8ce887ed6c8a4a015c8c088dcd827263b51012938",
   "archive_note": "Exact frozen source"
 }
