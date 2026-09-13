@@ -70,13 +70,12 @@ fn evaluate_binary(e : Expr, row : List(Json), group : List(List(Json))) : Json 
     evaluate_not(a)
   else
     let b = evaluate(at(e.args, 1), row, group)
-    match e.op of
-      "+" => evaluate_plus(a, b)
-      "-" => evaluate_minus(a, b)
-      "*" => evaluate_mult(a, b)
-      "AND" => evaluate_and(a, b)
-      "OR" => evaluate_or(a, b)
-      _ => evaluate_comparison(e.op, a, b)
+    if e.op == "+" then evaluate_plus(a, b)
+    elif e.op == "-" then evaluate_minus(a, b)
+    elif e.op == "*" then evaluate_mult(a, b)
+    elif e.op == "AND" then evaluate_and(a, b)
+    elif e.op == "OR" then evaluate_or(a, b)
+    else evaluate_comparison(e.op, a, b)
 
 fn evaluate_not(a : Json) : Json =
   if is_null(a) then JNull else JBool(not(truth(a)))
@@ -169,7 +168,7 @@ fn row_compare(a : List(Json), b : List(Json), order : List((Int, Bool, Int))) :
       let bv = at(b, i)
       let a_null = is_null(av)
       let b_null = is_null(bv)
-      if a_null != b_null then
+      if a_null /= b_null then
         let a_pos = if a_null then (if nulls_first > 0 then 0 else 1) else (if nulls_first > 0 then 1 else 0)
         let b_pos = if b_null then (if nulls_first > 0 then 0 else 1) else (if nulls_first > 0 then 1 else 0)
         if a_pos < b_pos then -1 else 1

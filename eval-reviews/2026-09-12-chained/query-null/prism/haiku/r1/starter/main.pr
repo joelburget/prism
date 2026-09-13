@@ -1,4 +1,4 @@
--- One request, one response. Domain effects abort the complete query batch.
+-- Support both old queries and new commands for view maintenance.
 import Json (..)
 import Model (..)
 import Parser (..)
@@ -14,7 +14,7 @@ fn validate_query(q : Json) : Unit =
     JBool(_) => ()
     _ => reject("INVALID_INPUT")
 
-fn work(request : Json) : Json =
+fn work_queries(request : Json) : Json =
   demand(
       value_type(getfield(request, "protocol_version")) == "int"
         && integer(getfield(request, "protocol_version")) == 1,
@@ -34,12 +34,37 @@ fn work(request : Json) : Json =
     )
   JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
 
+fn work_commands(request : Json) : Json =
+  demand(
+      value_type(getfield(request, "protocol_version")) == "int"
+        && integer(getfield(request, "protocol_version")) == 1,
+      "INVALID_INPUT",
+    )
+  demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
+  let input = getfield(request, "input")
+  fields(input, ["database", "commands"])
+  let database = map(validate_table, arr(getfield(input, "database")))
+  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
+  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr([]))]))])
+
+fn has_field(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => length(filter(\(kv) -> fst(kv) == key, xs)) == 1
+    _ => false
+
+fn choose_handler(request : Json) : Json =
+  let input = getfield(request, "input")
+  if has_field(input, "queries") then
+    work_queries(request)
+  else
+    work_commands(request)
+
 fn error_response(code : String) : Json =
   JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
 
 fn decode_work(line : String) : Json =
   match decode_lossy(line) of
-    Ok(request) => work(request)
+    Ok(request) => choose_handler(request)
     Err(_) => error_response("INVALID_INPUT")
 
 fn main() =
