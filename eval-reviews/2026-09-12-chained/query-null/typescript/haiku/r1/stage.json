@@ -1,19 +1,20 @@
 {
-  "run_id": "run-e7fa3873d7a8",
-  "checkpoint": 1,
+  "run_id": "run-b9d4ab5bf1ed",
+  "checkpoint": 2,
   "model": "haiku",
   "model_id": "claude-haiku-4-5-20251001",
   "task": "query-null",
   "language": "typescript",
-  "source_available": true,
-  "source_sha256": "2d6ab2a561165cc175d78a60d326b4388686778840a7888026304784c0f65ba3",
+  "source_available": false,
+  "source_sha256": null,
   "passed": false,
-  "seconds": 106.97748462500749,
-  "tool_calls": 41,
+  "seconds": 387.2357407499803,
+  "tool_calls": 46,
   "flags": [
+    "invalid_submission",
     "task_frozen_after_resource_limit",
     "timeout"
   ],
-  "result_sha256": "0f667f8d8a0d707ad4710a2eb5ce244d8c3cf8a74c97fa7097205c1c0d084de0",
-  "archive_note": "Exact frozen source"
+  "result_sha256": "427ea959fcebdd0fff529d9f08a4e8934e3202258c33c68e4593d0e9247a42d0",
+  "archive_note": "Final archive unavailable. starter/ is the preceding baseline, NOT this stage\u2019s submission."
 }
