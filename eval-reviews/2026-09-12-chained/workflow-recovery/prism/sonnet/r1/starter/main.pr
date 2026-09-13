@@ -5,15 +5,28 @@ import Data.Result (..)
 import Json (..)
 import Domain (..)
 import Validation (..)
-import Runner (simulate)
-import Output (response_json)
+import Runner (simulate, simulate_leased)
+import Output (response_json, leased_response_json)
 
-fn handle_request(line : String) : Result(Simulator, String) =
-  let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
-  match request of
-    JObj(fields) =>
-      let workflow = parse_workflow(get_field(fields, "input"))?
-      simulate(workflow)
-    _ => Err("INVALID_INPUT")
+fn error_json(code : String) : Json = JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
 
-fn main() = println(encode(response_json(handle_request(read_line()))))
+fn dispatch(input : Json) : Json =
+  match input of
+    JObj(input_fields) =>
+      if has_field(input_fields, "workers") then
+        match parse_leased_workflow(input) of
+          Err(code) => error_json(code)
+          Ok(workflow) => leased_response_json(simulate_leased(workflow))
+      else
+        match parse_workflow(input) of
+          Err(code) => error_json(code)
+          Ok(workflow) => response_json(simulate(workflow))
+    _ => error_json("INVALID_INPUT")
+
+fn handle_request(line : String) : Json =
+  match decode_lossy(line) of
+    Err(_) => error_json("INVALID_INPUT")
+    Ok(JObj(fields)) => dispatch(get_field(fields, "input"))
+    Ok(_) => error_json("INVALID_INPUT")
+
+fn main() = println(encode(handle_request(read_line())))

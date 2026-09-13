@@ -5,15 +5,15 @@ import Data.Result (..)
 import Json (..)
 import Domain (..)
 
-fn ensure(valid : Bool, code : String) : Result(Unit, String) =
+pub fn ensure(valid : Bool, code : String) : Result(Unit, String) =
   if valid then Ok(()) else Err(code)
 
-fn unique(xs : List(String)) : Bool =
+pub fn unique(xs : List(String)) : Bool =
   match xs of
     Nil => true
     Cons(x, rest) => not(elem(x, rest)) && unique(rest)
 
-fn fields(value : Json, required : List(String), optional : List(String)) : Result(List((String, Json)), String) =
+pub fn fields(value : Json, required : List(String), optional : List(String)) : Result(List((String, Json)), String) =
   match value of
     JObj(pairs) =>
       let keys = map(\(pair) -> fst(pair), pairs)
@@ -22,17 +22,22 @@ fn fields(value : Json, required : List(String), optional : List(String)) : Resu
       Ok(pairs)
     _ => Err("INVALID_INPUT")
 
+pub fn has_field(pairs : List((String, Json)), key : String) : Bool =
+  match find(\(pair) -> fst(pair) == key, pairs) of
+    Some(_) => true
+    None => false
+
 pub fn get_field(pairs : List((String, Json)), key : String) : Json =
   match find(\(pair) -> fst(pair) == key, pairs) of
     Some(pair) => snd(pair)
     None => JNull
 
-fn optional_field(pairs : List((String, Json)), key : String, default : Json) : Json =
+pub fn optional_field(pairs : List((String, Json)), key : String, default : Json) : Json =
   match find(\(pair) -> fst(pair) == key, pairs) of
     Some(pair) => snd(pair)
     None => default
 
-fn integer(value : Json, low : Int, high : Int) : Result(Int, String) =
+pub fn integer(value : Json, low : Int, high : Int) : Result(Int, String) =
   match value of
     JInt(n) =>
       let _ = ensure(n >= low && n <= high, "INVALID_INPUT")?
@@ -46,19 +51,19 @@ fn valid_id_bytes(s : String, i : Int) : Bool =
     ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)
       || (c >= 48 && c <= 57) || c == 95 || c == 45) && valid_id_bytes(s, i + 1)
 
-fn identifier(value : Json) : Result(String, String) =
+pub fn identifier(value : Json) : Result(String, String) =
   match value of
     JStr(s) =>
       let _ = ensure(byte_len(s) >= 1 && byte_len(s) <= 64 && valid_id_bytes(s, 0), "INVALID_INPUT")?
       Ok(s)
     _ => Err("INVALID_INPUT")
 
-fn array(value : Json) : Result(List(Json), String) =
+pub fn array(value : Json) : Result(List(Json), String) =
   match value of
     JArr(xs) => Ok(xs)
     _ => Err("INVALID_INPUT")
 
-fn parse_ids(xs : List(Json)) : Result(List(String), String) =
+pub fn parse_ids(xs : List(Json)) : Result(List(String), String) =
   match xs of
     Nil => Ok(Nil)
     Cons(x, rest) =>
@@ -66,7 +71,7 @@ fn parse_ids(xs : List(Json)) : Result(List(String), String) =
       let names = parse_ids(rest)?
       Ok(Cons(name, names))
 
-fn parse_step(raw : Json) : Result(StepDefinition, String) =
+pub fn parse_step(raw : Json) : Result(StepDefinition, String) =
   let obj = fields(raw, ["id", "needs", "amount"], ["failures"])?
   let id = identifier(get_field(obj, "id"))?
   let raw_needs = array(get_field(obj, "needs"))?
@@ -76,7 +81,7 @@ fn parse_step(raw : Json) : Result(StepDefinition, String) =
   let failures = integer(optional_field(obj, "failures", JInt(0)), 0, 100)?
   Ok(StepDefinition { id = id, needs = needs, amount = amount, failures = failures })
 
-fn parse_steps(xs : List(Json)) : Result(List(StepDefinition), String) =
+pub fn parse_steps(xs : List(Json)) : Result(List(StepDefinition), String) =
   match xs of
     Nil => Ok(Nil)
     Cons(x, rest) =>
@@ -137,7 +142,7 @@ fn acyclic(remaining : List(StepDefinition), visited : List(String)) : Bool =
       let seen = append(visited, map(\(step) -> step.id, ready))
       acyclic(filter(\(step) -> not(elem(step.id, seen)), remaining), seen)
 
-fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
+pub fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
   let ids = map(\(step) -> step.id, steps)
   let _ = ensure(unique(ids), "DUPLICATE_STEP")?
   let _ = ensure(all(\(step) -> all(\(dep) -> elem(dep, ids), step.needs), steps), "UNKNOWN_DEPENDENCY")?
@@ -155,3 +160,81 @@ pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
   -- No runtime work occurs until every shape/scalar and then the graph is validated.
   let _ = validate_graph(steps)?
   Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay })
+
+fn parse_lcommand(raw : Json) : Result(LCommand, String) =
+  match raw of
+    JObj(pairs) =>
+      match get_field(pairs, "op") of
+        JStr(op) =>
+          if op == "start" then
+            let obj = fields(raw, ["op", "run"], [])?
+            let id = identifier(get_field(obj, "run"))?
+            Ok(LStart(id))
+          elif op == "cancel" then
+            let obj = fields(raw, ["op", "run"], [])?
+            let id = identifier(get_field(obj, "run"))?
+            Ok(LCancel(id))
+          elif op == "advance" then
+            let obj = fields(raw, ["op", "by"], [])?
+            let by = integer(get_field(obj, "by"), 0, time_limit())?
+            Ok(LAdvance(by))
+          elif op == "observe" then
+            let _ = fields(raw, ["op"], [])?
+            Ok(LObserve)
+          elif op == "crash" then
+            let obj = fields(raw, ["op", "worker"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            Ok(LCrash(worker))
+          elif op == "restart" then
+            let obj = fields(raw, ["op", "worker"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            Ok(LRestart(worker))
+          elif op == "claim" then
+            let obj = fields(raw, ["op", "worker"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            Ok(LClaim(worker))
+          elif op == "renew" then
+            let obj = fields(raw, ["op", "worker", "ticket"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            let ticket = integer(get_field(obj, "ticket"), 1, 2147483647)?
+            Ok(LRenew(worker, ticket))
+          elif op == "call" then
+            let obj = fields(raw, ["op", "worker", "ticket"], [])?
+            let worker = identifier(get_field(obj, "worker"))?
+            let ticket = integer(get_field(obj, "ticket"), 1, 2147483647)?
+            Ok(LCall(worker, ticket))
+          elif op == "deliver" then
+            let obj = fields(raw, ["op", "ticket"], [])?
+            let ticket = integer(get_field(obj, "ticket"), 1, 2147483647)?
+            Ok(LDeliver(ticket))
+          else Err("INVALID_INPUT")
+        _ => Err("INVALID_INPUT")
+    _ => Err("INVALID_INPUT")
+
+fn parse_lcommands(xs : List(Json)) : Result(List(LCommand), String) =
+  match xs of
+    Nil => Ok(Nil)
+    Cons(x, rest) =>
+      let command = parse_lcommand(x)?
+      let commands = parse_lcommands(rest)?
+      Ok(Cons(command, commands))
+
+pub fn parse_leased_workflow(raw : Json) : Result(LWorkflow, String) =
+  let obj = fields(raw, ["steps", "commands", "workers"], ["max_attempts", "retry_delay", "lease_duration"])?
+  let raw_steps = array(get_field(obj, "steps"))?
+  let _ = ensure(not(is_nil(raw_steps)), "INVALID_INPUT")?
+  let raw_commands = array(get_field(obj, "commands"))?
+  let _ = ensure(length(raw_commands) <= 2000, "INVALID_INPUT")?
+  let raw_workers = array(get_field(obj, "workers"))?
+  let _ = ensure(not(is_nil(raw_workers)), "INVALID_INPUT")?
+  let workers = parse_ids(raw_workers)?
+  let _ = ensure(unique(workers), "INVALID_INPUT")?
+  let steps = parse_steps(raw_steps)?
+  let commands = parse_lcommands(raw_commands)?
+  let attempts = integer(optional_field(obj, "max_attempts", JInt(3)), 1, 10)?
+  let delay = integer(optional_field(obj, "retry_delay", JInt(2)), 1, 1000000)?
+  let lease_duration = integer(optional_field(obj, "lease_duration", JInt(5)), 1, 1000000)?
+  -- No runtime work occurs until every shape/scalar and then the graph is validated.
+  let _ = validate_graph(steps)?
+  Ok(LWorkflow { steps = steps, commands = commands, max_attempts = attempts,
+    retry_delay = delay, lease_duration = lease_duration, workers = workers })

@@ -1,4 +1,5 @@
 -- Typed request and runner/service state. JSON is confined to validation and output.
+import Json (Json)
 pub type StepDefinition = StepDefinition {
   id: String,
   needs: List(String),
@@ -45,7 +46,14 @@ pub type ActionKey = ActionKey { run_id: String, step_id: String } deriving (Eq)
 pub type CallKind = ExecuteCall | LookupCall
 pub type CallOutcome = Applied | Replayed | Transient | Found | Missing deriving (Eq)
 
-pub type ServiceCall = ServiceCall { key: ActionKey, attempt: Int, kind: CallKind, outcome: CallOutcome }
+pub type ServiceCall = ServiceCall {
+  key: ActionKey,
+  attempt: Int,
+  kind: CallKind,
+  outcome: CallOutcome,
+  worker: Option(String),
+  ticket: Option(Int)
+}
 pub type Effect = Effect { key: ActionKey, amount: Int }
 pub type MockService = MockService { calls: List(ServiceCall), effects: List(Effect) }
 
@@ -61,3 +69,79 @@ pub type Simulator = Simulator {
 pub type Action = Action { run: RunState, step: StepState, definition: StepDefinition }
 
 pub fn time_limit() : Int = 2147483647
+
+-- Checkpoint 2: leased workers, fenced recovery.
+pub type LWorker = LWorker { id: String, up: Bool }
+
+pub type LLease = LLease { worker: String, ticket: Int, expires: Int }
+
+pub type LStepState = LStepState {
+  id: String,
+  status: StepStatus,
+  attempts: Int,
+  ready_at: Int,
+  lease: Option(LLease)
+}
+
+pub type LRunStatus = LActive | LSucceeded | LFailed | LCancelling | LCancelled | LFailing deriving (Eq)
+
+pub type LRunState = LRunState {
+  id: String,
+  status: LRunStatus,
+  cancel_requested: Bool,
+  steps: List(LStepState)
+}
+
+pub type LCommand
+  = LStart(String)
+  | LAdvance(Int)
+  | LObserve
+  | LCrash(String)
+  | LRestart(String)
+  | LClaim(String)
+  | LRenew(String, Int)
+  | LCall(String, Int)
+  | LDeliver(Int)
+  | LCancel(String)
+
+pub type LWorkflow = LWorkflow {
+  steps: List(StepDefinition),
+  commands: List(LCommand),
+  max_attempts: Int,
+  retry_delay: Int,
+  lease_duration: Int,
+  workers: List(String)
+}
+
+-- Metadata for one lease acquisition: stable identity distinct from the logical action/attempt.
+pub type LTicket = LTicket {
+  id: Int,
+  worker: String,
+  run_id: String,
+  step_id: String,
+  attempt: Int,
+  kind: CallKind,
+  response: Option(CallOutcome),
+  delivered: Bool
+}
+
+pub type LSimulator = LSimulator {
+  now: Int,
+  workers: List(LWorker),
+  runs: List(LRunState),
+  service: MockService,
+  next_ticket: Int,
+  tickets: List(LTicket),
+  results: List(Json)
+}
+
+pub type LAction = LAction { run: LRunState, step: LStepState, definition: StepDefinition, recovery: Bool }
+
+pub fn step_status(status : StepStatus) : String =
+  match status of
+    Pending => "pending"
+    Running => "running"
+    Succeeded => "succeeded"
+    Failed => "failed"
+    Blocked => "blocked"
+    Cancelled => "cancelled"

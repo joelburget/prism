@@ -4,18 +4,9 @@ import Data.String (..)
 import Data.Result (..)
 import Json (..)
 import Domain (..)
-import Runner (snapshot)
+import Runner (snapshot, leased_snapshot_fields)
 
-fn step_status(status : StepStatus) : String =
-  match status of
-    Pending => "pending"
-    Running => "running"
-    Succeeded => "succeeded"
-    Failed => "failed"
-    Blocked => "blocked"
-    Cancelled => "cancelled"
-
-fn run_status(status : RunStatus) : String =
+pub fn run_status(status : RunStatus) : String =
   match status of
     Active => "active"
     RunSucceeded => "succeeded"
@@ -36,14 +27,14 @@ fn snapshot_fields(state : Snapshot) : List((String, Json)) =
 
 fn snapshot_json(state : Snapshot) : Json = JObj(snapshot_fields(state))
 
-fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
+pub fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
 
-fn call_kind(kind : CallKind) : String =
+pub fn call_kind(kind : CallKind) : String =
   match kind of
     ExecuteCall => "execute"
     LookupCall => "lookup"
 
-fn call_outcome(outcome : CallOutcome) : String =
+pub fn call_outcome(outcome : CallOutcome) : String =
   match outcome of
     Applied => "applied"
     Replayed => "replayed"
@@ -55,7 +46,7 @@ fn call_json(call : ServiceCall) : Json =
   JObj([("kind", JStr(call_kind(call.kind))), ("key", key_json(call.key)),
     ("attempt", JInt(call.attempt)), ("outcome", JStr(call_outcome(call.outcome)))])
 
-fn effect_json(entry : Effect) : Json =
+pub fn effect_json(entry : Effect) : Json =
   JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
 
 pub fn result_json(sim : Simulator) : Json =
@@ -66,4 +57,27 @@ pub fn result_json(sim : Simulator) : Json =
 pub fn response_json(result : Result(Simulator, String)) : Json =
   match result of
     Ok(sim) => JObj([("ok", JBool(true)), ("result", result_json(sim))])
+    Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn opt_str(o : Option(String)) : Json =
+  match o of
+    Some(s) => JStr(s)
+    None => JNull
+
+fn opt_int(o : Option(Int)) : Json =
+  match o of
+    Some(n) => JInt(n)
+    None => JNull
+
+fn call_json_leased(call : ServiceCall) : Json =
+  JObj([("worker", opt_str(call.worker)), ("ticket", opt_int(call.ticket)), ("kind", JStr(call_kind(call.kind))),
+    ("key", key_json(call.key)), ("attempt", JInt(call.attempt)), ("outcome", JStr(call_outcome(call.outcome)))])
+
+fn leased_final_json(sim : LSimulator) : Json =
+  JObj(append(leased_snapshot_fields(sim),
+    [("calls", JArr(map(call_json_leased, sim.service.calls))), ("effects", JArr(map(effect_json, sim.service.effects)))]))
+
+pub fn leased_response_json(result : Result(LSimulator, String)) : Json =
+  match result of
+    Ok(sim) => JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(sim.results)), ("final", leased_final_json(sim))]))])
     Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
