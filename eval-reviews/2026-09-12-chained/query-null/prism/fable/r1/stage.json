@@ -1,0 +1,16 @@
+{
+  "run_id": "run-93752f20cc3a",
+  "checkpoint": 1,
+  "model": "fable",
+  "model_id": "claude-fable-5-1",
+  "task": "query-null",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "10d826ad92165e11da20f68a4031e076a02d613e920bea51dafb7a78809412f0",
+  "passed": true,
+  "seconds": 903.7653708339785,
+  "tool_calls": 44,
+  "flags": [],
+  "result_sha256": "563a2e3ce746d368d4d8386a43b70ac0a05d8c7e4f2bef6daddf2f722c1536e2",
+  "archive_note": "Exact frozen source"
+}

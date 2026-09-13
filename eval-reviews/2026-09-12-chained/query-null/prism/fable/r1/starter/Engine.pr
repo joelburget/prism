@@ -1,10 +1,13 @@
 -- Relational evaluation preserves input encounter order through every operator.
+-- Boolean results are three-valued: JBool(true), JBool(false), or JNull (UNKNOWN).
+-- WHERE, HAVING, and ON keep a row only when the predicate is exactly TRUE.
 import Json (..)
 import Model (..)
 import Binder (tree_any)
 import Data.List (..)
-import Data.Foldable (all, length, sum)
+import Data.Foldable (all, any, length, sum)
 
+-- Compares two non-null values of the same type.
 pub fn compare_value(a : Json, b : Json) : Int =
   match (a, b) of
     (JInt(x), JInt(y)) =>
@@ -24,6 +27,17 @@ pub fn compare_value(a : Json, b : Json) : Int =
         -1
     _ => 0
 
+fn is_false(j : Json) : Bool = not(is_null(j)) && not(truth(j))
+
+fn first_non_null(vs : List(Json)) : Json =
+  match vs of
+    Nil => JNull
+    Cons(v, rest) =>
+      if is_null(v) then
+        first_non_null(rest)
+      else
+        v
+
 pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
   let op = e.op
   if op == "lit" then
@@ -31,30 +45,57 @@ pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
   elif op == "col" then
     at(row, e.index)
   elif agg(op) then
-    if op == "COUNT" then
+    if op == "COUNT" && length(e.args) == 0 then
       JInt(length(group))
     else
-      let vs = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
-      if op == "SUM" then
+      -- Every aggregate other than COUNT(*) ignores NULL inputs.
+      let vs = filter(\(v) -> not(is_null(v)), map(\(r) -> evaluate(at(e.args, 0), r, []), group))
+      if op == "COUNT" then
+        JInt(length(vs))
+      elif length(vs) == 0 then
+        JNull
+      elif op == "SUM" then
         JInt(sum(map(integer, vs)))
       else
         extremum(vs, op == "MIN")
+  elif op == "COALESCE" then
+    first_non_null(map(\(a) -> evaluate(a, row, group), e.args))
   else
     let a = evaluate(at(e.args, 0), row, group)
-    if op == "NOT" then
-      JBool(not(truth(a)))
+    if op == "ISNULL" then
+      JBool(is_null(a))
+    elif op == "ISNOTNULL" then
+      JBool(not(is_null(a)))
+    elif op == "NOT" then
+      if is_null(a) then
+        JNull
+      else
+        JBool(not(truth(a)))
     else
       let b = evaluate(at(e.args, 1), row, group)
-      if op == "+" then
+      if op == "AND" then
+        if is_false(a) || is_false(b) then
+          JBool(false)
+        elif is_null(a) || is_null(b) then
+          JNull
+        else
+          JBool(true)
+      elif op == "OR" then
+        if truth(a) || truth(b) then
+          JBool(true)
+        elif is_null(a) || is_null(b) then
+          JNull
+        else
+          JBool(false)
+      elif is_null(a) || is_null(b) then
+        -- Arithmetic and ordinary comparison propagate NULL.
+        JNull
+      elif op == "+" then
         JInt(integer(a) + integer(b))
       elif op == "-" then
         JInt(integer(a) - integer(b))
       elif op == "*" then
         JInt(integer(a) * integer(b))
-      elif op == "AND" then
-        JBool(truth(a) && truth(b))
-      elif op == "OR" then
-        JBool(truth(a) || truth(b))
       else
         let c = compare_value(a, b)
         JBool(
@@ -72,12 +113,24 @@ fn extremum(vs : List(Json), minimum : Bool) : Json =
       else
         b
 
+-- Bottom-up simplification. Literal-only subtrees are evaluated with the same
+-- three-valued semantics as execution, so NULL = NULL folds to NULL rather than
+-- TRUE. IS [NOT] NULL and COALESCE are additionally simplified using the
+-- nullability bound computed by the binder, which already includes the NULL
+-- padding introduced by LEFT JOIN. Expressions over columns such as x = x or
+-- p OR NOT p are never folded because they are UNKNOWN on NULL input.
 pub fn fold_constants(e : Expr) : Expr =
   let n = Expr { ..e, args = map(fold_constants, e.args) }
   if (not(agg(n.op))
       && not(elem(n.op, ["lit", "col"]))
       && all(\(a) -> a.op == "lit", n.args)) then
     literal(evaluate(n, [], []))
+  elif n.op == "ISNULL" && not(at(n.args, 0).nullable) then
+    literal(JBool(false))
+  elif n.op == "ISNOTNULL" && not(at(n.args, 0).nullable) then
+    literal(JBool(true))
+  elif n.op == "COALESCE" && not(at(n.args, 0).nullable) then
+    at(n.args, 0)
   else
     n
 
@@ -93,43 +146,82 @@ fn sources(e : Expr) : List(Int) =
   else
     flatten(map(sources, e.args))
 
+fn is_true_literal(e : Expr) : Bool = e.op == "lit" && truth(e.value)
+
 fn combine(es : List(Expr)) : Expr =
-  match es of
+  match filter(\(e) -> not(is_true_literal(e)), es) of
     Nil => literal(JBool(true))
     Cons(e, Nil) => e
     Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool" }
 
--- Push a conjunct only when every referenced slot belongs to one inner-join
--- input. Slot numbers remain global; scan predicates receive a prefix padding.
+fn single_source(e : Expr) : Int =
+  let ss = sources(e)
+  if length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss) then
+    at(ss, 0)
+  else
+    -1
+
+-- A predicate over one source is null-rejecting when it cannot be TRUE on a
+-- row whose columns from that source are all NULL, i.e. on a padded row.
+fn null_rejecting(e : Expr, width : Int) : Bool =
+  not(truth(evaluate(e, replicate(width, JNull), [])))
+
+-- Push a WHERE conjunct into a scan only when every referenced slot belongs
+-- to one join input and the move is sound:
+--   * an inner-join input, or the preserved (left) side of a left join: the
+--     join keeps or pads every left row, so filtering it first is equivalent;
+--   * the padded (right) side of a left join: only if the conjunct is
+--     null-rejecting. Then padded rows could never pass WHERE, so the join is
+--     first rewritten to an INNER JOIN, after which the push is legal.
+-- Other conjuncts, including multi-source ones, remain above the joins.
+-- Slot numbers remain global; scan predicates receive a prefix padding.
 pub fn optimize(plan : Plan) : Plan =
   let q = plan.query
+  let width = sum(map(\(t) -> length(t.columns), plan.tables))
   let terms = conjuncts(fold_constants(q.predicate))
-  let pushable = \(e) -> let ss = sources(e) in length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
-  let fs = map(
-      \(i) -> filter(\(e) -> pushable(e) && at(sources(e), 0) == i, terms),
-      range(0, length(plan.tables)),
-    )
-  let rem = filter(\(e) -> not(pushable(e)), terms)
+  var outer := q.outer
+  var fs := map(\(_) -> [], plan.tables)
+  var rem := []
+  for e in sof(terms) do
+    let s = single_source(e)
+    let padded = s > 0 && at(outer, s - 1)
+    if s >= 0 && length(plan.tables) > 1 && (not(padded) || null_rejecting(e, width)) then
+      if padded then
+        outer := map(\(i) -> at(outer, i) && i /= s - 1, range(0, length(outer)))
+      fs := map(\(i) -> if i == s then append(at(fs, i), [e]) else at(fs, i), range(0, length(fs)))
+    else
+      rem := append(rem, [e])
   let bq = Query {
     ..q,
     predicate = combine(rem),
+    outer = outer,
     select = map(\(s) -> (fold_constants(fst(s)), snd(s)), q.select),
     joins = map(fold_constants, q.joins),
     having = fold_constants(q.having)
   }
   Plan { ..plan, query = bq, filters = fs }
 
+fn join_one(
+  l : List(Json),
+  right : List(List(Json)),
+  on : Expr,
+  outer : Bool,
+  width : Int
+) : List(List(Json)) =
+  let matches = filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right))
+  if outer && length(matches) == 0 then
+    [append(l, replicate(width, JNull))]
+  else
+    matches
+
 fn join_rows(
   left : List(List(Json)),
   right : List(List(Json)),
-  on : Expr
+  on : Expr,
+  outer : Bool,
+  width : Int
 ) : List(List(Json)) =
-  flatten(
-      map(
-          \(l) -> filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)),
-          left,
-        ),
-    )
+  flatten(map(\(l) -> join_one(l, right, on, outer, width), left))
 
 pub type Group = Group { key: String, rows: List(List(Json)) }
 
@@ -142,6 +234,7 @@ fn add_group(gs : List(Group), key : String, row : List(Json)) : List(Group) =
       else
         Cons(g, add_group(rest, key, row))
 
+-- Keys are compared by their JSON encoding, so NULL equals NULL per position.
 fn groups_for(rows : List(List(Json)), keys : List(Expr)) : List(Group) =
   var gs := []
   for row in sof(rows) do
@@ -175,26 +268,35 @@ fn distinct_rows(
       else
         Cons(r, distinct_rows(rest, Cons(key, seen)))
 
+fn compare_ordered(a : Json, b : Json, desc : Bool, nulls_first : Bool) : Int =
+  if is_null(a) && is_null(b) then
+    0
+  elif is_null(a) then
+    if nulls_first then -1 else 1
+  elif is_null(b) then
+    if nulls_first then 1 else -1
+  else
+    let c = compare_value(a, b)
+    if desc then -c else c
+
 fn row_compare(
   a : List(Json),
   b : List(Json),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Bool))
 ) : Int =
   match order of
     Nil => 0
-    Cons((i, desc), rest) =>
-      let c = compare_value(at(a, i), at(b, i))
+    Cons((i, desc, nulls_first), rest) =>
+      let c = compare_ordered(at(a, i), at(b, i), desc, nulls_first)
       if c == 0 then
         row_compare(a, b, rest)
-      elif desc then
-        -c
       else
         c
 
 fn insert_row(
   r : List(Json),
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Bool))
 ) : List(List(Json)) =
   match rows of
     Nil => [r]
@@ -206,7 +308,7 @@ fn insert_row(
 
 fn sort_rows(
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Bool))
 ) : List(List(Json)) =
   match rows of
     Nil => []
@@ -228,7 +330,8 @@ pub fn execute(plan : Plan) : Json =
     offset += length(t.columns)
   var rows := at(scans, 0)
   for i in srange(0, length(q.joins)) do
-    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i))
+    let width = length(at(plan.tables, i + 1).columns)
+    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i), at(q.outer, i), width)
   let filtered = filter(\(r) -> truth(evaluate(q.predicate, r, [])), rows)
   let projected =
     if plan.aggregate then

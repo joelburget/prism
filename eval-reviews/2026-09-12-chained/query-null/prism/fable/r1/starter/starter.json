@@ -12,7 +12,9 @@
     "Parser.pr",
     "README.md",
     "build.sh",
+    "link.sh",
     "main.pr",
-    "run.sh"
+    "run.sh",
+    "test_fuzz.py"
   ]
 }

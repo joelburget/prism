@@ -1,8 +1,13 @@
 -- Resolve columns to flattened row slots, and validate before any execution.
+-- Every bound expression carries a static type and a nullability upper bound.
 import Json (..)
 import Model (..)
 import Data.List (..)
 import Data.Foldable (all, any, length)
+
+-- Kinds that are acceptable where `t` is required: the exact type or an
+-- untyped NULL literal, which adopts the type required by its context.
+fn fits(kind : String, t : String) : Bool = kind == t || kind == "null"
 
 fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
   if e.op == "col" then
@@ -13,7 +18,7 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(length(matches) > 0, "UNKNOWN_COLUMN")
     demand(length(matches) == 1, "AMBIGUOUS_COLUMN")
     let c = at(matches, 0)
-    Expr { ..e, index = c.index, source = c.source, kind = c.kind }
+    Expr { ..e, index = c.index, source = c.source, kind = c.kind, nullable = c.nullable }
   elif e.op == "lit" then
     e
   else
@@ -21,30 +26,38 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(not(isagg) || allow && not(inside), "INVALID_AGGREGATION")
     let args = map(\(a) -> check(a, columns, allow, inside || isagg), e.args)
     let ts = map(\(a) -> a.kind, args)
-    let kind =
+    let typed = filter(\(t) -> t /= "null", ts)
+    let common = if length(typed) > 0 then at(typed, 0) else "null"
+    let agree = all(\(t) -> t == common, typed)
+    let anynull = any(\(a) -> a.nullable, args)
+    let (kind, nullable) =
       if e.op == "COUNT" then
-        "int"
-      elif elem(e.op, ["SUM", "+", "-", "*"]) then
-        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
-        "int"
+        ("int", false)
+      elif e.op == "SUM" then
+        demand(all(\(t) -> fits(t, "int"), ts), "TYPE_ERROR")
+        ("int", true)
       elif elem(e.op, ["MIN", "MAX"]) then
-        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
-        at(ts, 0)
+        demand(elem(at(ts, 0), ["int", "text", "null"]), "TYPE_ERROR")
+        (at(ts, 0), true)
+      elif elem(e.op, ["+", "-", "*"]) then
+        demand(all(\(t) -> fits(t, "int"), ts), "TYPE_ERROR")
+        ("int", anynull)
       elif elem(e.op, ["NOT", "AND", "OR"]) then
-        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
-        "bool"
+        demand(all(\(t) -> fits(t, "bool"), ts), "TYPE_ERROR")
+        ("bool", anynull)
+      elif elem(e.op, ["ISNULL", "ISNOTNULL"]) then
+        ("bool", false)
+      elif e.op == "COALESCE" then
+        demand(agree, "TYPE_ERROR")
+        (common, all(\(a) -> a.nullable, args))
       else
-        demand(
-            at(ts, 0) == at(ts, 1)
-              && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
-            "TYPE_ERROR",
-          )
-        "bool"
-    Expr { ..e, args = args, kind = kind }
+        demand(agree && (common /= "bool" || elem(e.op, ["=", "<>"])), "TYPE_ERROR")
+        ("bool", anynull)
+    Expr { ..e, args = args, kind = kind, nullable = nullable }
 
 fn predicate(e : Expr, columns : List(Column), allow : Bool) : Expr =
   let b = check(e, columns, allow, false)
-  demand(b.kind == "bool", "TYPE_ERROR")
+  demand(fits(b.kind, "bool"), "TYPE_ERROR")
   b
 
 pub fn tree_any(p : (Expr) -> Bool, e : Expr) : Bool =
@@ -72,8 +85,11 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
     let t = at(tables, i)
     let offset = length(columns)
     let qualifier = snd(at(q.sources, i))
+    -- The right side of a LEFT JOIN may be padded with NULL, so every one of
+    -- its columns is nullable downstream regardless of its declaration.
+    let padded = i > 0 && at(q.outer, i - 1)
     let cs = map(
-        \(k) -> Column { ..at(t.columns, k), index = offset + k, source = i, qualifier = qualifier },
+        \(k) -> let c = at(t.columns, k) in Column { ..c, index = offset + k, source = i, qualifier = qualifier, nullable = c.nullable || padded },
         range(0, length(t.columns)),
       )
     columns := append(columns, cs)
@@ -93,17 +109,7 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
   if aggregate then
     for e in sof(roots) do
       grouped(e, keys)
-  demand(
-      length(groups) > 0
-        || not(
-            any(
-                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
-                roots,
-              ),
-          ),
-      "UNSUPPORTED_FEATURE",
-    )
-  let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
+  let order = map(\(o) -> let (n, desc, nf) = o in (alias_index(aliases, n, 0), desc, nf), q.order)
   let bq =
     Query {
       ..q,
