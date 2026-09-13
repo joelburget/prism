@@ -4,7 +4,6 @@ import {
   reserved,
   identifier,
   requireThat as need,
-  DomainError,
 } from "./model.ts";
 import type { Expr, Query } from "./model.ts";
 const precedence: Record<string, number> = {
@@ -73,9 +72,13 @@ export class Parser {
   expr(minimum = 1): Expr {
     const t = this.pop();
     let e: Expr;
-    if (t === "NULL" || t === "COALESCE")
-      throw new DomainError("UNSUPPORTED_FEATURE");
-    if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
+    if (t === "NULL") e = { op: "lit", value: null, args: [] };
+    else if (t === "COALESCE") {
+      this.expect("("); const args = [this.expr()];
+      while (this.take(",")) args.push(this.expr());
+      need(args.length >= 2, "PARSE_ERROR"); this.expect(")"); e = { op: "COALESCE", args };
+    }
+    else if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
     else if (t === "(") {
       e = this.expr();
       this.expect(")");
@@ -112,7 +115,10 @@ export class Parser {
       e = { op, args: [e, this.expr(p + 1)] };
       if (p === 4) compared = true;
     }
-    if (this.peek() === "IS") throw new DomainError("UNSUPPORTED_FEATURE");
+    if (this.take("IS")) {
+      const not = this.take("NOT"); this.expect("NULL");
+      e = { op: not ? "IS NOT NULL" : "IS NULL", args: [e] };
+    }
     return e;
   }
   parse(): Query {
@@ -135,12 +141,13 @@ export class Parser {
     this.expect("FROM");
     q.sources.push(this.source());
     while (["INNER", "JOIN", "LEFT"].includes(this.peek())) {
-      if (this.take("LEFT")) throw new DomainError("UNSUPPORTED_FEATURE");
+      const left = this.take("LEFT");
+      if (left) this.take("OUTER");
       this.take("INNER");
       this.expect("JOIN");
       q.sources.push(this.source());
       this.expect("ON");
-      q.joins.push(this.expr());
+      q.joins.push({ on: this.expr(), left });
     }
     if (this.take("WHERE")) q.where = this.expr();
     if (this.take("GROUP")) {
@@ -156,9 +163,9 @@ export class Parser {
         const a = this.name(),
           desc = this.take("DESC");
         if (!desc) this.take("ASC");
-        if (this.peek() === "NULLS")
-          throw new DomainError("UNSUPPORTED_FEATURE");
-        q.order.push([a, desc]);
+        let nulls: "FIRST" | "LAST" | undefined;
+        if (this.take("NULLS")) { nulls = this.pop() as "FIRST" | "LAST"; need(nulls === "FIRST" || nulls === "LAST", "PARSE_ERROR"); }
+        q.order.push([a, desc, nulls]);
       } while (this.take(","));
     }
     if (this.take("LIMIT")) {

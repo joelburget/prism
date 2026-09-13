@@ -1,0 +1,16 @@
+{
+  "run_id": "run-46a12338faf2",
+  "checkpoint": 1,
+  "model": "terra",
+  "model_id": "gpt-5.6-terra",
+  "task": "query-null",
+  "language": "typescript",
+  "source_available": true,
+  "source_sha256": "7ca98675677995a7a827cd0fc75ff4f21e54ce8d6d88b7651c6e5f0ee4f4b49b",
+  "passed": false,
+  "seconds": 133.43713191599818,
+  "tool_calls": 11,
+  "flags": [],
+  "result_sha256": "55dc0f6869f41446a83a7da653d8acb7b0d17dd8db7cf0f5ceea7478785540d7",
+  "archive_note": "Exact frozen source"
+}
