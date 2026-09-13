@@ -10,4 +10,6 @@ Optimization performs bottom-up folding of constant scalar expressions and pushe
 
 The engine supports nullable schemas, SQL three-valued logic, NULL/IS NULL/COALESCE, LEFT OUTER JOIN, explicit NULLS ordering, and global nullable aggregates. Optimizer folding evaluates constants with the same NULL semantics as runtime execution, while filter pushdown remains active for all-inner-join plans and is withheld when an outer join could change its meaning.
 
+The checkpoint-two command protocol adds named materialized views and atomic insert/update/delete batches. Views cache joined contributions by private base-row ID and cache projected rows or aggregate-group members. A batch clones only dependent views, retracts combinations involving changed rows or affected outer-join placeholders, adds final-state combinations, and recomputes only touched aggregate groups. Unaffected views are not evaluated, and reads format immutable cached contributions through DISTINCT, ordering, and pagination.
+
 This directory is self-contained; `starter.json` lists its export files. Build outputs and dependency installations are ignored.

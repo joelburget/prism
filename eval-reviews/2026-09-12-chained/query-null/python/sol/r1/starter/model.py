@@ -47,8 +47,12 @@ class Plan:
 def validate(request):
     require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
     data = request.get('input')
-    fields(data, {'database', 'queries'})
-    require(isinstance(data['database'], list) and isinstance(data['queries'], list))
+    require(isinstance(data, dict))
+    keys = set(data)
+    require(keys in ({'database', 'queries'}, {'database', 'commands'}))
+    mode = 'queries' if 'queries' in data else 'commands'
+    require(isinstance(data['database'], list) and isinstance(data[mode], list))
+    if mode == 'commands': require(len(data[mode]) <= 2000)
     database = {}
     for t in data['database']:
         fields(t, {'name', 'columns', 'rows'})
@@ -64,11 +68,13 @@ def validate(request):
             for v, c in zip(row, t['columns']):
                 require((v is None and c['nullable']) or
                         type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                require(type(v) is not int or -1000000000 <= v <= 1000000000)
         database[t['name']] = t
-    for q in data['queries']:
-        fields(q, {'sql', 'optimize'})
-        require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
-    return database, data['queries']
+    if mode == 'queries':
+        for q in data['queries']:
+            fields(q, {'sql', 'optimize'})
+            require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
+    return database, mode, data[mode]
 
 
 def fields(value, expected):

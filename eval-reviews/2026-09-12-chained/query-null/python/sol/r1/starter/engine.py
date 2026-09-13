@@ -99,6 +99,13 @@ def execute(plan):
         units = [(g[0] if g else [], g) for g in groups.values()]
     else: units = [(r, None) for r in rows]
     projected = [[evaluate(e, r, g) for e, _ in q.select] for r, g in units if q.having is None or evaluate(q.having, r, g) is True]
+    return format_projected(plan, projected)
+
+
+def format_projected(plan, projected):
+    """Apply the post-projection operators to cached view contributions."""
+    q = plan.query
+    projected = [list(r) for r in projected]
     if q.distinct: projected = [list(r) for r in dict.fromkeys(tuple(r) for r in projected)]
     for i, descending, explicit in reversed(q.order):
         null_first = explicit == 'first' if explicit else descending
