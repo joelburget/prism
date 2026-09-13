@@ -1,0 +1,16 @@
+{
+  "run_id": "run-ceb65bb699d4",
+  "checkpoint": 1,
+  "model": "haiku",
+  "model_id": "claude-haiku-4-5-20251001",
+  "task": "query-null",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "72667a2f172c26f24fc88c977edfe414cfd4dea6549a1c0939cd84099973f926",
+  "passed": false,
+  "seconds": 641.3893677919987,
+  "tool_calls": 79,
+  "flags": [],
+  "result_sha256": "0020da942bcb5f6ba7b7801b7c4b4b6d58a1ea13e6ffa17d0d6abd7c3e0b25da",
+  "archive_note": "Exact frozen source"
+}

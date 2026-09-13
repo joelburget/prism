@@ -13,7 +13,7 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(length(matches) > 0, "UNKNOWN_COLUMN")
     demand(length(matches) == 1, "AMBIGUOUS_COLUMN")
     let c = at(matches, 0)
-    Expr { ..e, index = c.index, source = c.source, kind = c.kind }
+    Expr { ..e, index = c.index, source = c.source, kind = c.kind, nullable = c.nullable }
   elif e.op == "lit" then
     e
   else
@@ -21,26 +21,37 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(not(isagg) || allow && not(inside), "INVALID_AGGREGATION")
     let args = map(\(a) -> check(a, columns, allow, inside || isagg), e.args)
     let ts = map(\(a) -> a.kind, args)
-    let kind =
-      if e.op == "COUNT" then
-        "int"
+    let nuls = map(\(a) -> a.nullable, args)
+    let kind_nul_result =
+      if e.op == "IS_NULL" || e.op == "IS_NOT_NULL" then
+        ("bool", false)
+      elif e.op == "COUNT" then
+        ("int", false)
+      elif e.op == "COALESCE" then
+        (at(ts, 0), false)
       elif elem(e.op, ["SUM", "+", "-", "*"]) then
-        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
-        "int"
+        demand(all(\(t) -> t == "int" || t == "null", ts), "TYPE_ERROR")
+        let has_non_null = any(\(t) -> t == "int", ts)
+        ("int", not(has_non_null))
       elif elem(e.op, ["MIN", "MAX"]) then
-        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
-        at(ts, 0)
+        demand(length(args) > 0, "TYPE_ERROR")
+        let non_null_ts = filter(\(t) -> t /= "null", ts)
+        demand(length(non_null_ts) > 0 || all(\(n) -> n, nuls), "TYPE_ERROR")
+        let base_type = if length(non_null_ts) > 0 then at(non_null_ts, 0) else at(ts, 0)
+        demand(elem(base_type, ["int", "text", "null"]), "TYPE_ERROR")
+        (base_type, any(\(n) -> n, nuls))
       elif elem(e.op, ["NOT", "AND", "OR"]) then
-        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
-        "bool"
+        demand(all(\(t) -> t == "bool" || t == "null", ts), "TYPE_ERROR")
+        ("bool", e.op == "NOT" && at(nuls, 0) || e.op == "AND" && any(\(n) -> n, nuls) || e.op == "OR" && any(\(n) -> n, nuls))
       else
         demand(
-            at(ts, 0) == at(ts, 1)
-              && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
+            (at(ts, 0) == at(ts, 1) || at(ts, 0) == "null" || at(ts, 1) == "null")
+              && (at(ts, 0) /= "bool" && at(ts, 1) /= "bool" || elem(e.op, ["=", "<>"])),
             "TYPE_ERROR",
           )
-        "bool"
-    Expr { ..e, args = args, kind = kind }
+        let typ = if at(ts, 0) == "null" then at(ts, 1) else at(ts, 0)
+        ("bool", at(nuls, 0) || at(nuls, 1))
+    Expr { ..e, args = args, kind = fst(kind_nul_result), nullable = snd(kind_nul_result) }
 
 fn predicate(e : Expr, columns : List(Column), allow : Bool) : Expr =
   let b = check(e, columns, allow, false)
@@ -51,7 +62,7 @@ pub fn tree_any(p : (Expr) -> Bool, e : Expr) : Bool =
   p(e) || any(\(a) -> tree_any(p, a), e.args)
 
 fn grouped(e : Expr, keys : List(Int)) : Unit =
-  if not(agg(e.op)) then
+  if not(agg(e.op)) && e.op /= "IS_NULL" && e.op /= "IS_NOT_NULL" && e.op /= "COALESCE" then
     demand(e.op /= "col" || elem(e.index, keys), "INVALID_AGGREGATION")
     for a in sof(e.args) do
       grouped(a, keys)
@@ -78,7 +89,8 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
       )
     columns := append(columns, cs)
     if i > 0 then
-      joins := append(joins, [predicate(at(q.joins, i - 1), columns, false)])
+      let (on_expr, is_left) = at(q.joins, i - 1)
+      joins := append(joins, [(predicate(on_expr, columns, false), is_left)])
   let cs = columns
   let sels = map(\(s) -> (check(fst(s), cs, true, false), snd(s)), q.select)
   let groups = map(\(e) -> check(e, cs, false, false), q.groups)
@@ -93,17 +105,7 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
   if aggregate then
     for e in sof(roots) do
       grouped(e, keys)
-  demand(
-      length(groups) > 0
-        || not(
-            any(
-                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
-                roots,
-              ),
-          ),
-      "UNSUPPORTED_FEATURE",
-    )
-  let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
+  let order_indices = []
   let bq =
     Query {
       ..q,
@@ -118,7 +120,7 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
     tables = tables,
     filters = map(\(_) -> [], tables),
     aggregate = aggregate,
-    order = order
+    order = []
   }
 
 fn alias_index(names : List(String), n : String, i : Int) : Int =

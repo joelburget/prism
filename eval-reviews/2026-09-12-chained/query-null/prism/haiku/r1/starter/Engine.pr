@@ -7,22 +7,15 @@ import Data.Foldable (all, length, sum)
 
 pub fn compare_value(a : Json, b : Json) : Int =
   match (a, b) of
-    (JInt(x), JInt(y)) =>
-      if x < y then
-        -1
-      elif x > y then
-        1
-      else
-        0
+    (JInt(x), JInt(y)) => if x < y then -1 elif x > y then 1 else 0
     (JStr(x), JStr(y)) => str_cmp(x, y)
-    (JBool(x), JBool(y)) =>
-      if x == y then
-        0
-      elif x then
-        1
-      else
-        -1
+    (JBool(x), JBool(y)) => if x == y then 0 elif x then 1 else -1
     _ => 0
+
+fn is_null(v : Json) : Bool =
+  match v of
+    JNull => true
+    _ => false
 
 pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
   let op = e.op
@@ -30,36 +23,38 @@ pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
     e.value
   elif op == "col" then
     at(row, e.index)
+  elif op == "IS_NULL" then
+    JBool(is_null(evaluate(at(e.args, 0), row, group)))
+  elif op == "IS_NOT_NULL" then
+    JBool(not(is_null(evaluate(at(e.args, 0), row, group))))
+  elif op == "COALESCE" then
+    coalesce_eval(e.args, row, group)
   elif agg(op) then
-    if op == "COUNT" then
-      JInt(length(group))
-    else
-      let vs = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
-      if op == "SUM" then
-        JInt(sum(map(integer, vs)))
-      else
-        extremum(vs, op == "MIN")
+    evaluate_agg(e, op, group)
   else
-    let a = evaluate(at(e.args, 0), row, group)
-    if op == "NOT" then
-      JBool(not(truth(a)))
-    else
-      let b = evaluate(at(e.args, 1), row, group)
-      if op == "+" then
-        JInt(integer(a) + integer(b))
-      elif op == "-" then
-        JInt(integer(a) - integer(b))
-      elif op == "*" then
-        JInt(integer(a) * integer(b))
-      elif op == "AND" then
-        JBool(truth(a) && truth(b))
-      elif op == "OR" then
-        JBool(truth(a) || truth(b))
-      else
-        let c = compare_value(a, b)
-        JBool(
-            if op == "=" then c == 0 elif op == "<>" then c /= 0 elif op == "<" then c < 0 elif op == ">" then c > 0 elif op == "<=" then c <= 0 else c >= 0,
-          )
+    evaluate_binary(e, row, group)
+
+fn evaluate_agg(e : Expr, op : String, group : List(List(Json))) : Json =
+  if op == "COUNT" then
+    if length(e.args) == 0 then JInt(length(group)) else count_non_null(e.args, group)
+  else
+    let vals = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
+    let non_nulls = filter(\(v) -> not(is_null(v)), vals)
+    if length(non_nulls) == 0 then JNull else eval_agg_non_null(op, non_nulls)
+
+fn count_non_null(args : List(Expr), group : List(List(Json))) : Json =
+  let non_nulls = filter(\(r) -> not(is_null(evaluate(at(args, 0), r, []))), group)
+  JInt(length(non_nulls))
+
+fn eval_agg_non_null(op : String, vals : List(Json)) : Json =
+  if op == "SUM" then JInt(sum(map(integer, vals))) else extremum(vals, op == "MIN")
+
+fn coalesce_eval(args : List(Expr), row : List(Json), group : List(List(Json))) : Json =
+  match args of
+    Nil => JNull
+    Cons(e, rest) =>
+      let v = evaluate(e, row, group)
+      if is_null(v) then coalesce_eval(rest, row, group) else v
 
 fn extremum(vs : List(Json), minimum : Bool) : Json =
   match vs of
@@ -67,147 +62,129 @@ fn extremum(vs : List(Json), minimum : Bool) : Json =
     Cons(v, Nil) => v
     Cons(v, rest) =>
       let b = extremum(rest, minimum)
-      if (compare_value(v, b) < 0) == minimum then
-        v
-      else
-        b
+      if (compare_value(v, b) < 0) == minimum then v else b
+
+fn evaluate_binary(e : Expr, row : List(Json), group : List(List(Json))) : Json =
+  let a = evaluate(at(e.args, 0), row, group)
+  if e.op == "NOT" then
+    evaluate_not(a)
+  else
+    let b = evaluate(at(e.args, 1), row, group)
+    match e.op of
+      "+" => evaluate_plus(a, b)
+      "-" => evaluate_minus(a, b)
+      "*" => evaluate_mult(a, b)
+      "AND" => evaluate_and(a, b)
+      "OR" => evaluate_or(a, b)
+      _ => evaluate_comparison(e.op, a, b)
+
+fn evaluate_not(a : Json) : Json =
+  if is_null(a) then JNull else JBool(not(truth(a)))
+
+fn evaluate_plus(a : Json, b : Json) : Json =
+  if is_null(a) || is_null(b) then JNull else JInt(integer(a) + integer(b))
+
+fn evaluate_minus(a : Json, b : Json) : Json =
+  if is_null(a) || is_null(b) then JNull else JInt(integer(a) - integer(b))
+
+fn evaluate_mult(a : Json, b : Json) : Json =
+  if is_null(a) || is_null(b) then JNull else JInt(integer(a) * integer(b))
+
+fn evaluate_and(a : Json, b : Json) : Json =
+  if truth(a) == false then JBool(false)
+  elif truth(b) == false then JBool(false)
+  elif is_null(a) || is_null(b) then JNull
+  else JBool(true)
+
+fn evaluate_or(a : Json, b : Json) : Json =
+  if truth(a) == true then JBool(true)
+  elif truth(b) == true then JBool(true)
+  elif is_null(a) || is_null(b) then JNull
+  else JBool(false)
+
+fn evaluate_comparison(op : String, a : Json, b : Json) : Json =
+  if is_null(a) || is_null(b) then
+    JNull
+  else
+    let c = compare_value(a, b)
+    JBool(if op == "=" then c == 0 elif op == "<>" then c /= 0 elif op == "<" then c < 0 elif op == ">" then c > 0 elif op == "<=" then c <= 0 else c >= 0)
 
 pub fn fold_constants(e : Expr) : Expr =
   let n = Expr { ..e, args = map(fold_constants, e.args) }
-  if (not(agg(n.op))
-      && not(elem(n.op, ["lit", "col"]))
-      && all(\(a) -> a.op == "lit", n.args)) then
+  if (not(agg(n.op)) && not(elem(n.op, ["lit", "col"])) && all(\(a) -> a.op == "lit", n.args)) then
     literal(evaluate(n, [], []))
   else
     n
 
 fn conjuncts(e : Expr) : List(Expr) =
-  if e.op == "AND" then
-    append(conjuncts(at(e.args, 0)), conjuncts(at(e.args, 1)))
-  else
-    [e]
+  if e.op == "AND" then append(conjuncts(at(e.args, 0)), conjuncts(at(e.args, 1))) else [e]
 
 fn sources(e : Expr) : List(Int) =
-  if e.op == "col" then
-    [e.source]
-  else
-    flatten(map(sources, e.args))
+  if e.op == "col" then [e.source] else flatten(map(sources, e.args))
 
 fn combine(es : List(Expr)) : Expr =
   match es of
     Nil => literal(JBool(true))
     Cons(e, Nil) => e
-    Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool" }
+    Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool", nullable = false }
 
--- Push a conjunct only when every referenced slot belongs to one inner-join
--- input. Slot numbers remain global; scan predicates receive a prefix padding.
 pub fn optimize(plan : Plan) : Plan =
   let q = plan.query
-  let terms = conjuncts(fold_constants(q.predicate))
-  let pushable = \(e) -> let ss = sources(e) in length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
-  let fs = map(
-      \(i) -> filter(\(e) -> pushable(e) && at(sources(e), 0) == i, terms),
-      range(0, length(plan.tables)),
-    )
-  let rem = filter(\(e) -> not(pushable(e)), terms)
-  let bq = Query {
-    ..q,
-    predicate = combine(rem),
-    select = map(\(s) -> (fold_constants(fst(s)), snd(s)), q.select),
-    joins = map(fold_constants, q.joins),
-    having = fold_constants(q.having)
-  }
-  Plan { ..plan, query = bq, filters = fs }
+  let bq = Query { ..q, select = map(\(s) -> (fold_constants(fst(s)), snd(s)), q.select), joins = map(\((on, is_left)) -> (fold_constants(on), is_left), q.joins), having = fold_constants(q.having) }
+  Plan { ..plan, query = bq }
 
-fn join_rows(
-  left : List(List(Json)),
-  right : List(List(Json)),
-  on : Expr
-) : List(List(Json)) =
-  flatten(
-      map(
-          \(l) -> filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)),
-          left,
-        ),
-    )
+fn join_rows_inner(left : List(List(Json)), right : List(List(Json)), on : Expr) : List(List(Json)) =
+  flatten(map(\(l) -> filter(\(r) -> truth(evaluate(on, append(l, r), [])), map(\(r) -> append(l, r), right)), left))
+
+fn join_rows_left(left : List(List(Json)), right : List(List(Json)), on : Expr, right_cols : Int) : List(List(Json)) =
+  flatten(map(\(l) -> let matched = filter(\(r) -> truth(evaluate(on, append(l, r), [])), map(\(r) -> append(l, r), right)) in if length(matched) > 0 then matched else [append(l, replicate(right_cols, JNull))], left))
 
 pub type Group = Group { key: String, rows: List(List(Json)) }
 
 fn add_group(gs : List(Group), key : String, row : List(Json)) : List(Group) =
   match gs of
     Nil => [Group { key = key, rows = [row] }]
-    Cons(g, rest) =>
-      if g.key == key then
-        Cons(Group { ..g, rows = append(g.rows, [row]) }, rest)
-      else
-        Cons(g, add_group(rest, key, row))
+    Cons(g, rest) => if g.key == key then Cons(Group { ..g, rows = append(g.rows, [row]) }, rest) else Cons(g, add_group(rest, key, row))
 
 fn groups_for(rows : List(List(Json)), keys : List(Expr)) : List(Group) =
   var gs := []
   for row in sof(rows) do
     let key = encode(JArr(map(\(e) -> evaluate(e, row, []), keys)))
     gs := add_group(gs, key, row)
-  if length(keys) == 0 && length(rows) == 0 then
-    [Group { key = "[]", rows = [] }]
-  else
-    gs
+  if length(keys) == 0 && length(rows) == 0 then [Group { key = "[]", rows = [] }] else gs
 
-fn project(
-  q : Query,
-  row : List(Json),
-  group : List(List(Json))
-) : List(List(Json)) =
-  if truth(evaluate(q.having, row, group)) then
-    [map(\(s) -> evaluate(fst(s), row, group), q.select)]
-  else
-    []
+fn project(q : Query, row : List(Json), group : List(List(Json))) : List(List(Json)) =
+  if truth(evaluate(q.having, row, group)) then [map(\(s) -> evaluate(fst(s), row, group), q.select)] else []
 
-fn distinct_rows(
-  rows : List(List(Json)),
-  seen : List(String)
-) : List(List(Json)) =
+fn distinct_rows(rows : List(List(Json)), seen : List(String)) : List(List(Json)) =
   match rows of
     Nil => []
-    Cons(r, rest) =>
-      let key = encode(JArr(r))
-      if elem(key, seen) then
-        distinct_rows(rest, seen)
-      else
-        Cons(r, distinct_rows(rest, Cons(key, seen)))
+    Cons(r, rest) => let key = encode(JArr(r)) in if elem(key, seen) then distinct_rows(rest, seen) else Cons(r, distinct_rows(rest, Cons(key, seen)))
 
-fn row_compare(
-  a : List(Json),
-  b : List(Json),
-  order : List((Int, Bool))
-) : Int =
+fn row_compare(a : List(Json), b : List(Json), order : List((Int, Bool, Int))) : Int =
   match order of
     Nil => 0
-    Cons((i, desc), rest) =>
-      let c = compare_value(at(a, i), at(b, i))
-      if c == 0 then
+    Cons((i, desc, nulls_first), rest) =>
+      let av = at(a, i)
+      let bv = at(b, i)
+      let a_null = is_null(av)
+      let b_null = is_null(bv)
+      if a_null != b_null then
+        let a_pos = if a_null then (if nulls_first > 0 then 0 else 1) else (if nulls_first > 0 then 1 else 0)
+        let b_pos = if b_null then (if nulls_first > 0 then 0 else 1) else (if nulls_first > 0 then 1 else 0)
+        if a_pos < b_pos then -1 else 1
+      else if a_null && b_null then
         row_compare(a, b, rest)
-      elif desc then
-        -c
       else
-        c
+        let c = compare_value(av, bv)
+        if c == 0 then row_compare(a, b, rest) elif desc then -c else c
 
-fn insert_row(
-  r : List(Json),
-  rows : List(List(Json)),
-  order : List((Int, Bool))
-) : List(List(Json)) =
+fn insert_row(r : List(Json), rows : List(List(Json)), order : List((Int, Bool, Int))) : List(List(Json)) =
   match rows of
     Nil => [r]
-    Cons(x, rest) =>
-      if row_compare(r, x, order) <= 0 then
-        Cons(r, rows)
-      else
-        Cons(x, insert_row(r, rest, order))
+    Cons(x, rest) => if row_compare(r, x, order) <= 0 then Cons(r, rows) else Cons(x, insert_row(r, rest, order))
 
-fn sort_rows(
-  rows : List(List(Json)),
-  order : List((Int, Bool))
-) : List(List(Json)) =
+fn sort_rows(rows : List(List(Json)), order : List((Int, Bool, Int))) : List(List(Json)) =
   match rows of
     Nil => []
     Cons(r, rest) => insert_row(r, sort_rows(rest, order), order)
@@ -218,45 +195,19 @@ pub fn execute(plan : Plan) : Json =
   var offset := 0
   for i in srange(0, length(plan.tables)) do
     let t = at(plan.tables, i)
-    let padding = replicate(offset, JNull)
-    let predicates = at(plan.filters, i)
-    let rs = filter(
-        \(r) -> all(\(p) -> truth(evaluate(p, append(padding, r), [])), predicates),
-        t.rows,
-      )
+    let rs = t.rows
     scans := append(scans, [rs])
     offset += length(t.columns)
   var rows := at(scans, 0)
   for i in srange(0, length(q.joins)) do
-    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i))
+    let (on_expr, is_left) = at(q.joins, i)
+    let right_table = at(plan.tables, i + 1)
+    let right_cols = length(right_table.columns)
+    rows := if is_left then join_rows_left(rows, at(scans, i + 1), on_expr, right_cols) else join_rows_inner(rows, at(scans, i + 1), on_expr)
   let filtered = filter(\(r) -> truth(evaluate(q.predicate, r, [])), rows)
-  let projected =
-    if plan.aggregate then
-      flatten(
-          map(
-              \(g) -> project(q, if length(g.rows) > 0 then at(g.rows, 0) else [], g.rows),
-              groups_for(filtered, q.groups),
-            ),
-        )
-    else
-      flatten(map(\(r) -> project(q, r, []), filtered))
-  let distinct =
-    if q.distinct then
-      distinct_rows(projected, [])
-    else
-      projected
-  let sorted =
-    if length(plan.order) > 0 then
-      sort_rows(distinct, plan.order)
-    else
-      distinct
+  let projected = if plan.aggregate then flatten(map(\(g) -> project(q, if length(g.rows) > 0 then at(g.rows, 0) else [], g.rows), groups_for(filtered, q.groups))) else flatten(map(\(r) -> project(q, r, []), filtered))
+  let distinct = if q.distinct then distinct_rows(projected, []) else projected
+  let sorted = if length(plan.order) > 0 then sort_rows(distinct, plan.order) else distinct
   let skipped = drop(q.offset, sorted)
-  let final =
-    if q.limit >= 0 then
-      take(q.limit, skipped)
-    else
-      skipped
-  JObj([
-      ("columns", JArr(map(\(s) -> JStr(snd(s)), q.select))),
-      ("rows", JArr(map(JArr, final))),
-    ])
+  let final = if q.limit >= 0 then take(q.limit, skipped) else skipped
+  JObj([("columns", JArr(map(\(s) -> JStr(snd(s)), q.select))), ("rows", JArr(map(JArr, final)))])
