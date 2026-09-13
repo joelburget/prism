@@ -170,6 +170,13 @@ pub type Plan = Plan {
   order: List((Int, Bool, Bool))
 }
 
+-- Command-mode state deliberately keeps row identity outside SQL-visible rows.
+-- A view holds a bound plan and a materialized result; reads never execute SQL.
+pub type StoredRow = StoredRow { id: Int, row: List(Json) }
+pub type LiveTable = LiveTable { schema: Table, rows: List(StoredRow), used: List(Int), next_id: Int }
+pub type View = View { name: String, plan: Plan, result: Json, sources: List(String), optimized: Bool }
+pub type CommandOutcome = CommandOutcome { tables: List(LiveTable), views: List(View), revision: Int, response: Json }
+
 pub fn validate_table(j : Json) : Table =
   fields(j, ["name", "columns", "rows"])
   let n = text(getfield(j, "name"))

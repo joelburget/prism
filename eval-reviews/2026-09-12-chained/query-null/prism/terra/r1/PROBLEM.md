@@ -1,188 +1,133 @@
-# Query engine: NULL and left outer joins
+# Checkpoint 2: incrementally maintained query views
 
-## Change request
+Extend the completed **Query engine: NULL and left outer joins** from checkpoint 1.
+The complete earlier contract is supplied in `PREVIOUS.md`. Every old request and
+response, including errors, optimizer behavior and output ordering, remains valid.
+Keep the existing query engine and extend it; do not call another SQL engine.
+This checkpoint is revealed only after the first submission is frozen.
 
-Extend an existing, in-memory relational query engine to support SQL NULL,
-three-valued logic, and left outer joins. Preserve its non-null query behavior
-and keep optimized execution semantically equivalent to unoptimized execution.
-The change touches input validation, parsing, binding/type checking, expression
-evaluation, joining, aggregation, sorting, and optimizer rules.
+## Requested change
 
-Each evaluation run will receive one starter in its assigned language. Prism and
-the comparison language run in separate, fresh agent sessions with no access to
-each other's code or run artifacts, as described in the parent README.
-This directory specifies
-their baseline contract and the target extension; it contains no starter or
-reference implementation. The task is to change the supplied engine, retaining
-its architecture where practical. Do not delegate query evaluation to another SQL
-engine. Standard libraries for JSON, collections, and sorting are allowed.
+Maintain named query views as multiple base tables change atomically. Reuse the
+existing parser, binder, expressions, optimizer and query semantics. Support the
+entire checkpoint-one SQL subset in views, including chained inner/left joins,
+nullable expressions, grouping, DISTINCT, sorting and LIMIT/OFFSET. Both optimizer
+settings remain supported. Newly created views immediately include existing rows.
 
-## Baseline and requested extension
+Implement incremental maintenance: retain useful state between changes, avoid
+re-evaluating unaffected views, and maintain joins and aggregates from affected
+rows/groups. Computing every view from scratch on every change or read is not an
+acceptable completed implementation. Initial view creation may perform a full
+query. MIN/MAX deletions may revisit the affected group, and sorting/output may
+visit the view result. No internal representation is prescribed. The behavioral
+suite cannot prove this algorithmic requirement; it is separately reviewed and
+measured with the supplied scaling workloads. Never infer acceptance from a
+self-reported work counter.
 
-The baseline supports non-null typed tables, SELECT expressions, WHERE, INNER
-JOIN, GROUP BY, HAVING, DISTINCT, ORDER BY, LIMIT/OFFSET, COUNT, and grouped
-SUM/MIN/MAX. It has a parser, bound logical plan, execution engine, and optional
-optimizer. The eventual starter must implement actual safe transformations such
-as constant folding and pushing single-table filters through inner joins.
+## Protocol and compatibility
 
-The extension adds nullable columns and NULL literals, three-valued expressions,
-IS NULL / IS NOT NULL, COALESCE, LEFT [OUTER] JOIN, explicit NULLS FIRST/LAST,
-and global SUM/MIN/MAX (including empty input). Adapt optimizer transformations
-to preserve these semantics. Existing inner-join and constant-folding optimization
-capabilities must continue to work; disabling all optimization is not a satisfactory
-implementation. Public black-box cases check behavior in both modes but cannot
-prove that optimizations execute; reviewers must inspect the implementation.
+Use the same envelope and `task:"query-null"`. Inputs with `queries` follow the
+old contract exactly. The new input form has exactly `database` and `commands`.
+Mixing `queries` and `commands`, omitting either new field, or supplying a non-array
+commands value is `INVALID_INPUT`. Validate the complete database using the old
+rules before processing commands. Empty databases and command arrays are allowed.
+There are at most 2,000 commands, 16 tables, 20,000 initial rows across tables and
+20,000 live rows across tables. Behavioral fixtures respect these resource bounds;
+resource-bound violations other than the command limit are outside scope.
 
-## Wire protocol
+A new-mode response is `{"ok":true,"result":{"results":[REPLY,...]}}`, one reply per
+command in order. Each reply is `{"ok":true,"result":VALUE}` or
+`{"ok":false,"error":{"code":CODE}}`. A command error changes no state and processing
+continues. Earlier replies are immutable snapshots. Top-level validation errors
+retain the old error envelope. Numbers remain exact integers within the earlier
+input/intermediate bounds; row identifiers and revisions have separate bounds below.
 
-Read one JSON object from stdin and print one JSON object plus a newline to
-stdout. Logs go to stderr. Each request runs in a fresh process; successful
-requests and domain errors both exit with status zero.
+Initial rows have private identifiers 1..N **per table**, in input order. These IDs
+are not SQL columns and cannot be referenced from SQL. An update preserves a row's
+encounter position; deleting removes it; inserting appends it. A row ID can never
+be reused in that table after a successful insertion, including after deletion.
+Failed commands do not consume IDs. IDs may be equal across different tables.
+
+## Commands
+
+Objects have exactly the fields shown. View names match `[a-z][a-z0-9-]{0,39}`;
+SQL identifiers continue to use the earlier grammar. At most 32 simultaneous views
+are used. Command-shape errors are `INVALID_COMMAND`.
+
+* `{"op":"create","view":"v","sql":"SELECT ...","optimize":true}`:
+  validate the field shapes, reject an existing view with `VIEW_EXISTS`, then parse
+  and bind the query using the earlier errors. On success install its result and
+  return `{"view":"v","revision":R}`. Views query base tables, not other views.
+* `{"op":"read","view":"v"}`: return
+  `{"revision":R,"columns":[...],"rows":[...]}` using the old query result rules.
+  An unknown view is `UNKNOWN_VIEW`. R is the global database revision, even when
+  this view was unaffected by recent updates.
+* `{"op":"drop","view":"v"}`: remove it and return `{"dropped":"v"}`; an unknown
+  view is `UNKNOWN_VIEW`. The name may subsequently be reused for a different SQL
+  query. Creating, reading and dropping do not advance the database revision.
+* `{"op":"apply","changes":[CHANGE,...]}`: atomically apply a nonempty array of at
+  most 200 changes, advance revision by one, and return `{"revision":R}`. Start at
+  revision zero. Every successful batch advances it, including a batch whose final
+  table contents equal the initial contents. Rejected batches never advance it.
+
+Each CHANGE has one of these exact forms:
 
 ```json
-{"protocol_version":1,"task":"query-null","input":{"database":[{"name":"items","columns":[{"name":"id","type":"int","nullable":false},{"name":"price","type":"int","nullable":true}],"rows":[[1,10],[2,null]]}],"queries":[{"sql":"SELECT id AS id, price IS NULL AS missing FROM items ORDER BY id","optimize":true}]}}
+{"op":"insert","table":"items","id":3,"row":[3,20]}
+{"op":"update","table":"items","id":2,"row":[2,null]}
+{"op":"delete","table":"items","id":1}
 ```
 
-Response:
+IDs are integers 1..2,147,483,647, not booleans. Table fields are strings matching `[a-z_][a-z0-9_]*`. A matching name absent
+from the database is UNKNOWN_TABLE, including a reserved SQL word. Insert/update `row` must be an array. Validate shapes and scalar
+ID/name constraints for **all** changes before applying any: failure is
+`INVALID_COMMAND`. Then process changes in array order against a private batch
+state. For each change, check table existence (`UNKNOWN_TABLE`); for insert/update,
+check width, type, nullability and numeric bounds (`INVALID_ROW`); then check ID
+state (`ROW_ID_USED` for inserting any previously used ID; `UNKNOWN_ROW` for
+updating/deleting an absent row). Updates can change every SQL-visible column.
 
-```json
-{"ok":true,"result":{"results":[{"columns":["id","missing"],"rows":[[1,false],[2,true]]}]}}
-```
+The batch commits all base rows, used-ID sets, view states and the revision
+simultaneously. If any change fails, roll everything back. Multiple changes may
+address the same row, including insert-then-update or insert-then-delete. A
+successful insert-then-delete still reserves its ID. Views see the final batch
+state, with exactly the result a fresh query would have at that point. Do not
+emit intermediate view results. Joined rows changed on both sides in one batch
+must not be lost or counted twice.
 
-Each query sees the same immutable database. The `results` array follows query
-order. On a domain error return only `{"ok":false,"error":{"code":"CODE"}}`;
-do not return partial query results or variable diagnostic text. Validate the
-entire database first, then parse, bind, and execute queries in array order.
-The first failing query determines the request error. Each input has only one
-intended error class, so precedence between independent errors need not be defined.
+## Interactions that must work
 
-All fields shown are required. Within `input`, table objects, column objects, and
-query objects, unknown fields are rejected as `INVALID_INPUT`. `database`,
-`columns`, `rows`, and `queries` are arrays; each row is an array; `sql` is a
-string; `optimize` and `nullable` are JSON booleans, never integers or strings.
-Table and column names, aliases, and identifiers
-are lowercase ASCII matching `[a-z_][a-z0-9_]*`; keywords are case-insensitive.
-Names are case-sensitive and must be unique within their respective namespace.
-The words appearing as keywords or function names in the SQL grammar below are
-reserved and cannot be schema names or aliases (including `first`, `last`,
-`null`, and `count`). Schema violations are `INVALID_INPUT`; reserved words
-used as SQL identifiers are `PARSE_ERROR`. Quoted identifiers are unsupported.
-Types are `int`, `text`, and `bool`; JSON booleans are not integers. Rows are
-arrays in column declaration order. NULL is JSON `null`, allowed in table data
-only when the column declares `nullable:true`. Tables may be empty but must have
-at least one column. An empty database and empty query list are allowed.
-Fixtures use ASCII text and integer inputs/intermediates within ±1,000,000,000;
-behavior outside these bounds is out of scope.
+* Removing a left row's last matching right row creates one NULL-extended row;
+  adding its first match removes that placeholder. Multiple matches retain bag
+  multiplicity. NULL does not match NULL with ordinary equality.
+* Base duplicates and duplicate projected rows are distinct contributions before
+  DISTINCT. Removing one occurrence need not remove the result row or group.
+* Changing a join/group key retracts the old contribution and adds the new one.
+  WHERE and HAVING may move a row/group into or out of the result. GROUP BY merges
+  NULL keys; aggregates ignore NULL values as specified previously.
+* Deleting the final member removes a grouped group. A global aggregate continues
+  to produce one row on empty input. COUNT(*) differs from COUNT(nullable_expr).
+* Deleting a minimum/maximum, moving an ORDER BY key, or crossing a LIMIT/OFFSET
+  boundary must reveal the correct replacement row. Tie order is the original
+  deterministic encounter order, including after updates.
+* Failed batches and dropped/recreated views must not leave stale indexes or
+  aggregate contributions. Reads must not change results or leak mutable aliases.
 
-## SQL subset
+## Example
 
-This is a deliberately specified subset, not unrestricted SQL compatibility.
-Every SELECT item must have an explicit unique `AS alias`. There is no SELECT
-`*` expansion; `*` is supported only in COUNT. Table aliases use `AS` and hide
-the original table name. A FROM clause is mandatory. A final semicolon is optional.
-
-```text
-SELECT [DISTINCT] expression AS alias [, ...]
-FROM table [AS alias]
-{ [INNER] JOIN table [AS alias] ON expression
-| LEFT [OUTER] JOIN table [AS alias] ON expression }*
-[WHERE expression]
-[GROUP BY column_reference [, ...]]
-[HAVING expression]
-[ORDER BY output_alias [ASC|DESC] [NULLS FIRST|NULLS LAST] [, ...]]
-[LIMIT nonnegative_integer [OFFSET nonnegative_integer]]
-```
-
-Expressions comprise column references (`column` or `alias.column`), integer
-literals including negative integers, single-quoted text (escape a quote with
-`''`), TRUE/FALSE/NULL, parentheses, `+`, `-`, `*`, `=`, `<>`, `<`, `<=`, `>`,
-`>=`, AND, OR, NOT, IS NULL, IS NOT NULL, COALESCE with at least two arguments,
-and aggregates COUNT(*), COUNT(expr), SUM(expr), MIN(expr), MAX(expr).
-There are no comments, division, IN, CASE, subqueries, implicit casts, or other
-functions. Binary precedence, high to low: multiplication; addition/subtraction;
-comparisons and IS [NOT] NULL; NOT; AND; OR. Arithmetic operators of equal
-precedence associate left. Chained comparisons are invalid. Unary NOT is
-supported; unary minus is required only as part of an integer literal.
-
-Unqualified column references must resolve uniquely among all source tables.
-JOIN ON can reference only tables available at that join. SELECT aliases are
-visible only in ORDER BY. WHERE, ON, HAVING, AND, OR, and NOT require booleans
-(an untyped NULL is allowed in boolean context). Arithmetic and SUM require int;
-comparisons require compatible operand types. Booleans support equality and
-inequality only. MIN/MAX support int/text. COALESCE arguments must have a common
-type, ignoring untyped NULL literals; all-NULL arguments are allowed. NULL can
-be assigned the type required by its context. Check types and names before
-execution, including on empty tables and in unreachable expressions.
-
-Aggregates are allowed only in SELECT/HAVING and cannot be nested. GROUP BY
-allows column references only; duplicate group keys are invalid. In an aggregate
-query, each column reference outside an aggregate must be a GROUP BY key.
-Expressions over group keys and aggregates are allowed. HAVING requires GROUP BY
-or an aggregate in SELECT/HAVING. GROUP BY without aggregates is allowed. Without
-GROUP BY, aggregates produce exactly one group even for empty input. Without
-aggregates or GROUP BY, an empty input produces no rows. The baseline only needs
-COUNT for global aggregation; global SUM/MIN/MAX belong to the extension.
-
-## Defined evaluation behavior
-
-1. Read table rows in input order. Join left to right. For each left row, visit
-   right rows in input order and emit each pair whose ON condition is TRUE.
-   INNER JOIN drops a row with no match. LEFT JOIN instead emits one row padded
-   with NULL for every right-side column, regardless of declared nullability.
-   ON FALSE and ON UNKNOWN both fail to match. A NULL key never equals a NULL key.
-2. WHERE and HAVING retain only TRUE. FALSE and UNKNOWN are both discarded.
-   Arithmetic or ordinary comparison with a NULL operand returns NULL. NOT NULL
-   returns NULL. FALSE AND NULL is FALSE; TRUE AND NULL is NULL; TRUE OR NULL is
-   TRUE; FALSE OR NULL is NULL; NULL AND NULL and NULL OR NULL are NULL.
-   IS NULL/IS NOT NULL always return a non-null boolean. COALESCE returns its
-   first non-null argument, or NULL if none exists.
-3. Group keys use equality with all NULL values in a key position treated as
-   the same key. Groups appear in order of first encounter. COUNT(*) counts all
-   rows; COUNT(expr) counts non-null values. SUM/MIN/MAX ignore NULL values and
-   return NULL if no non-null values remain. COUNT returns zero in an empty
-   global group. SUM is exact integer addition. Text comparison uses ASCII
-   lexicographic order. There is no collation or locale setting.
-4. Evaluate SELECT, then DISTINCT, then ORDER BY, then OFFSET/LIMIT. DISTINCT
-   compares full projected rows, treating NULLs as equal, and retains the first
-   occurrence. ORDER BY refers only to output aliases and is stable on ties.
-   ASC is the default. NULL placement defaults to LAST for ASC and FIRST for
-   DESC; an explicit NULLS clause overrides direction. Booleans sort false
-   before true. Without ORDER BY, preserve the encounter order defined above.
-   OFFSET defaults to zero, requires LIMIT, and is applied before LIMIT.
-
-Optimizations must preserve this contract, including stable output order. A
-filter on right-side columns cannot in general be moved from WHERE to the ON
-clause of a left join. `x = x` is not always TRUE, and `p OR NOT p` is not always
-TRUE. Folding these expressions must account for possible NULL values introduced
-by outer joins as well as declared nullable columns.
-
-## Errors
-
-| Code | Meaning |
-| --- | --- |
-| `INVALID_INPUT` | Malformed input structure, invalid/duplicate schema names, wrong row width/type, or NULL in a non-nullable input column. |
-| `PARSE_ERROR` | SQL outside the grammar, unknown function, missing mandatory alias, or malformed literal. |
-| `UNKNOWN_TABLE` | Table does not exist. |
-| `UNKNOWN_COLUMN` | Column, qualifier, or ORDER BY output alias does not exist. |
-| `AMBIGUOUS_COLUMN` | An unqualified column matches multiple source columns. |
-| `TYPE_ERROR` | Expression operands or predicate have incompatible types. |
-| `INVALID_AGGREGATION` | Nested/misplaced aggregate, illegal ungrouped reference, invalid HAVING, or duplicate group key. |
-| `DUPLICATE_ALIAS` | Duplicate SELECT output alias or duplicate source table qualifier. |
+For a one-column integer table `t` initially containing `[[4],[4]]`, create
+`SELECT DISTINCT x AS x FROM t ORDER BY x` as `v`. Reading v yields `[[4]]` at
+revision 0. Deleting row ID 1 yields the same rows at revision 1. Deleting ID 2
+then yields `[]` at revision 2. A global `COUNT(*)` view instead yields `[[0]]`.
 
 ## Acceptance and review
 
-`cases.json` contains public, fixed input/output examples, separated into baseline
-regressions and extension behavior. Every successful nonempty query scenario is
-run in both optimizer modes. Expected outputs are explicit JSON values, not
-generated by the implementation under evaluation. They cover three-valued truth
-tables, nullable arithmetic/comparisons, grouping, empty aggregation, left-join
-multiplicity, ON versus WHERE, null-rejecting filters, nested joins, and diagnostics.
-
-Use the common runner one directory above; its timeout defaults to 10 seconds
-and is configurable. These are behavioral tests, not performance benchmarks.
-Report baseline and extension results separately. Passing this public corpus is
-evidence of conformance, not a complete correctness proof or hidden-test score.
-Future evaluation should add unseen databases and queries and review optimizer
-legality, propagation of nullability, regression scope, and clarity of the
-representation of TRUE/FALSE/UNKNOWN. No reference implementation is required
-to execute this fixed-output suite.
+All checkpoint-one public cases are now public baseline regressions; all its
+held-out cases remain private baseline regressions. New public extension tests
+illustrate the protocol. Additional unseen update sequences use these same rules.
+Run `python3 run.py run --task query-null --command './starter/run.sh'`.
+Review the patch for coherent insert/retract paths, ownership of cached state,
+bag multiplicities, batch atomicity, and independent optimized/unoptimized behavior.
+Record review effort separately from acceptance and scaling results. Scaling
+workloads measure this implementation; their thresholds require toolchain-specific
+calibration and are not a hidden wall-clock correctness requirement.

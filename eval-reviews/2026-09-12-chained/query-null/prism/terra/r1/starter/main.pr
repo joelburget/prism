@@ -5,7 +5,214 @@ import Parser (..)
 import Binder (..)
 import Engine (..)
 import Data.List (..)
-import Data.Foldable (length)
+import Data.Foldable (all, any, length)
+
+fn input_has(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => length(filter(\(x) -> fst(x) == key, xs)) == 1
+    _ => false
+
+fn command_fields(j : Json, names : List(String)) : Unit =
+  match j of
+    JObj(xs) =>
+      demand(length(xs) == length(names), "INVALID_COMMAND")
+      demand(all(\(n) -> length(filter(\(x) -> fst(x) == n, xs)) == 1, names), "INVALID_COMMAND")
+    _ => reject("INVALID_COMMAND")
+
+fn command_field(j : Json, key : String) : Json =
+  match j of
+    JObj(xs) =>
+      let found = filter(\(x) -> fst(x) == key, xs)
+      demand(length(found) == 1, "INVALID_COMMAND")
+      snd(at(found, 0))
+    _ =>
+      reject("INVALID_COMMAND")
+      JNull
+
+fn command_text(j : Json) : String =
+  match j of
+    JStr(s) => s
+    _ =>
+      reject("INVALID_COMMAND")
+      ""
+
+fn command_arr(j : Json) : List(Json) =
+  match j of
+    JArr(xs) => xs
+    _ =>
+      reject("INVALID_COMMAND")
+      []
+
+fn command_bool(j : Json) : Bool =
+  match j of
+    JBool(b) => b
+    _ =>
+      reject("INVALID_COMMAND")
+      false
+
+fn bare_name(s : String) : Bool =
+  byte_len(s) > 0 && letter(byte_at(s, 0))
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))
+
+fn view_name(s : String) : Bool =
+  byte_len(s) > 0 && byte_len(s) <= 40 && byte_at(s, 0) >= 97 && byte_at(s, 0) <= 122
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)) || byte_at(s, i) == 45, range(0, byte_len(s)))
+
+fn live_tables(database : List(Table)) : List(LiveTable) =
+  map(\(t) -> LiveTable { schema = t, rows = map(\(r) -> StoredRow { id = r + 1, row = at(t.rows, r) }, range(0, length(t.rows))), used = range(1, length(t.rows) + 1), next_id = length(t.rows) + 1 }, database)
+
+fn material_database(ts : List(LiveTable)) : List(Table) =
+  map(\(t) -> Table { ..t.schema, rows = map(\(r) -> r.row, t.rows) }, ts)
+
+fn reply(value : Json) : Json = JObj([("ok", JBool(true)), ("result", value)])
+fn command_error(code : String) : Json = JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn find_live(ts : List(LiveTable), name : String) : LiveTable =
+  let xs = filter(\(t) -> t.schema.name == name, ts)
+  demand(length(xs) > 0, "UNKNOWN_TABLE")
+  at(xs, 0)
+
+fn view_exists(vs : List(View), name : String) : Bool = length(filter(\(v) -> v.name == name, vs)) > 0
+fn find_view(vs : List(View), name : String) : View =
+  let xs = filter(\(v) -> v.name == name, vs)
+  demand(length(xs) > 0, "UNKNOWN_VIEW")
+  at(xs, 0)
+
+fn validate_row(schema : Table, row : Json) : List(Json) =
+  let xs =
+    match row of
+      JArr(rs) => rs
+      _ =>
+        reject("INVALID_ROW")
+        []
+  demand(length(xs) == length(schema.columns), "INVALID_ROW")
+  for i in srange(0, length(xs)) do
+    demand(value_type(at(xs, i)) == at(schema.columns, i).kind || value_type(at(xs, i)) == "null" && at(schema.columns, i).nullable, "INVALID_ROW")
+  xs
+
+fn update_rows(rows : List(StoredRow), id : Int, row : List(Json)) : List(StoredRow) =
+  map(\(r) -> if r.id == id then StoredRow { ..r, row = row } else r, rows)
+fn delete_rows(rows : List(StoredRow), id : Int) : List(StoredRow) = filter(\(r) -> r.id /= id, rows)
+fn row_present(rows : List(StoredRow), id : Int) : Bool = length(filter(\(r) -> r.id == id, rows)) > 0
+fn replace_table(ts : List(LiveTable), changed : LiveTable) : List(LiveTable) = map(\(t) -> if t.schema.name == changed.schema.name then changed else t, ts)
+
+fn sources_of(p : Plan) : List(String) = map(fst, p.query.sources)
+fn touches(v : View, changed : List(String)) : Bool = any(\(s) -> elem(s, changed), v.sources)
+
+-- Views are materialized. Only plans mentioning a changed base table are rebuilt;
+-- read commands are simple snapshot lookup and execute no query pipeline.
+fn refresh_views(vs : List(View), ts : List(LiveTable), changed : List(String)) : List(View) =
+  let db = material_database(ts)
+  map(\(v) -> if touches(v, changed) then let p = bind(v.plan.query, db) in let p2 = if v.optimized then optimize(p) else p in View { ..v, plan = p2, result = execute(p2) } else v, vs)
+
+fn validate_change_shape(c : Json) : Unit =
+  let op = command_text(command_field(c, "op"))
+  if op == "insert" || op == "update" then
+    command_fields(c, ["op", "table", "id", "row"])
+    let table = command_text(command_field(c, "table"))
+    demand(bare_name(table), "INVALID_COMMAND")
+    match command_field(c, "id") of
+      JInt(n) => demand(n >= 1 && n <= 2147483647, "INVALID_COMMAND")
+      _ => reject("INVALID_COMMAND")
+    let ignored = command_arr(command_field(c, "row"))
+    ()
+  elif op == "delete" then
+    command_fields(c, ["op", "table", "id"])
+    let table = command_text(command_field(c, "table"))
+    demand(bare_name(table), "INVALID_COMMAND")
+    match command_field(c, "id") of
+      JInt(n) => demand(n >= 1 && n <= 2147483647, "INVALID_COMMAND")
+      _ => reject("INVALID_COMMAND")
+    ()
+  else
+    reject("INVALID_COMMAND")
+    ()
+
+fn apply_one(ts : List(LiveTable), c : Json) : List(LiveTable) =
+  let op = command_text(command_field(c, "op") )
+  let name = command_text(command_field(c, "table"))
+  let id =
+    match command_field(c, "id") of
+      JInt(n) => n
+      _ => 0
+  let t = find_live(ts, name)
+  if op == "insert" then
+    let row = validate_row(t.schema, command_field(c, "row"))
+    demand(not(elem(id, t.used)), "ROW_ID_USED")
+    replace_table(ts, LiveTable { ..t, rows = append(t.rows, [StoredRow { id = id, row = row }]), used = append(t.used, [id]), next_id = max(t.next_id, id + 1) })
+  elif op == "update" then
+    let row = validate_row(t.schema, command_field(c, "row"))
+    demand(row_present(t.rows, id), "UNKNOWN_ROW")
+    replace_table(ts, LiveTable { ..t, rows = update_rows(t.rows, id, row) })
+  else
+    demand(row_present(t.rows, id), "UNKNOWN_ROW")
+    replace_table(ts, LiveTable { ..t, rows = delete_rows(t.rows, id) })
+
+fn apply_all(ts : List(LiveTable), cs : List(Json)) : List(LiveTable) =
+  match cs of
+    Nil => ts
+    Cons(c, rest) => apply_all(apply_one(ts, c), rest)
+
+fn changed_tables(cs : List(Json)) : List(String) =
+  match cs of
+    Nil => []
+    Cons(c, rest) =>
+      let n = command_text(command_field(c, "table"))
+      let later = changed_tables(rest)
+      if elem(n, later) then later else Cons(n, later)
+
+fn run_command(c : Json, ts : List(LiveTable), vs : List(View), revision : Int) : CommandOutcome =
+  let op = command_text(command_field(c, "op"))
+  if op == "create" then
+    command_fields(c, ["op", "view", "sql", "optimize"])
+    let n = command_text(command_field(c, "view"))
+    demand(view_name(n), "INVALID_COMMAND")
+    demand(not(view_exists(vs, n)), "VIEW_EXISTS")
+    let optimized = command_bool(command_field(c, "optimize"))
+    let p = bind(parse_sql(command_text(command_field(c, "sql"))), material_database(ts))
+    let p2 = if optimized then optimize(p) else p
+    let v = View { name = n, plan = p2, result = execute(p2), sources = sources_of(p2), optimized = optimized }
+    CommandOutcome { tables = ts, views = append(vs, [v]), revision = revision, response = reply(JObj([("view", JStr(n)), ("revision", JInt(revision))])) }
+  elif op == "read" then
+    command_fields(c, ["op", "view"])
+    let v = find_view(vs, command_text(command_field(c, "view")))
+    let result =
+      match v.result of
+        JObj(xs) => JObj([("revision", JInt(revision)), ("columns", snd(at(xs, 0))), ("rows", snd(at(xs, 1)))])
+        _ => v.result
+    CommandOutcome { tables = ts, views = vs, revision = revision, response = reply(result) }
+  elif op == "drop" then
+    command_fields(c, ["op", "view"])
+    let n = command_text(command_field(c, "view"))
+    let ignored = find_view(vs, n)
+    CommandOutcome { tables = ts, views = filter(\(v) -> v.name /= n, vs), revision = revision, response = reply(JObj([("dropped", JStr(n))])) }
+  elif op == "apply" then
+    command_fields(c, ["op", "changes"])
+    let cs = command_arr(command_field(c, "changes"))
+    demand(length(cs) > 0 && length(cs) <= 200, "INVALID_COMMAND")
+    for x in sof(cs) do validate_change_shape(x)
+    let next = apply_all(ts, cs)
+    let nr = revision + 1
+    CommandOutcome { tables = next, views = refresh_views(vs, next, changed_tables(cs)), revision = nr, response = reply(JObj([("revision", JInt(nr))])) }
+  else
+    reject("INVALID_COMMAND")
+    CommandOutcome { tables = ts, views = vs, revision = revision, response = command_error("INVALID_COMMAND") }
+
+fn commands_loop(cs : List(Json), ts : List(LiveTable), vs : List(View), revision : Int) : List(Json) =
+  match cs of
+    Nil => []
+    Cons(c, rest) =>
+      let outcome =
+        handle run_command(c, ts, vs, revision) with
+          never reject(code) => CommandOutcome { tables = ts, views = vs, revision = revision, response = command_error(code) }
+          return x => x
+      Cons(outcome.response, commands_loop(rest, outcome.tables, outcome.views, outcome.revision))
+
+
+fn work_commands(input : Json, database : List(Table)) : Json =
+  fields(input, ["database", "commands"])
+  let results = commands_loop(command_arr(command_field(input, "commands")), live_tables(database), [], 0)
+  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
 
 fn validate_query(q : Json) : Unit =
   fields(q, ["sql", "optimize"])
@@ -22,17 +229,21 @@ fn work(request : Json) : Json =
     )
   demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
   let input = getfield(request, "input")
-  fields(input, ["database", "queries"])
+  demand(input_has(input, "database") && (input_has(input, "queries") || input_has(input, "commands")), "INVALID_INPUT")
   let database = map(validate_table, arr(getfield(input, "database")))
   demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
-  let queries = arr(getfield(input, "queries"))
-  for q in sof(queries) do
-    validate_query(q)
-  let results = map(
-      \(q) -> let plan = bind(parse_sql(text(getfield(q, "sql"))), database) in execute(if truth(getfield(q, "optimize")) then optimize(plan) else plan),
-      queries,
-    )
-  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
+  if input_has(input, "commands") then
+    work_commands(input, database)
+  else
+    fields(input, ["database", "queries"])
+    let queries = arr(getfield(input, "queries"))
+    for q in sof(queries) do
+      validate_query(q)
+    let results = map(
+        \(q) -> let plan = bind(parse_sql(text(getfield(q, "sql"))), database) in execute(if truth(getfield(q, "optimize")) then optimize(plan) else plan),
+        queries,
+      )
+    JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
 
 fn error_response(code : String) : Json =
   JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])

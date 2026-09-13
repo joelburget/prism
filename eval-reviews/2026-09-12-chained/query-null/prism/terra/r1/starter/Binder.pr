@@ -99,16 +99,6 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
   if aggregate then
     for e in sof(roots) do
       grouped(e, keys)
-  demand(
-      length(groups) > 0
-        || not(
-            any(
-                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
-                roots,
-              ),
-          ),
-      "UNSUPPORTED_FEATURE",
-    )
   let order = map(\((n, desc, null_first)) -> (alias_index(aliases, n, 0), desc, null_first), q.order)
   let bq =
     Query {
