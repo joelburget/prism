@@ -59,33 +59,29 @@ export function identifier(x: unknown): x is string {
     !reserved.has(x.toUpperCase())
   );
 }
-function object(x: unknown): asserts x is Record<string, unknown> {
-  requireThat(x !== null && typeof x === "object" && !Array.isArray(x));
+export function object(x: unknown, code = "INVALID_INPUT"): asserts x is Record<string, unknown> {
+  requireThat(x !== null && typeof x === "object" && !Array.isArray(x), code);
 }
-function fields(
+export function fields(
   x: unknown,
   names: string[],
+  code = "INVALID_INPUT",
 ): asserts x is Record<string, unknown> {
-  object(x);
+  object(x, code);
   requireThat(
     Object.keys(x).length === names.length &&
       names.every((k) => Object.hasOwn(x, k)),
+    code,
   );
 }
-export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
-  fields(request, ["protocol_version", "task", "input"]);
-  requireThat(request.protocol_version === 1 && request.task === "query-null");
-  const data = request.input;
-  fields(data, ["database", "queries"]);
-  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+export function validateDatabase(items: unknown): Map<string, Table> {
+  requireThat(Array.isArray(items));
   const database = new Map<string, Table>();
-  for (const item of data.database as unknown[]) {
+  for (const item of items as unknown[]) {
     fields(item, ["name", "columns", "rows"]);
     requireThat(identifier(item.name) && !database.has(item.name));
     requireThat(
-      Array.isArray(item.columns) &&
-        item.columns.length > 0 &&
-        Array.isArray(item.rows),
+      Array.isArray(item.columns) && item.columns.length > 0 && Array.isArray(item.rows),
     );
     const names = new Set<string>();
     const columns: Column[] = [];
@@ -97,24 +93,25 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       names.add(c.name);
       columns.push({ name: c.name, type: c.type, nullable: c.nullable });
     }
-    for (const row of item.rows as unknown[]) {
-      requireThat(Array.isArray(row) && row.length === columns.length);
-      row.forEach((v: unknown, i: number) =>
-        requireThat(
-          v === null
-            ? columns[i].nullable
-            : columns[i].type === "int"
-            ? typeof v === "number" && Number.isInteger(v)
-            : typeof v === (columns[i].type === "text" ? "string" : "boolean"),
-        ),
-      );
-    }
-    database.set(item.name, {
-      name: item.name,
-      columns,
-      rows: item.rows as Value[][],
-    });
+    for (const row of item.rows as unknown[]) validateRow(row, columns, "INVALID_INPUT");
+    database.set(item.name, { name: item.name, columns, rows: item.rows as Value[][] });
   }
+  return database;
+}
+export function validateRow(row: unknown, columns: Column[], code: string): asserts row is Value[] {
+  requireThat(Array.isArray(row) && row.length === columns.length, code);
+  row.forEach((v: unknown, i: number) => requireThat(
+    v === null ? columns[i].nullable : columns[i].type === "int"
+      ? typeof v === "number" && Number.isInteger(v) && Math.abs(v) <= 1_000_000_000
+      : typeof v === (columns[i].type === "text" ? "string" : "boolean"), code));
+}
+export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
+  fields(request, ["protocol_version", "task", "input"]);
+  requireThat(request.protocol_version === 1 && request.task === "query-null");
+  const data = request.input;
+  fields(data, ["database", "queries"]);
+  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+  const database = validateDatabase(data.database);
   const queries: InputQuery[] = [];
   for (const q of data.queries as unknown[]) {
     fields(q, ["sql", "optimize"]);

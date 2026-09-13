@@ -1,16 +1,16 @@
 {
-  "run_id": "run-004248871303",
-  "checkpoint": 1,
+  "run_id": "run-3d0745ab0136",
+  "checkpoint": 2,
   "model": "sol",
   "model_id": "gpt-5.6-sol",
   "task": "query-null",
   "language": "typescript",
   "source_available": true,
-  "source_sha256": "36736ae38fc052736ca962294098c3a892a7b1d8d4ec311c833bc9226d7527d5",
+  "source_sha256": "d7b65405b6c9331c367fd8d7db8312beb1e40f064a1d225aba75f2ded6a2a6ab",
   "passed": true,
-  "seconds": 261.67198320897296,
-  "tool_calls": 13,
+  "seconds": 339.18800487497356,
+  "tool_calls": 14,
   "flags": [],
-  "result_sha256": "04ce2c5bb9978926c07949700a419b1ba75de80a5176ac937c093dfa3828b3e1",
+  "result_sha256": "c9b77135f8b686720e959a9d2c73c6d499ab5c90e3e1e66de9f70df9a0ff3464",
   "archive_note": "Exact frozen source"
 }

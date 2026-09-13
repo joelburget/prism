@@ -11,3 +11,9 @@ Optimization performs bottom-up folding of constant scalar expressions and pushe
 The engine supports nullable schemas, SQL three-valued logic, NULL/IS NULL/COALESCE, left outer joins, explicit NULL ordering, and global nullable aggregates. Optimized execution folds constant nullable expressions and retains safe scan-filter pushdown for all-inner join plans without moving predicates across outer joins.
 
 This directory is self-contained; `starter.json` lists its export files. Build outputs and dependency installations are ignored.
+
+Checkpoint two adds transactional `create`, `read`, `drop`, and `apply` commands.
+Materialized views retain provenance-bearing join stages and per-group membership;
+successful batches retract and add only affected join branches and aggregate
+groups. Base-row IDs and encounter positions are maintained independently of SQL
+columns, and a batch is validated against a private state before it is committed.
