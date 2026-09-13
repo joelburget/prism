@@ -13,5 +13,15 @@ left outer joins, explicit NULL ordering, and null-aware grouped and global
 aggregates. Optimized execution retains constant folding and pushes single-source
 filters only when doing so is safe with respect to preceding outer joins.
 
+Checkpoint-two command requests keep private row IDs and never expose them to SQL.
+Each command produces a new immutable store value, so a failed apply naturally
+discards all tentative rows, used-ID reservations, and view changes. Views own a
+bound (and optionally optimized) plan plus a materialized result. Successful apply
+batches refresh only views whose recorded base-table dependencies changed; reads
+return the cached snapshot and merely attach the current global revision. Plan
+refresh preserves bound expressions and optimizer decisions while replacing the
+changed table snapshots, and performs maintenance once against the final state of
+a multi-table batch.
+
 This directory is self-contained; `starter.json` lists its export files. Build
 outputs and dependency installations are ignored.

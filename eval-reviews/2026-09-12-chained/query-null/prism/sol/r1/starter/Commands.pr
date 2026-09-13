@@ -1,0 +1,318 @@
+-- Checkpoint-two command protocol and materialized-view ownership.
+-- Base rows retain private identifiers while SQL continues to see ordinary Tables.
+import Json (..)
+import Model (..)
+import Parser (parse_sql)
+import Binder (bind)
+import Engine (execute, optimize)
+import Data.List (..)
+import Data.Foldable (all, any, length)
+
+pub type StoredRow = StoredRow { id: Int, values: List(Json) }
+
+pub type LiveTable = LiveTable {
+  name: String,
+  columns: List(Column),
+  rows: List(StoredRow),
+  used: List(Int)
+}
+
+pub type View = View {
+  name: String,
+  plan: Plan,
+  dependencies: List(String),
+  result: Json
+}
+
+pub type Store = Store {
+  tables: List(LiveTable),
+  views: List(View),
+  revision: Int
+}
+
+type CommandResult = CommandResult { store: Store, reply: Json }
+
+fn good(value : Json) : Json =
+  JObj([("ok", JBool(true)), ("result", value)])
+
+fn bad(code : String) : Json =
+  JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn command_fields(j : Json, names : List(String)) : Unit =
+  match j of
+    JObj(xs) =>
+      demand(length(xs) == length(names), "INVALID_COMMAND")
+      demand(all(\(n) -> length(filter(\(kv) -> fst(kv) == n, xs)) == 1, names), "INVALID_COMMAND")
+    _ => reject("INVALID_COMMAND")
+
+fn command_field(j : Json, name : String) : Json =
+  match j of
+    JObj(xs) => command_lookup(xs, name)
+    _ =>
+      reject("INVALID_COMMAND")
+      JNull
+
+fn command_lookup(xs : List((String, Json)), name : String) : Json =
+  match xs of
+    Nil =>
+      reject("INVALID_COMMAND")
+      JNull
+    Cons((k, v), rest) => if k == name then v else command_lookup(rest, name)
+
+fn command_text(j : Json, name : String) : String =
+  match command_field(j, name) of
+    JStr(s) => s
+    _ =>
+      reject("INVALID_COMMAND")
+      ""
+
+fn command_int(j : Json, name : String) : Int =
+  match command_field(j, name) of
+    JInt(n) =>
+      demand(n >= 1 && n <= 2147483647, "INVALID_COMMAND")
+      n
+    _ =>
+      reject("INVALID_COMMAND")
+      0
+
+fn view_name_ok(s : String) : Bool =
+  byte_len(s) >= 1 && byte_len(s) <= 40
+    && byte_at(s, 0) >= 97 && byte_at(s, 0) <= 122
+    && all(
+        \(i) ->
+          let c = byte_at(s, i) in
+          c >= 97 && c <= 122 || digit(c) || c == 45,
+        range(0, byte_len(s)),
+      )
+
+fn table_name_shape(s : String) : Bool =
+  byte_len(s) > 0 && letter(byte_at(s, 0))
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))
+
+pub fn initial_store(database : List(Table)) : Store =
+  Store {
+    tables = map(
+        \(t) -> LiveTable {
+          name = t.name,
+          columns = t.columns,
+          rows = map(\(i) -> StoredRow { id = i + 1, values = at(t.rows, i) }, range(0, length(t.rows))),
+          used = range(1, length(t.rows) + 1)
+        },
+        database,
+      ),
+    views = [],
+    revision = 0
+  }
+
+fn database_of(tables : List(LiveTable)) : List(Table) =
+  map(
+      \(t) -> Table { name = t.name, columns = t.columns, rows = map(\(r) -> r.values, t.rows) },
+      tables,
+    )
+
+fn find_live(tables : List(LiveTable), name : String) : LiveTable =
+  match tables of
+    Nil =>
+      reject("UNKNOWN_TABLE")
+      at(tables, 0)
+    Cons(t, rest) => if t.name == name then t else find_live(rest, name)
+
+fn replace_live(tables : List(LiveTable), table : LiveTable) : List(LiveTable) =
+  match tables of
+    Nil => []
+    Cons(t, rest) =>
+      if t.name == table.name then Cons(table, rest) else Cons(t, replace_live(rest, table))
+
+fn find_view(views : List(View), name : String) : View =
+  match views of
+    Nil =>
+      reject("UNKNOWN_VIEW")
+      at(views, 0)
+    Cons(v, rest) => if v.name == name then v else find_view(rest, name)
+
+fn has_view(views : List(View), name : String) : Bool =
+  any(\(v) -> v.name == name, views)
+
+fn remove_view(views : List(View), name : String) : List(View) =
+  filter(\(v) -> v.name /= name, views)
+
+fn bounded_value(value : Json) : Bool =
+  match value of
+    JInt(n) => n >= -1000000000 && n <= 1000000000
+    _ => true
+
+fn valid_row(row : List(Json), columns : List(Column)) : Bool =
+  length(row) == length(columns)
+    && all(
+        \(i) ->
+          let value = at(row, i) in
+          let column = at(columns, i) in
+          bounded_value(value)
+            && (value_type(value) == column.kind || is_null(value) && column.nullable),
+        range(0, length(columns)),
+      )
+
+fn row_at(rows : List(StoredRow), id : Int) : StoredRow =
+  match rows of
+    Nil =>
+      reject("UNKNOWN_ROW")
+      at(rows, 0)
+    Cons(r, rest) => if r.id == id then r else row_at(rest, id)
+
+fn update_row(rows : List(StoredRow), id : Int, values : List(Json)) : List(StoredRow) =
+  match rows of
+    Nil => []
+    Cons(r, rest) =>
+      if r.id == id then Cons(StoredRow { id = id, values = values }, rest)
+      else Cons(r, update_row(rest, id, values))
+
+fn check_change_shape(change : Json) : Unit =
+  let op = command_text(change, "op")
+  if op == "insert" || op == "update" then
+    command_fields(change, ["op", "table", "id", "row"])
+    let table = command_text(change, "table")
+    demand(table_name_shape(table), "INVALID_COMMAND")
+    let ignored_id = command_int(change, "id")
+    match command_field(change, "row") of
+      JArr(_) => ()
+      _ => reject("INVALID_COMMAND")
+  elif op == "delete" then
+    command_fields(change, ["op", "table", "id"])
+    let table = command_text(change, "table")
+    demand(table_name_shape(table), "INVALID_COMMAND")
+    let ignored_id = command_int(change, "id")
+    ()
+  else
+    reject("INVALID_COMMAND")
+
+fn change_row(change : Json) : List(Json) =
+  match command_field(change, "row") of
+    JArr(xs) => xs
+    _ => []
+
+fn apply_change(tables : List(LiveTable), change : Json) : List(LiveTable) =
+  let op = command_text(change, "op")
+  let name = command_text(change, "table")
+  let id = command_int(change, "id")
+  let table = find_live(tables, name)
+  let changed =
+    if op == "insert" then
+      let values = change_row(change) in
+      demand(valid_row(values, table.columns), "INVALID_ROW")
+      demand(not(elem(id, table.used)), "ROW_ID_USED")
+      LiveTable { ..table, rows = append(table.rows, [StoredRow { id = id, values = values }]), used = Cons(id, table.used) }
+    elif op == "update" then
+      let values = change_row(change) in
+      demand(valid_row(values, table.columns), "INVALID_ROW")
+      let ignored = row_at(table.rows, id)
+      LiveTable { ..table, rows = update_row(table.rows, id, values) }
+    else
+      let ignored = row_at(table.rows, id)
+      LiveTable { ..table, rows = filter(\(r) -> r.id /= id, table.rows) }
+  replace_live(tables, changed)
+
+fn changed_names(changes : List(Json)) : List(String) =
+  unique_names(map(\(c) -> command_text(c, "table"), changes))
+
+fn unique_names(xs : List(String)) : List(String) =
+  match xs of
+    Nil => []
+    Cons(x, rest) => Cons(x, unique_names(filter(\(y) -> y /= x, rest)))
+
+-- Bound expressions and optimizer decisions are retained.  Only a plan's table
+-- snapshots are replaced, and only for views depending on a changed table.
+fn refresh_plan(plan : Plan, database : List(Table)) : Plan =
+  let tables = map(
+      \(source) ->
+        let matches = filter(\(t) -> t.name == fst(source), database) in at(matches, 0),
+      plan.query.sources,
+    )
+  Plan { ..plan, tables = tables }
+
+fn maintain(views : List(View), tables : List(LiveTable), changed : List(String)) : List(View) =
+  let database = database_of(tables)
+  map(
+      \(view) ->
+        if any(\(name) -> elem(name, changed), view.dependencies) then
+          let plan = refresh_plan(view.plan, database) in
+          View { ..view, plan = plan, result = execute(plan) }
+        else
+          view,
+      views,
+    )
+
+fn result_with_revision(result : Json, revision : Int) : Json =
+  match result of
+    JObj(xs) => JObj(Cons(("revision", JInt(revision)), xs))
+    _ => result
+
+fn run_command(command : Json, store : Store) : CommandResult =
+  let op = command_text(command, "op")
+  if op == "create" then
+    command_fields(command, ["op", "view", "sql", "optimize"])
+    let name = command_text(command, "view")
+    demand(view_name_ok(name), "INVALID_COMMAND")
+    let sql = command_text(command, "sql")
+    let optimized =
+      match command_field(command, "optimize") of
+        JBool(b) => b
+        _ =>
+          reject("INVALID_COMMAND")
+          false
+    demand(not(has_view(store.views, name)), "VIEW_EXISTS")
+    let raw = bind(parse_sql(sql), database_of(store.tables))
+    let plan = if optimized then optimize(raw) else raw
+    let view = View { name = name, plan = plan, dependencies = unique_names(map(fst, plan.query.sources)), result = execute(plan) }
+    CommandResult {
+      store = Store { ..store, views = append(store.views, [view]) },
+      reply = good(JObj([("view", JStr(name)), ("revision", JInt(store.revision))]))
+    }
+  elif op == "read" then
+    command_fields(command, ["op", "view"])
+    let name = command_text(command, "view")
+    demand(view_name_ok(name), "INVALID_COMMAND")
+    let view = find_view(store.views, name)
+    CommandResult { store = store, reply = good(result_with_revision(view.result, store.revision)) }
+  elif op == "drop" then
+    command_fields(command, ["op", "view"])
+    let name = command_text(command, "view")
+    demand(view_name_ok(name), "INVALID_COMMAND")
+    let ignored = find_view(store.views, name)
+    CommandResult {
+      store = Store { ..store, views = remove_view(store.views, name) },
+      reply = good(JObj([("dropped", JStr(name))]))
+    }
+  elif op == "apply" then
+    command_fields(command, ["op", "changes"])
+    let changes =
+      match command_field(command, "changes") of
+        JArr(xs) => xs
+        _ =>
+          reject("INVALID_COMMAND")
+          []
+    demand(length(changes) >= 1 && length(changes) <= 200, "INVALID_COMMAND")
+    for change in sof(changes) do check_change_shape(change)
+    var tables := store.tables
+    for change in sof(changes) do tables := apply_change(tables, change)
+    let views = maintain(store.views, tables, changed_names(changes))
+    let next = Store { tables = tables, views = views, revision = store.revision + 1 }
+    CommandResult { store = next, reply = good(JObj([("revision", JInt(next.revision))])) }
+  else
+    reject("INVALID_COMMAND")
+    CommandResult { store = store, reply = JNull }
+
+fn process(commands : List(Json), store : Store) : List(Json) =
+  match commands of
+    Nil => []
+    Cons(command, rest) =>
+      let outcome =
+        handle run_command(command, store) with
+          never reject(code) => CommandResult { store = store, reply = bad(code) }
+          return result => result
+      Cons(outcome.reply, process(rest, outcome.store))
+
+pub fn run_commands(database : List(Table), commands : List(Json)) : Json =
+  JObj([
+      ("ok", JBool(true)),
+      ("result", JObj([("results", JArr(process(commands, initial_store(database))))])),
+    ])

@@ -7,11 +7,13 @@
   "files": [
     ".gitignore",
     "Binder.pr",
+    "Commands.pr",
     "Engine.pr",
     "Model.pr",
     "Parser.pr",
     "README.md",
     "build.sh",
+    "cc.sh",
     "main.pr",
     "run.sh"
   ]
