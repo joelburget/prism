@@ -1,16 +1,16 @@
 {
-  "run_id": "run-312f6413e8a7",
-  "checkpoint": 1,
+  "run_id": "run-c4acb241484e",
+  "checkpoint": 2,
   "model": "haiku",
   "model_id": "claude-haiku-4-5-20251001",
   "task": "workflow-recovery",
   "language": "python",
   "source_available": true,
-  "source_sha256": "2a39138d525ae6fd017bae0ca82a56e6d36955552843cca7caec7f820188385d",
+  "source_sha256": "c716fc454bd2aa8382023de3028f149f297115ee02641e44be4632a55d450a78",
   "passed": false,
-  "seconds": 338.2317792089889,
-  "tool_calls": 37,
+  "seconds": 253.38160266698105,
+  "tool_calls": 34,
   "flags": [],
-  "result_sha256": "c4941735cd100ca52ae3f752698169b11a3fb8723bec07e686908aaa74ff725b",
+  "result_sha256": "43be533778aa47b801120c99e4caf1503cc7ff465fac8a1420e69a2e39d8807b",
   "archive_note": "Exact frozen source"
 }

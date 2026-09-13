@@ -1,205 +1,173 @@
-# Durable workflow recovery
+# Checkpoint 2: leased workers and fenced recovery
 
-## Change request
+Extend the completed **Durable workflow recovery** program. `PREVIOUS.md` contains
+the full checkpoint-one contract. Every old request/response and error must remain
+unchanged. This follow-up is revealed only after that implementation is frozen.
 
-Extend an existing, deterministic in-memory workflow runner with durable execution,
-restart recovery, bounded retries, cancellation, and idempotent external actions.
-The baseline already schedules dependency graphs and invokes a mock external
-service. Keep those behaviors working while introducing persistence boundaries.
-The benchmark adapter models crashes explicitly; it never kills an operating
-system process and uses no network, wall clock, or filesystem persistence.
+## Requested change
 
-Starter code is supplied with each evaluation run. Each run receives
-only its assigned language's starter. Prism and the comparison language run in
-separate, fresh agent sessions with no access to each other's code or run artifacts,
-as described in the parent README. The starters must implement the
-baseline contract and pass all `baseline` cases. The requested extension must
-pass both phases. This document and `cases.json` are public acceptance material,
-not a hidden evaluation or a reference implementation.
+Support multiple workers with expiring leases, independently delayed service calls
+and response commits, worker crashes, renewals, and recovery by another worker.
+Keep the existing dependency scheduler, retry policy, cancellation and idempotent
+mock service. Add fencing so a stale owner cannot overwrite a replacement's state.
+This is a deterministic simulator, not real threads, networking or filesystem I/O.
 
-## Adapter contract
+## Protocol and input modes
 
-Read one JSON request from standard input, write exactly one JSON response, and
-exit successfully, including for domain errors. The envelope is:
+Use the same JSON envelope and `task:"workflow-recovery"`. Without a `workers`
+field, use the complete previous contract, including its command vocabulary and
+exact response shape. With `workers`, use the new mode described here. Its input
+fields are required `steps`, `commands`, `workers`, optional `max_attempts` (3),
+`retry_delay` (2), `lease_duration` (5), and no others. Step definitions and graph
+validation/error precedence are unchanged. `workers` is a nonempty array of
+unique IDs matching the old run-ID grammar. All workers initially are up.
+Lease duration is an integer 1..1,000,000. At most 100 workers, 200 steps, 100 runs
+and 2,000 commands are used; only exceeding the command bound is tested as an
+input error. All numeric values reject JSON booleans.
 
-```json
-{"protocol_version":1,"task":"workflow-recovery","input":{"steps":[{"id":"charge","needs":[],"amount":25}],"commands":[{"op":"start","run":"order-1"},{"op":"tick"}]}}
-```
+Validate every command's shape and scalar constraints before executing any, then
+validate the graph as before. Unknown/missing/extra fields, invalid worker arrays,
+invalid IDs, and malformed commands are `INVALID_INPUT`. Runtime errors stop
+execution with the old top-level error envelope; no partial result is returned.
+A valid result is `{"ok":true,"result":{"results":[VALUE,...],"final":FINAL}}`.
+Each command produces one VALUE. Earlier observation values are immutable.
 
-Return `{"ok":true,"result":RESULT}` or
-`{"ok":false,"error":{"code":"CODE"}}`. No extra response fields. Diagnostics
-may go to stderr. Each request starts a fresh simulator and mock service; all
-commands within it share state. Object key order is irrelevant; array order is
-significant. All numbers are integers.
+## Durable state and leases
 
-`input` has required `steps` and `commands`, optional `max_attempts` (default 3)
-and `retry_delay` (default 2). A step has required `id`, `needs`, and `amount`,
-and optional `failures` (default 0). Step IDs and run IDs match
-`[A-Za-z0-9_-]{1,64}`. Amount is an integer in 1..1,000,000; `failures` is an
-integer in 0..100; `max_attempts` is in 1..10; `retry_delay` is in 1..1,000,000.
-`steps` is nonempty. Dependencies name distinct other steps; forward references
-are permitted; cycles are rejected. Multiple runs share this graph but have
-independent state, service keys, and failure counters. `commands` may be empty.
+Time starts at 0 and has the old signed-32-bit upper bound. Workers have separate
+up/down flags. Run creation order and step definition order remain scheduler order.
+A running step has one durable lease `{worker:ID,ticket:N,expires:T}`. Other steps
+have `lease:null`. A lease is live exactly when `now < expires`; equality is already
+expired. An expired lease remains visible until replaced or cleared. Time passing
+alone changes no step/run status and performs no service calls.
 
-Reject missing/unknown fields, wrong types (including booleans used as numbers),
-invalid ranges/IDs, unknown commands, and invalid checkpoint names with
-`INVALID_INPUT`. Validate all field shapes and scalar constraints before
-executing any command. Then validate graph uniqueness (`DUPLICATE_STEP`),
-dependency existence (`UNKNOWN_DEPENDENCY`), and acyclicity (`DEPENDENCY_CYCLE`),
-in that order. Repeated dependencies are `INVALID_INPUT`; self-dependencies
-are `DEPENDENCY_CYCLE`. Tests isolate errors instead of depending on ordering
-among errors in the same category.
+Tickets start at 1, increase globally on successful claims, and are never reused.
+They identify a particular lease acquisition, not a logical action or retry.
+A new pending attempt increments the durable attempt number. Reclaiming a running
+attempt uses a new ticket but the **same attempt number**. Every service call uses
+the structured logical key `[run_id,step_id]`, stable across tickets and retries.
+A worker may hold at most one live lease; its expired tickets do not make it busy.
 
-## Baseline behavior
+The simulator retains ticket metadata and service responses separately from worker
+availability. This models delayed transport messages: a crash does not erase a
+response already produced by the mock. No command guesses effects from the audit;
+reconciliation makes a real, audited mock lookup. The mock's effects, execute
+failure counters and calls survive all worker crashes.
 
-Initially time is 0, the process is up, and there are no runs, calls, or effects.
-The baseline supports `start`, `tick` without a checkpoint, `advance`, and
-`observe`, successful actions, dependency scheduling, multiple runs, and the
-shared input/graph validation. Baseline cases never configure service failures
-or require crashes, retries, or cancellation.
+## Commands and results
 
-* `{"op":"start","run":"r"}` creates an active run. Each step is pending,
-  has zero attempts, and has `ready_at` equal to the current time. Reusing a run
-  ID, including a terminal run, is `DUPLICATE_RUN`.
-* `{"op":"tick"}` executes at most one action. First choose the oldest run
-  containing an in-flight (`running`) step. Otherwise scan runs in creation
-  order and steps in definition order, choosing the first pending step whose
-  run is active, whose dependencies succeeded, and whose `ready_at <= now`.
-  Waiting steps do not prevent later ready steps/runs from executing.
-  A tick with no eligible work has no effect. It does not advance time.
-* `{"op":"advance","by":N}` advances simulated time, including while the
-  process is down. N must be an integer in 0..2,147,483,647; an out-of-range N
-  is `INVALID_INPUT` during upfront shape/scalar validation. For a valid N,
-  if `now + N` exceeds 2,147,483,647, execution fails with `TIME_OVERFLOW`.
-* `{"op":"observe"}` appends a snapshot of durable runner state, including
-  process availability and time. It works even while down and changes nothing.
+Objects have exactly the indicated fields. Worker/run IDs follow the old grammar;
+ticket IDs are integers 1..2,147,483,647. Runtime worker validation first checks
+existence (`UNKNOWN_WORKER`), then availability (`WORKER_DOWN` where required),
+then ticket existence (`UNKNOWN_TICKET`) and ticket ownership (`WRONG_WORKER`).
+Ticket ownership means its original worker, even after another worker reclaims.
 
-Starting a new attempt durably changes its step from pending to running and
-increments `attempts`. The service is then called. On successful completion the
-step becomes succeeded. When all steps succeed, the run becomes succeeded.
-`ready_at` is retained after success, failure, cancellation, and blocking; it
-changes only when scheduling a retry. Dependent steps retain their original
-`ready_at`; readiness also depends on dependency success.
+| Command | Result and behavior |
+| --- | --- |
+| `{"op":"start","run":"r"}` | null; create the old initial run/step states with null leases. `DUPLICATE_RUN` still applies. No worker is required. |
+| `{"op":"advance","by":N}` | null; old validation and `TIME_OVERFLOW` rules. Works with all workers down. |
+| `{"op":"observe"}` | Snapshot as described below; no effects. |
+| `{"op":"crash","worker":"w"}` | null; mark an up worker down, retaining leases and transport messages. Already down is `WORKER_DOWN`. |
+| `{"op":"restart","worker":"w"}` | null; mark a down worker up. Already up is `WORKER_UP`. No recovery happens automatically. |
+| `{"op":"claim","worker":"w"}` | `{"ticket":N}` or `{"ticket":null}`; requires up. A live lease owned by w is `WORKER_BUSY`. Select work as below. |
+| `{"op":"renew","worker":"w","ticket":N}` | `{"renewed":BOOL}`; requires up and ticket ownership. If current and live, set expires to now + lease_duration, else return false. No new ticket/attempt or call. Overflow is `TIME_OVERFLOW`. |
+| `{"op":"call","worker":"w","ticket":N}` | Service receipt or `{"outcome":"stale"}`; requires up and ownership. Rules below. |
+| `{"op":"deliver","ticket":N}` | `{"committed":BOOL}`; applies a saved response only under the fencing rules below. Unknown ticket is `UNKNOWN_TICKET`. |
+| `{"op":"cancel","run":"r"}` | null; `UNKNOWN_RUN` if absent, otherwise cancellation rules below. |
 
-## Extension: effects, retries, and persistence
+Old `tick` and checkpoint fields are not accepted in leased mode. Splitting claim,
+call and deliver replaces those checkpoints and exposes more interleavings.
 
-The durable store contains run creation order, run and step states, attempt
-numbers, cancellation flags, and retry deadlines. Time belongs to the simulator
-and survives crashes. The mock service and its audit survive crashes separately
-from the runner's durable store. Graph/configuration are immutable request data.
-A restart must not reconstruct progress by guessing from the final effect list:
-reconciliation must use the service interface and produce its audit calls.
+### Claim and scheduling
 
-Each logical action has the structured idempotency key `[run_id, step_id]`.
-Use both components without ambiguous string concatenation. It is stable across
-attempts and restarts and distinct across runs. The runner supplies the step's
-amount and current durable attempt number to the service.
+First choose the earliest running step with an expired lease, scanning runs in
+creation order and steps in definition order, including cancelling/failing runs.
+Otherwise choose the first ready pending step of an active run using the old
+creation/definition order, successful dependencies, and ready_at <= now.
+Unexpired running steps do not prevent other independent steps from starting.
+If no work is eligible, return null ticket and consume no ID. Otherwise persist a
+new lease expiring at now + lease_duration (overflow is `TIME_OVERFLOW`) and return
+its ticket. Starting pending work changes it to running and increments attempts;
+recovery of running work does neither. The ticket captures call kind `execute`
+for an active run or `lookup` for a cancelling/failing run.
 
-An **execute** call behaves atomically:
+### Call, delay and fencing
 
-1. If this key already has an effect, return `replayed`, adding no effect.
-2. Otherwise the first `failures` execute calls for this key return `transient`
-   with no effect. Transient responses are not cached as successful results.
-3. The next call records one effect and returns `applied`.
+Call requires that the ticket is the step's current, live lease. If not, return
+`{"outcome":"stale"}` with no service call. On the first live call, atomically invoke
+the mock and save its response, returning `{"kind":"execute","outcome":"applied"}`
+(or replayed/transient), or `{"kind":"lookup","outcome":"found"}` (or missing).
+A repeated call on that same live ticket returns its saved receipt without another
+audit entry or effect. The old mock's failure-count and idempotency rules apply.
 
-Every call is audited, including replays and transient failures. Successful
-`applied` and `replayed` responses have the same runner semantics. On a committed
-transient response, if `attempts < max_attempts`, set the step to pending and
-`ready_at = now + retry_delay`. If that sum exceeds the time bound, return
-`TIME_OVERFLOW`. Otherwise, when the attempt budget is exhausted, mark the step
-failed, the run failed, and all its remaining pending steps blocked, including
-independent branches. Already succeeded steps stay succeeded. Other runs can
-continue. No terminal run ever executes new work.
+Deliver commits only if the ticket has an undelivered saved response, is still
+current and live, and its owner is up. Otherwise it returns false and changes
+nothing. In particular, a response produced before expiration may not commit at
+or after expiration. A response that cannot commit while its worker is down may
+commit after restart if its lease is still live. Successful delivery returns true,
+clears the step's lease, and marks the response delivered. Duplicate delivery is
+false. A stale success or transient response cannot change attempts, retry time,
+terminal status, or any replacement worker's lease.
 
-An attempt begins once, before the external call. Recovering an in-flight
-attempt reissues it using the **same attempt number and idempotency key**. It
-does not consume a new attempt. Thus an uncommitted transient response may be
-retried during recovery without increasing `attempts`; the budget limits
-committed retry decisions, not the number of network calls. This distinction
-must be observable in the service audit.
+An execute success marks the step succeeded. A transient schedules a retry at
+**delivery time** + retry_delay if attempts < max_attempts, with the old overflow
+rule. Otherwise it marks the step failed and begins failure draining below.
+ready_at otherwise retains its old value. A fully successful active run becomes
+succeeded. No dependencies are released by call alone; delivery is required.
 
-* `{"op":"crash"}` sets the process down, discarding volatile work only.
-* `{"op":"restart"}` sets it up. It performs no service calls or status
-  transitions. In-flight work is handled by a subsequent tick.
-* `{"op":"tick","crash_at":"after_begin"}` crashes after recording the
-  running attempt but before the service call. For an already running attempt,
-  this means before reissuing its call, without incrementing the attempt.
-* `{"op":"tick","crash_at":"after_call"}` crashes after the atomic service
-  response/effect but before committing that response to the durable runner.
-  This checkpoint applies to transient responses as well as success.
+### Cancellation and failure draining
 
-Checkpointed ticks with no eligible work stay up: no checkpoint is reached.
-Ticks, starts, cancels, and crashes while down return `PROCESS_DOWN`.
-Restarting while up returns `PROCESS_UP`. Observe/advance work in either state.
-Errors stop command execution and produce only the error envelope, with no
-partial result. Runtime checks happen in command order; process availability is
-checked before looking up a run.
+Cancellation of succeeded/failed/cancelled/failing runs is a no-op, including its
+flag. Cancellation of an active/cancelling run sets cancel_requested true, cancels
+pending steps, and sets run status cancelling while running steps remain, otherwise
+cancelled. Repeated cancellation in a cancelling run is a no-op: it must not revoke
+newly acquired lookup leases.
 
-## Extension: cancellation races
+On the **first** cancellation, expire every running lease immediately by setting
+expires to now. Keep ticket/worker visible. Any earlier execute response is now
+stale; recovery claims fresh lookup tickets. A lookup found marks its step
+succeeded; missing marks it cancelled. When no running steps remain the run becomes
+cancelled, even when every step succeeded. Existing effects are never undone.
 
-`{"op":"cancel","run":"r"}` returns `UNKNOWN_RUN` for an unknown run.
-Cancellation of a terminal (succeeded, failed, cancelled) run is a no-op,
-including leaving its cancellation flag unchanged. For a nonterminal run, set
-`cancel_requested` true and mark all pending steps cancelled. If there is no
-running step, the run becomes cancelled immediately. Otherwise it becomes
-cancelling; the running step remains uncertain until a tick reconciles it.
-Repeated cancellation is harmless.
+On committed retry exhaustion in an active run, mark pending steps blocked. If
+other running steps remain, enter the new status `failing` and immediately expire
+all their leases; otherwise enter failed. Failing work recovers with lookup only:
+found marks succeeded, missing marks blocked. After all running work is reconciled,
+enter failed. This prevents one failed branch from starting further effects while
+preserving effects already produced by other branches. `failing` cannot be changed
+to cancelling. Terminal runs contain no running steps and execute no new work.
 
-For a running step in a cancelling run, tick performs an atomic service
-**lookup**, using the same key and durable attempt number. It never executes a
-new effect. `found` means an effect exists: mark that step succeeded. `missing`
-means no effect exists: mark it cancelled. Either result makes the run cancelled,
-even if the running step was its final step. This prevents a cancellation after
-an effect-but-before-commit crash from erasing an effect that already happened,
-and prevents a pre-effect crash followed by cancellation from initiating work.
-Existing effects are not compensated or refunded. This is exactly-once *effect
-recording by the specified idempotent mock*, not a promise about arbitrary
-external services.
+## Observations and audit
 
-Checkpointed ticks also apply during reconciliation: `after_begin` is before
-lookup and leaves the existing attempt unchanged; `after_call` is after lookup
-but before storing its result. Lookup is audited, does not affect the configured
-failure counter, and can safely be repeated after another crash.
-
-## Observable result
-
-RESULT is exactly:
+An observation contains exactly `now`, `workers`, `runs`. Workers are objects
+`{"id":"w","up":true}` in definition order. Runs keep the old shape and order:
+`id,status,cancel_requested,steps`. Steps keep `id,status,attempts,ready_at` and
+add `lease` (the object above or null). FINAL adds `calls` and `effects` to this
+snapshot. Effects have the old `{key,amount}` shape, in first-application order.
+Every actual mock invocation appends exactly one call:
 
 ```json
-{"observations":[],"final":{"now":0,"up":true,"runs":[],"calls":[],"effects":[]}}
+{"worker":"a","ticket":1,"kind":"execute","key":["r","s"],"attempt":1,"outcome":"applied"}
 ```
 
-Each observation contains only `now`, `up`, and `runs`; it is an immutable copy
-at the time of observe. Final additionally contains the complete service audit
-and effect list. Runs are in creation order. Each run is
-`{"id":"r","status":"active","cancel_requested":false,"steps":[...]}`.
-Run statuses are `active`, `succeeded`, `failed`, `cancelling`, `cancelled`.
-Steps are in definition order, each exactly
-`{"id":"s","status":"pending","attempts":0,"ready_at":0}`.
-Step statuses are `pending`, `running`, `succeeded`, `failed`, `blocked`,
-`cancelled`.
+Lookup uses found/missing. Retries/reclaims may add calls but at most one effect
+exists per logical key. Stale/repeated calls, renewals and delivery add no audit
+entries. Runtime error envelopes omit snapshots/audits, as in checkpoint one.
 
-Calls are in invocation order, each exactly
-`{"kind":"execute","key":["r","s"],"attempt":1,"outcome":"applied"}`
-or the same shape with `kind: "lookup"` and outcome `found`/`missing`.
-Execute outcomes are `applied`, `replayed`, `transient`. Effects are in first
-application order, each exactly `{"key":["r","s"],"amount":25}`.
-No call or effect may be synthesized, omitted, reordered, or deduplicated in
-these audit arrays. Observations and audits are part of correctness, not debug
-output. The adapter may translate internal representations to this schema.
+## Example and review questions
 
-## Acceptance intent and boundaries
+Claim ticket 1 on worker a, call it (effect applied), advance exactly one lease
+interval, then claim the same running step on b as ticket 2. Delivering ticket 1
+returns false. Calling ticket 2 returns replayed with the same attempt number;
+delivering it succeeds. The audit has two calls and only one effect.
 
-The fixed suite checks existing graph behavior, independence of runs, retry
-budgets/deadlines, both crash windows, repeated recovery, successful and failed
-responses lost before commit, cancellation before/after effects, and input
-errors. Cross-feature traces test that progress survives crashes while cancelled
-or failed work does not run. These tests are language-neutral: use the same
-request/expected-response files with either implementation command through the
-shared runner documented in the parent directory.
+Every previous public case is a baseline regression; previous held-out cases stay
+private. New public cases illustrate the split protocol. Private interleavings
+exercise the same published semantics. Run `python3 run.py run --task
+workflow-recovery --command './starter/run.sh'`.
 
-This is deliberately a sequential deterministic model. Concurrent workers,
-leases, database isolation, distributed clocks, arbitrary external side effects,
-compensation, workflow-definition migration, and actual OS durability are out of
-scope. A production implementation would need additional guarantees. A passing
-public suite is evidence on its covered traces, not proof over all traces.
+Review: Is lease ownership checked at commit as well as call? Are action identity,
+attempt number and acquisition ticket distinct? Can cancellation or failure lose
+an already applied effect? Can repeated cancellation strand a lookup? Are delivery
+and observation values isolated from later state? No threads or simulated sleeps
+are required; keep semantic correctness separate from machine timing.
