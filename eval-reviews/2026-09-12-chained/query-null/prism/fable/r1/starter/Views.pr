@@ -1,0 +1,724 @@
+-- Incrementally maintained query views.
+--
+-- A view keeps, per pipeline stage, exactly the state needed to translate a
+-- delta of base rows into a delta of result rows without re-evaluating the
+-- query:
+--   scan     stateless filter (pushed-down predicates of optimized plans);
+--   join     per join: indexes of both inputs on their equi-join key, the
+--            right rows by sequence number, and the set of matched right rows
+--            per left row, which drives LEFT JOIN padding and unpadding;
+--   where    stateless filter;
+--   group    per group: member rows, running COUNT/SUM and cached MIN/MAX
+--            (recomputed from the group only when its extremum is deleted);
+--   select   stateless projection;
+--   distinct per distinct projected row: the set of contributing positions;
+--   result   ordered map keyed by (ORDER BY values, encounter position).
+-- Every intermediate row carries a position: the tuple of base-row sequence
+-- numbers of its sources (0 for a NULL-padded right side). The lexicographic
+-- order of positions is exactly the encounter order of the nested-loop
+-- evaluation in Engine, so "first encounter" (groups, DISTINCT) is the minimum
+-- position and ORDER BY ties break by position.
+--
+-- Deltas are normalized: a stage processes its input removals, then its
+-- additions, and records the rows it emits in an event map keyed by position,
+-- so a row added and removed within one delta cancels and the downstream stage
+-- again sees removals before additions with distinct positions.
+import Json (..)
+import Model (..)
+import Engine (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.Foldable (all, any, length)
+
+alias Row = List(Json)
+
+pub type Pos = Pos(List(Int))
+
+pub fn pos_cmp(a : List(Int), b : List(Int)) : Int =
+  match (a, b) of
+    (Nil, Nil) => 0
+    (Nil, _) => -1
+    (_, Nil) => 1
+    (Cons(x, xs), Cons(y, ys)) =>
+      if x < y then
+        -1
+      elif x > y then
+        1
+      else
+        pos_cmp(xs, ys)
+
+instance eqPos : Eq(Pos)
+  fn eq(a, b) =
+    match (a, b) of
+      (Pos(x), Pos(y)) => pos_cmp(x, y) == 0
+
+instance ordPos : Ord(Pos)
+  fn cmp(a, b) =
+    match (a, b) of
+      (Pos(x), Pos(y)) => pos_cmp(x, y)
+
+fn extend(p : Pos, seq : Int) : Pos =
+  match p of
+    Pos(xs) => Pos(append(xs, [seq]))
+
+-- Event map: per key, the row that existed before this delta and was removed,
+-- and the row added by this delta, so that repeated changes to one key net out.
+pub fn ev_remove(
+  acc : Map(k, (Option(Row), Option(Row))),
+  key : k,
+  row : Row
+) : Map(k, (Option(Row), Option(Row))) given Ord(k) =
+  match map_lookup(key, acc) of
+    Some((old, Some(_))) => map_insert(key, (old, None), acc)
+    Some(_) => acc
+    None => map_insert(key, (Some(row), None), acc)
+
+pub fn ev_add(
+  acc : Map(k, (Option(Row), Option(Row))),
+  key : k,
+  row : Row
+) : Map(k, (Option(Row), Option(Row))) given Ord(k) =
+  match map_lookup(key, acc) of
+    Some((old, _)) => map_insert(key, (old, Some(row)), acc)
+    None => map_insert(key, (None, Some(row)), acc)
+
+pub fn ev_lists(
+  acc : Map(k, (Option(Row), Option(Row)))
+) : (List((k, Row)), List((k, Row))) =
+  var rem := []
+  var add := []
+  for kv in sof(map_to_list(acc)) do
+    let (k, (old, new)) = kv
+    match old of
+      Some(r) => rem := Cons((k, r), rem)
+      None => ()
+    match new of
+      Some(r) => add := Cons((k, r), add)
+      None => ()
+  (reverse(rem), reverse(add))
+
+pub type Delta = Delta { removed: List((Pos, Row)), added: List((Pos, Row)) }
+
+fn empty_delta() : Delta = Delta { removed = [], added = [] }
+
+-- Stage events are keyed by position and row content: a stage may emit the
+-- removal of one row and the addition of a different row at one position in
+-- either order (DISTINCT and grouping re-emit per touched entry), and only an
+-- addition and removal of the very same row may cancel.
+fn drop_row(
+  acc : Map((Pos, String), (Option(Row), Option(Row))),
+  p : Pos,
+  row : Row
+) : Map((Pos, String), (Option(Row), Option(Row))) =
+  ev_remove(acc, (p, encode(JArr(row))), row)
+
+fn put_row(
+  acc : Map((Pos, String), (Option(Row), Option(Row))),
+  p : Pos,
+  row : Row
+) : Map((Pos, String), (Option(Row), Option(Row))) =
+  ev_add(acc, (p, encode(JArr(row))), row)
+
+fn delta_of(acc : Map((Pos, String), (Option(Row), Option(Row)))) : Delta =
+  let (r, a) = ev_lists(acc)
+  let strip = \(kr) -> let ((p, _), row) = kr in (p, row)
+  Delta { removed = map(strip, r), added = map(strip, a) }
+
+fn retract(
+  acc : Map((Pos, String), (Option(Row), Option(Row))),
+  out : Option((Pos, Row))
+) : Map((Pos, String), (Option(Row), Option(Row))) =
+  match out of
+    Some((p, r)) => drop_row(acc, p, r)
+    None => acc
+
+fn emit(
+  acc : Map((Pos, String), (Option(Row), Option(Row))),
+  out : Option((Pos, Row))
+) : Map((Pos, String), (Option(Row), Option(Row))) =
+  match out of
+    Some((p, r)) => put_row(acc, p, r)
+    None => acc
+
+fn same_output(a : Option((Pos, Row)), b : Option((Pos, Row))) : Bool =
+  match (a, b) of
+    (None, None) => true
+    (Some((p, r)), Some((q, s))) => p == q && encode(JArr(r)) == encode(JArr(s))
+    _ => false
+
+-- Column slots are global across the joined row; a scan or right-side key
+-- expression is rebased so it can be evaluated on a single table's row.
+fn rebase(e : Expr, offset : Int) : Expr =
+  if e.op == "col" then
+    Expr { ..e, index = e.index - offset }
+  else
+    Expr { ..e, args = map(\(a) -> rebase(a, offset), e.args) }
+
+-- ---------------------------------------------------------------- scans
+type Scan = Scan { offset: Int, width: Int, filters: List(Expr) }
+
+fn scan_pass(s : Scan, row : Row) : Bool =
+  all(\(p) -> truth(evaluate(p, row, [])), s.filters)
+
+-- ---------------------------------------------------------------- joins
+-- `lkeys` are evaluated on the left prefix row (global slots), `rkeys` on the
+-- right table's own row (rebased). A NULL key value can never satisfy the
+-- equality conjunct it came from, so such rows are kept out of the indexes.
+-- Without an equality conjunct every row shares one bucket (nested loop).
+type Stage = Stage {
+  on: Expr,
+  outer: Bool,
+  lkeys: List(Expr),
+  rkeys: List(Expr),
+  rwidth: Int,
+  lindex: Map(String, Map(Pos, Row)),
+  rindex: Map(String, Map(Int, Row)),
+  rrows: Map(Int, Row),
+  matched: Map(Pos, Map(Int, Unit))
+}
+
+fn key_of(keys : List(Expr), row : Row) : Option(String) =
+  let vals = map(\(e) -> evaluate(e, row, []), keys)
+  if any(is_null, vals) then
+    None
+  else
+    Some(encode(JArr(vals)))
+
+fn bucket_map(idx : Map(String, Map(k, Row)), key : String) : Map(k, Row) =
+  match map_lookup(key, idx) of
+    Some(b) => b
+    None => map_empty
+
+fn index_add(
+  idx : Map(String, Map(k, Row)),
+  key : String,
+  k : k,
+  row : Row
+) : Map(String, Map(k, Row)) given Ord(k) =
+  map_insert(key, map_insert(k, row, bucket_map(idx, key)), idx)
+
+fn index_remove(
+  idx : Map(String, Map(k, Row)),
+  key : String,
+  k : k
+) : Map(String, Map(k, Row)) given Ord(k) =
+  let b = map_delete(k, bucket_map(idx, key))
+  if map_size(b) == 0 then
+    map_delete(key, idx)
+  else
+    map_insert(key, b, idx)
+
+fn matched_of(st : Stage, lp : Pos) : Map(Int, Unit) =
+  match map_lookup(lp, st.matched) of
+    Some(m) => m
+    None => map_empty
+
+fn row_at(m : Map(Int, Row), seq : Int) : Row =
+  match map_lookup(seq, m) of
+    Some(r) => r
+    None => []
+
+fn padded(lrow : Row, width : Int) : Row = append(lrow, replicate(width, JNull))
+
+fn equi_keys(on : Expr, i : Int, offset : Int) : (List(Expr), List(Expr)) =
+  var lk := []
+  var rk := []
+  for c in sof(conjuncts(on)) do
+    if c.op == "=" && length(c.args) == 2 then
+      let x = at(c.args, 0)
+      let y = at(c.args, 1)
+      let sx = sources(x)
+      let sy = sources(y)
+      if all(\(s) -> s < i, sx) && length(sy) > 0 && all(\(s) -> s == i, sy) then
+        lk := append(lk, [x])
+        rk := append(rk, [rebase(y, offset)])
+      elif all(\(s) -> s < i, sy) && length(sx) > 0 && all(\(s) -> s == i, sx) then
+        lk := append(lk, [y])
+        rk := append(rk, [rebase(x, offset)])
+  (lk, rk)
+
+-- A delta of the left input: retract every output row derived from a removed
+-- left row (its matches, or its padding), then probe the right index for each
+-- added left row.
+fn join_left(st : Stage, d : Delta) : (Stage, Delta) =
+  var s := st
+  var ev := map_empty
+  for lr in sof(d.removed) do
+    let (lp, lrow) = lr
+    let ms = matched_of(s, lp)
+    if map_size(ms) == 0 then
+      if s.outer then
+        ev := drop_row(ev, extend(lp, 0), padded(lrow, s.rwidth))
+    else
+      for seq in sof(map_keys(ms)) do
+        ev := drop_row(ev, extend(lp, seq), append(lrow, row_at(s.rrows, seq)))
+      s := Stage { ..s, matched = map_delete(lp, s.matched) }
+    match key_of(s.lkeys, lrow) of
+      Some(k) => s := Stage { ..s, lindex = index_remove(s.lindex, k, lp) }
+      None => ()
+  for la in sof(d.added) do
+    let (lp, lrow) = la
+    var found := map_empty
+    match key_of(s.lkeys, lrow) of
+      Some(k) =>
+        s := Stage { ..s, lindex = index_add(s.lindex, k, lp, lrow) }
+        for sr in sof(map_to_list(bucket_map(s.rindex, k))) do
+          let (seq, rrow) = sr
+          let full = append(lrow, rrow)
+          if truth(evaluate(s.on, full, [])) then
+            found := map_insert(seq, (), found)
+            ev := put_row(ev, extend(lp, seq), full)
+      None => ()
+    if map_size(found) == 0 then
+      if s.outer then
+        ev := put_row(ev, extend(lp, 0), padded(lrow, s.rwidth))
+    else
+      s := Stage { ..s, matched = map_insert(lp, found, s.matched) }
+  (s, delta_of(ev))
+
+-- A delta of the right input: a removed right row retracts its matches and
+-- pads a left row that lost its last match; an added right row unpads a left
+-- row that gains its first match and adds the new matches.
+fn join_right(
+  st : Stage,
+  removed : List((Int, Row)),
+  added : List((Int, Row))
+) : (Stage, Delta) =
+  var s := st
+  var ev := map_empty
+  for rr in sof(removed) do
+    let (seq, rrow) = rr
+    s := Stage { ..s, rrows = map_delete(seq, s.rrows) }
+    match key_of(s.rkeys, rrow) of
+      Some(k) =>
+        s := Stage { ..s, rindex = index_remove(s.rindex, k, seq) }
+        for lr in sof(map_to_list(bucket_map(s.lindex, k))) do
+          let (lp, lrow) = lr
+          let full = append(lrow, rrow)
+          if truth(evaluate(s.on, full, [])) then
+            ev := drop_row(ev, extend(lp, seq), full)
+            let ms = map_delete(seq, matched_of(s, lp))
+            if map_size(ms) == 0 then
+              s := Stage { ..s, matched = map_delete(lp, s.matched) }
+              if s.outer then
+                ev := put_row(ev, extend(lp, 0), padded(lrow, s.rwidth))
+            else
+              s := Stage { ..s, matched = map_insert(lp, ms, s.matched) }
+      None => ()
+  for ra in sof(added) do
+    let (seq, rrow) = ra
+    s := Stage { ..s, rrows = map_insert(seq, rrow, s.rrows) }
+    match key_of(s.rkeys, rrow) of
+      Some(k) =>
+        s := Stage { ..s, rindex = index_add(s.rindex, k, seq, rrow) }
+        for lr in sof(map_to_list(bucket_map(s.lindex, k))) do
+          let (lp, lrow) = lr
+          let full = append(lrow, rrow)
+          if truth(evaluate(s.on, full, [])) then
+            let ms = matched_of(s, lp)
+            if map_size(ms) == 0 && s.outer then
+              ev := drop_row(ev, extend(lp, 0), padded(lrow, s.rwidth))
+            s := Stage { ..s, matched = map_insert(lp, map_insert(seq, (), ms), s.matched) }
+            ev := put_row(ev, extend(lp, seq), full)
+      None => ()
+  (s, delta_of(ev))
+
+-- ---------------------------------------------------------------- where / select
+fn where_delta(pred : Expr, d : Delta) : Delta =
+  let keep = \(pr) -> truth(evaluate(pred, snd(pr), []))
+  Delta { removed = filter(keep, d.removed), added = filter(keep, d.added) }
+
+fn project_delta(sels : List(Expr), d : Delta) : Delta =
+  let f = \(pr) -> (fst(pr), map(\(e) -> evaluate(e, snd(pr), []), sels))
+  Delta { removed = map(f, d.removed), added = map(f, d.added) }
+
+-- ---------------------------------------------------------------- aggregation
+-- Aggregate nodes of SELECT/HAVING are numbered; the templates carry `aggref`
+-- placeholders that are replaced by the maintained values before evaluation.
+type AggState = AggState { n: Int, total: Int, lo: Json, hi: Json }
+
+type GroupState = GroupState {
+  rows: Map(Pos, Row),
+  aggs: List(AggState),
+  emitted: Option((Pos, Row))
+}
+
+fn agg_empty() : AggState = AggState { n = 0, total = 0, lo = JNull, hi = JNull }
+
+fn agg_add(a : AggState, v : Json) : AggState =
+  if is_null(v) then
+    a
+  else
+    AggState {
+      n = a.n + 1,
+      total = a.total + integer(v),
+      lo = if a.n == 0 || compare_value(v, a.lo) < 0 then v else a.lo,
+      hi = if a.n == 0 || compare_value(v, a.hi) > 0 then v else a.hi
+    }
+
+fn recompute(arg : Expr, rows : Map(Pos, Row), minimum : Bool) : Json =
+  var best := JNull
+  for r in sof(map_values(rows)) do
+    let v = evaluate(arg, r, [])
+    if not(is_null(v)) then
+      if is_null(best) || (compare_value(v, best) < 0) == minimum then
+        best := v
+  best
+
+-- `rows` is the group after the removal; the extremum is recomputed only when
+-- the removed value equals it.
+fn agg_remove(a : AggState, v : Json, arg : Expr, rows : Map(Pos, Row)) : AggState =
+  if is_null(v) then
+    a
+  elif a.n == 1 then
+    agg_empty()
+  else
+    AggState {
+      n = a.n - 1,
+      total = a.total - integer(v),
+      lo = if compare_value(v, a.lo) == 0 then recompute(arg, rows, true) else a.lo,
+      hi = if compare_value(v, a.hi) == 0 then recompute(arg, rows, false) else a.hi
+    }
+
+fn agg_value(e : Expr, a : AggState, count : Int) : Json =
+  if e.op == "COUNT" then
+    JInt(if length(e.args) == 0 then count else a.n)
+  elif a.n == 0 then
+    JNull
+  elif e.op == "SUM" then
+    JInt(a.total)
+  elif e.op == "MIN" then
+    a.lo
+  else
+    a.hi
+
+fn collect_aggs(e : Expr, acc : List(Expr)) : (Expr, List(Expr)) =
+  if agg(e.op) then
+    (Expr { ..e, op = "aggref", index = length(acc) }, append(acc, [e]))
+  else
+    let (args, out) = collect_list(e.args, acc)
+    (Expr { ..e, args = args }, out)
+
+fn collect_list(es : List(Expr), acc : List(Expr)) : (List(Expr), List(Expr)) =
+  match es of
+    Nil => ([], acc)
+    Cons(x, rest) =>
+      let (x2, acc2) = collect_aggs(x, acc)
+      let (rest2, acc3) = collect_list(rest, acc2)
+      (Cons(x2, rest2), acc3)
+
+fn subst(e : Expr, vals : List(Json)) : Expr =
+  if e.op == "aggref" then
+    literal(at(vals, e.index))
+  else
+    Expr { ..e, args = map(\(a) -> subst(a, vals), e.args) }
+
+fn group_add(g : GroupState, aggs : List(Expr), p : Pos, row : Row) : GroupState =
+  let states = zip_with(
+      \(e : Expr, a : AggState) -> if length(e.args) == 0 then a else agg_add(a, evaluate(at(e.args, 0), row, [])),
+      aggs,
+      g.aggs,
+    )
+  GroupState { ..g, rows = map_insert(p, row, g.rows), aggs = states }
+
+fn group_remove(g : GroupState, aggs : List(Expr), p : Pos, row : Row) : GroupState =
+  let rows = map_delete(p, g.rows)
+  let states = zip_with(
+      \(e : Expr, a : AggState) -> if length(e.args) == 0 then a else agg_remove(a, evaluate(at(e.args, 0), row, []), at(e.args, 0), rows),
+      aggs,
+      g.aggs,
+    )
+  GroupState { ..g, rows = rows, aggs = states }
+
+fn new_group(v : View) : GroupState =
+  GroupState { rows = map_empty, aggs = map(\(_) -> agg_empty(), v.aggs), emitted = None }
+
+fn group_key(v : View, row : Row) : String =
+  encode(JArr(map(\(e) -> evaluate(e, row, []), v.plan.query.groups)))
+
+fn group_output(v : View, g : GroupState) : Option((Pos, Row)) =
+  let vals = zip_with(\(e : Expr, a : AggState) -> agg_value(e, a, map_size(g.rows)), v.aggs, g.aggs)
+  let (pos, row) =
+    match map_min(g.rows) of
+      Some((p, r)) => (if v.grouped then p else Pos([]), r)
+      None => (Pos([]), [])
+  if truth(evaluate(subst(v.having_t, vals), row, [])) then
+    Some((pos, map(\(s) -> evaluate(subst(s, vals), row, []), v.select_t)))
+  else
+    None
+
+fn agg_apply(v : View, d : Delta) : (View, Delta) =
+  var gs := v.groups
+  var touched := map_empty
+  if not(v.grouped) then
+    touched := map_insert("[]", (), touched)
+  for pr in sof(d.removed) do
+    let (p, row) = pr
+    let key = group_key(v, row)
+    match map_lookup(key, gs) of
+      Some(g) => gs := map_insert(key, group_remove(g, v.aggs, p, row), gs)
+      None => ()
+    touched := map_insert(key, (), touched)
+  for pa in sof(d.added) do
+    let (p, row) = pa
+    let key = group_key(v, row)
+    let g =
+      match map_lookup(key, gs) of
+        Some(g0) => g0
+        None => new_group(v)
+    gs := map_insert(key, group_add(g, v.aggs, p, row), gs)
+    touched := map_insert(key, (), touched)
+  var ev := map_empty
+  for key in sof(map_keys(touched)) do
+    let g =
+      match map_lookup(key, gs) of
+        Some(g0) => g0
+        None => new_group(v)
+    if v.grouped && map_size(g.rows) == 0 then
+      gs := map_delete(key, gs)
+      ev := retract(ev, g.emitted)
+    else
+      let new = group_output(v, g)
+      if not(same_output(g.emitted, new)) then
+        ev := emit(retract(ev, g.emitted), new)
+        gs := map_insert(key, GroupState { ..g, emitted = new }, gs)
+      elif not(map_member(key, gs)) then
+        gs := map_insert(key, g, gs)
+  (View { ..v, groups = gs }, delta_of(ev))
+
+-- ---------------------------------------------------------------- distinct
+type Entry = Entry { row: Row, members: Map(Pos, Unit), emitted: Option(Pos) }
+
+fn distinct_apply(v : View, d : Delta) : (View, Delta) =
+  var es := v.distinct
+  var touched := map_empty
+  for pr in sof(d.removed) do
+    let (p, row) = pr
+    let key = encode(JArr(row))
+    match map_lookup(key, es) of
+      Some(e) => es := map_insert(key, Entry { ..e, members = map_delete(p, e.members) }, es)
+      None => ()
+    touched := map_insert(key, (), touched)
+  for pa in sof(d.added) do
+    let (p, row) = pa
+    let key = encode(JArr(row))
+    let e =
+      match map_lookup(key, es) of
+        Some(e0) => e0
+        None => Entry { row = row, members = map_empty, emitted = None }
+    es := map_insert(key, Entry { ..e, members = map_insert(p, (), e.members) }, es)
+    touched := map_insert(key, (), touched)
+  var ev := map_empty
+  for key in sof(map_keys(touched)) do
+    match map_lookup(key, es) of
+      Some(e) =>
+        let new =
+          match map_min(e.members) of
+            Some((p, _)) => Some(p)
+            None => None
+        if new /= e.emitted then
+          match e.emitted of
+            Some(p) => ev := drop_row(ev, p, e.row)
+            None => ()
+          match new of
+            Some(p) => ev := put_row(ev, p, e.row)
+            None => ()
+        if map_size(e.members) == 0 then
+          es := map_delete(key, es)
+        else
+          es := map_insert(key, Entry { ..e, emitted = new }, es)
+      None => ()
+  (View { ..v, distinct = es }, delta_of(ev))
+
+-- ---------------------------------------------------------------- result
+-- Ordered by the ORDER BY values under the query's directions and NULL
+-- placement, then by encounter position, which makes the order total and
+-- reproduces the stable sort of a fresh query.
+pub type SortKey = SortKey { vals: List(Json), spec: List((Int, Bool, Bool)), pos: Pos }
+
+fn vals_cmp(xs : List(Json), ys : List(Json), spec : List((Int, Bool, Bool))) : Int =
+  match (xs, ys, spec) of
+    (Cons(x, xr), Cons(y, yr), Cons((_, desc, nf), sr)) =>
+      let c = compare_ordered(x, y, desc, nf)
+      if c /= 0 then
+        c
+      else
+        vals_cmp(xr, yr, sr)
+    _ => 0
+
+fn sort_cmp(a : SortKey, b : SortKey) : Int =
+  let c = vals_cmp(a.vals, b.vals, a.spec)
+  if c /= 0 then
+    c
+  else
+    cmp(a.pos, b.pos)
+
+instance eqSortKey : Eq(SortKey)
+  fn eq(a, b) = sort_cmp(a, b) == 0
+
+instance ordSortKey : Ord(SortKey)
+  fn cmp(a, b) = sort_cmp(a, b)
+
+fn sort_key(spec : List((Int, Bool, Bool)), p : Pos, row : Row) : SortKey =
+  SortKey { vals = map(\(o) -> let (i, _, _) = o in at(row, i), spec), spec = spec, pos = p }
+
+fn result_apply(v : View, d : Delta) : View =
+  var m := v.result
+  for pr in sof(d.removed) do
+    let (p, row) = pr
+    m := map_delete(sort_key(v.plan.order, p, row), m)
+  for pa in sof(d.added) do
+    let (p, row) = pa
+    m := map_insert(sort_key(v.plan.order, p, row), row, m)
+  View { ..v, result = m }
+
+fn first_go(m : Map(k, v), n : Int, acc : List(v)) : (List(v), Int) =
+  if n <= 0 then
+    (acc, 0)
+  else
+    match m of
+      Tip => (acc, n)
+      Bin(_, _, x, l, r) =>
+        let (acc1, n1) = first_go(l, n, acc)
+        if n1 <= 0 then
+          (acc1, 0)
+        else
+          first_go(r, n1 - 1, Cons(x, acc1))
+
+-- The first `n` values in key order, visiting only that prefix of the tree.
+fn map_first_values(m : Map(k, v), n : Int) : List(v) =
+  let (acc, _) = first_go(m, n, [])
+  reverse(acc)
+
+-- ---------------------------------------------------------------- views
+pub type View = View {
+  plan: Plan,
+  sources: List(Int),
+  scans: List(Scan),
+  stages: List(Stage),
+  grouped: Bool,
+  aggs: List(Expr),
+  select_t: List(Expr),
+  having_t: Expr,
+  groups: Map(String, GroupState),
+  distinct: Map(String, Entry),
+  result: Map(SortKey, Row)
+}
+
+fn downstream(v : View, d : Delta) : View =
+  let q = v.plan.query
+  let d1 = where_delta(q.predicate, d)
+  let (v2, d2) =
+    if v.plan.aggregate then
+      agg_apply(v, d1)
+    else
+      (v, project_delta(v.select_t, d1))
+  let (v3, d3) =
+    if q.distinct then
+      distinct_apply(v2, d2)
+    else
+      (v2, d2)
+  result_apply(v3, d3)
+
+-- Apply a net change of one source's base rows (by sequence number) and
+-- propagate it through the stages that depend on that source.
+pub fn apply_source(
+  v : View,
+  i : Int,
+  removed : List((Int, Row)),
+  added : List((Int, Row))
+) : View =
+  let scan = at(v.scans, i)
+  let rem = filter(\(sr) -> scan_pass(scan, snd(sr)), removed)
+  let add = filter(\(sr) -> scan_pass(scan, snd(sr)), added)
+  if length(rem) == 0 && length(add) == 0 then
+    v
+  else
+    var stages := v.stages
+    var d := empty_delta()
+    var start := 0
+    if i == 0 then
+      let lift = \(sr) -> (Pos([fst(sr)]), snd(sr))
+      d := Delta { removed = map(lift, rem), added = map(lift, add) }
+    else
+      let (st, d2) = join_right(at(stages, i - 1), rem, add)
+      stages := list_set(stages, i - 1, st)
+      d := d2
+      start := i
+    for j in srange(start, length(stages)) do
+      let (st, d2) = join_left(at(stages, j), d)
+      stages := list_set(stages, j, st)
+      d := d2
+    downstream(View { ..v, stages = stages }, d)
+
+-- `loads` holds, per source, the current rows of its base table as
+-- (sequence, row) in encounter order. Sources are loaded last to first so
+-- every row flows through the pipeline exactly once against fully indexed
+-- right inputs.
+pub fn create_view(plan : Plan, sources : List(Int), loads : List(List((Int, Row)))) : View =
+  let q = plan.query
+  var offset := 0
+  var scans := []
+  var stages := []
+  for i in srange(0, length(plan.tables)) do
+    let width = length(at(plan.tables, i).columns)
+    let base = offset
+    scans := append(scans, [Scan { offset = base, width = width, filters = map(\(p) -> rebase(p, base), at(plan.filters, i)) }])
+    if i > 0 then
+      let on = at(q.joins, i - 1)
+      let (lk, rk) = equi_keys(on, i, base)
+      stages := append(
+          stages,
+          [Stage {
+            on = on,
+            outer = at(q.outer, i - 1),
+            lkeys = lk,
+            rkeys = rk,
+            rwidth = width,
+            lindex = map_empty,
+            rindex = map_empty,
+            rrows = map_empty,
+            matched = map_empty
+          }],
+        )
+    offset += width
+  var aggs := []
+  var sels := []
+  for s in sof(q.select) do
+    let (e, acc) = collect_aggs(fst(s), aggs)
+    aggs := acc
+    sels := append(sels, [e])
+  let (hav, all_aggs) = collect_aggs(q.having, aggs)
+  var v := View {
+    plan = plan,
+    sources = sources,
+    scans = scans,
+    stages = stages,
+    grouped = length(q.groups) > 0,
+    aggs = all_aggs,
+    select_t = sels,
+    having_t = hav,
+    groups = map_empty,
+    distinct = map_empty,
+    result = map_empty
+  }
+  for i in sof(reverse(range(0, length(loads)))) do
+    v := apply_source(v, i, [], at(loads, i))
+  -- A global aggregate emits its single row even over empty input.
+  downstream(v, empty_delta())
+
+pub fn view_columns(v : View) : List(Json) =
+  map(\(s) -> JStr(snd(s)), v.plan.query.select)
+
+pub fn view_rows(v : View) : List(Row) =
+  let q = v.plan.query
+  let rows =
+    if q.limit >= 0 then
+      map_first_values(v.result, q.offset + q.limit)
+    else
+      map_values(v.result)
+  let skipped = drop(q.offset, rows)
+  if q.limit >= 0 then
+    take(q.limit, skipped)
+  else
+    skipped

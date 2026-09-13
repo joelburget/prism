@@ -1,0 +1,272 @@
+-- Command protocol of checkpoint two: base tables with private row IDs,
+-- atomic change batches, and named incrementally maintained views.
+import Json (..)
+import Model (..)
+import Parser (..)
+import Binder (..)
+import Engine (..)
+import Views (..)
+import Data.List (..)
+import Data.Map (..)
+import Data.Foldable (all, any, length)
+
+-- A base table: rows by private ID, rows by sequence number (the encounter
+-- order the views see: initial rows 1..N, later inserts appended), the IDs
+-- ever used, and the next sequence number.
+pub type Base = Base {
+  table: Table,
+  by_id: Map(Int, (Int, List(Json))),
+  by_seq: Map(Int, List(Json)),
+  used: Map(Int, Unit),
+  next_seq: Int
+}
+
+pub type Db = Db { tables: List(Base), views: Map(String, View), revision: Int }
+
+fn base_of(t : Table) : Base =
+  var by_id := map_empty
+  var by_seq := map_empty
+  var used := map_empty
+  var n := 0
+  for row in sof(t.rows) do
+    n += 1
+    by_id := map_insert(n, (n, row), by_id)
+    by_seq := map_insert(n, row, by_seq)
+    used := map_insert(n, (), used)
+  Base {
+    table = Table { ..t, rows = [] },
+    by_id = by_id,
+    by_seq = by_seq,
+    used = used,
+    next_seq = n + 1
+  }
+
+pub fn db_of(database : List(Table)) : Db =
+  Db { tables = map(base_of, database), views = map_empty, revision = 0 }
+
+-- ---------------------------------------------------------------- shapes
+fn lower(c : Int) : Bool = c >= 97 && c <= 122
+
+fn view_name_ok(s : String) : Bool =
+  let n = byte_len(s)
+  n >= 1
+    && n <= 40
+    && lower(byte_at(s, 0))
+    && all(
+        \(i) -> lower(byte_at(s, i)) || digit(byte_at(s, i)) || byte_at(s, i) == 45,
+        range(1, n),
+      )
+
+fn table_name_ok(s : String) : Bool =
+  byte_len(s) > 0
+    && letter(byte_at(s, 0))
+    && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)), range(0, byte_len(s)))
+
+fn has_fields(j : Json, names : List(String)) : Bool =
+  match j of
+    JObj(xs) =>
+      length(xs) == length(names)
+        && all(\(name) -> length(filter(\(kv) -> fst(kv) == name, xs)) == 1, names)
+    _ => false
+
+fn bad() : Unit = reject("INVALID_COMMAND")
+
+fn op_of(c : Json) : String =
+  match c of
+    JObj(xs) =>
+      match filter(\(kv) -> fst(kv) == "op", xs) of
+        Cons((_, JStr(s)), Nil) => s
+        _ =>
+          bad()
+          ""
+    _ =>
+      bad()
+      ""
+
+fn str_field(c : Json, key : String) : String =
+  match getfield(c, key) of
+    JStr(s) => s
+    _ =>
+      bad()
+      ""
+
+fn validate_change(ch : Json) : Unit =
+  let op = op_of(ch)
+  if op == "insert" || op == "update" then
+    demand(has_fields(ch, ["op", "table", "id", "row"]), "INVALID_COMMAND")
+    match getfield(ch, "row") of
+      JArr(_) => ()
+      _ => bad()
+  elif op == "delete" then
+    demand(has_fields(ch, ["op", "table", "id"]), "INVALID_COMMAND")
+  else
+    bad()
+  demand(table_name_ok(str_field(ch, "table")), "INVALID_COMMAND")
+  match getfield(ch, "id") of
+    JInt(n) => demand(n >= 1 && n <= 2147483647, "INVALID_COMMAND")
+    _ => bad()
+
+fn validate_command(c : Json) : Unit =
+  let op = op_of(c)
+  if op == "create" then
+    demand(has_fields(c, ["op", "view", "sql", "optimize"]), "INVALID_COMMAND")
+    demand(view_name_ok(str_field(c, "view")), "INVALID_COMMAND")
+    let ignored = str_field(c, "sql")
+    match getfield(c, "optimize") of
+      JBool(_) => ()
+      _ => bad()
+  elif op == "read" || op == "drop" then
+    demand(has_fields(c, ["op", "view"]), "INVALID_COMMAND")
+    demand(view_name_ok(str_field(c, "view")), "INVALID_COMMAND")
+  elif op == "apply" then
+    demand(has_fields(c, ["op", "changes"]), "INVALID_COMMAND")
+    match getfield(c, "changes") of
+      JArr(cs) =>
+        demand(length(cs) >= 1 && length(cs) <= 200, "INVALID_COMMAND")
+        for ch in sof(cs) do
+          validate_change(ch)
+      _ => bad()
+  else
+    bad()
+
+-- ---------------------------------------------------------------- batches
+fn validate_row(t : Table, j : Json) : List(Json) =
+  let row = arr(j)
+  demand(length(row) == length(t.columns), "INVALID_ROW")
+  for i in srange(0, length(row)) do
+    let c = at(t.columns, i)
+    let v = at(row, i)
+    demand(value_type(v) == c.kind || is_null(v) && c.nullable, "INVALID_ROW")
+    match v of
+      JInt(n) => demand(n >= -1000000000 && n <= 1000000000, "INVALID_ROW")
+      _ => ()
+  row
+
+fn base_rows(b : Base) : List((Int, List(Json))) = map_to_list(b.by_seq)
+
+fn find_base(tables : List(Base), name : String) : Int =
+  match position(\(b : Base) -> b.table.name == name, tables) of
+    Some(i) => i
+    None =>
+      reject("UNKNOWN_TABLE")
+      -1
+
+-- Every change is applied to a private copy of the tables; a rejection leaves
+-- the caller's database untouched. The per-table event maps net out repeated
+-- changes to one row, so each view sees the batch's final state once.
+pub fn apply_batch(db : Db, changes : List(Json)) : Db =
+  var tables := db.tables
+  var deltas := map(\(_) -> map_empty, db.tables)
+  for ch in sof(changes) do
+    let op = text(getfield(ch, "op"))
+    let ti = find_base(tables, text(getfield(ch, "table")))
+    var b : Base := at(tables, ti)
+    let id = integer(getfield(ch, "id"))
+    var ev := at(deltas, ti)
+    if op == "delete" then
+      match map_lookup(id, b.by_id) of
+        Some((seq, old)) =>
+          tables := list_set(
+              tables,
+              ti,
+              Base { ..b, by_id = map_delete(id, b.by_id), by_seq = map_delete(seq, b.by_seq) },
+            )
+          ev := ev_remove(ev, seq, old)
+        None => reject("UNKNOWN_ROW")
+    else
+      let row = validate_row(b.table, getfield(ch, "row"))
+      if op == "insert" then
+        demand(not(map_member(id, b.used)), "ROW_ID_USED")
+        let seq = b.next_seq
+        tables := list_set(
+            tables,
+            ti,
+            Base {
+              ..b,
+              by_id = map_insert(id, (seq, row), b.by_id),
+              by_seq = map_insert(seq, row, b.by_seq),
+              used = map_insert(id, (), b.used),
+              next_seq = seq + 1
+            },
+          )
+        ev := ev_add(ev, seq, row)
+      else
+        match map_lookup(id, b.by_id) of
+          Some((seq, old)) =>
+            tables := list_set(
+                tables,
+                ti,
+                Base { ..b, by_id = map_insert(id, (seq, row), b.by_id), by_seq = map_insert(seq, row, b.by_seq) },
+              )
+            ev := ev_add(ev_remove(ev, seq, old), seq, row)
+          None => reject("UNKNOWN_ROW")
+    deltas := list_set(deltas, ti, ev)
+  var views := db.views
+  for nv in sof(map_to_list(db.views)) do
+    let (name, view) = nv
+    var v : View := view
+    for i in srange(0, length(v.sources)) do
+      let (rem, add) = ev_lists(at(deltas, at(v.sources, i)))
+      if length(rem) > 0 || length(add) > 0 then
+        v := apply_source(v, i, rem, add)
+    views := map_insert(name, v, views)
+  Db { tables = tables, views = views, revision = db.revision + 1 }
+
+-- ---------------------------------------------------------------- commands
+fn ok_reply(value : Json) : Json = JObj([("ok", JBool(true)), ("result", value)])
+
+fn error_reply(code : String) : Json =
+  JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+
+fn run_command(db : Db, c : Json) : (Json, Db) =
+  validate_command(c)
+  let op = text(getfield(c, "op"))
+  if op == "create" then
+    let name = text(getfield(c, "view"))
+    demand(not(map_member(name, db.views)), "VIEW_EXISTS")
+    let schema = map(\(b : Base) -> b.table, db.tables)
+    let bound = bind(parse_sql(text(getfield(c, "sql"))), schema)
+    let plan = if truth(getfield(c, "optimize")) then optimize(bound) else bound
+    let sources = map(\(s) -> find_base(db.tables, fst(s)), plan.query.sources)
+    let loads = map(\(ti : Int) -> base_rows(at(db.tables, ti)), sources)
+    let v = create_view(plan, sources, loads)
+    (
+      ok_reply(JObj([("view", JStr(name)), ("revision", JInt(db.revision))])),
+      Db { ..db, views = map_insert(name, v, db.views) },
+    )
+  elif op == "read" then
+    match map_lookup(text(getfield(c, "view")), db.views) of
+      Some(v) =>
+        (
+          ok_reply(JObj([
+              ("revision", JInt(db.revision)),
+              ("columns", JArr(view_columns(v))),
+              ("rows", JArr(map(JArr, view_rows(v)))),
+            ])),
+          db,
+        )
+      None =>
+        reject("UNKNOWN_VIEW")
+        (JNull, db)
+  elif op == "drop" then
+    let name = text(getfield(c, "view"))
+    demand(map_member(name, db.views), "UNKNOWN_VIEW")
+    (ok_reply(JObj([("dropped", JStr(name))])), Db { ..db, views = map_delete(name, db.views) })
+  else
+    let next = apply_batch(db, arr(getfield(c, "changes")))
+    (ok_reply(JObj([("revision", JInt(next.revision))])), next)
+
+-- One reply per command; a failing command changes nothing and processing
+-- continues with the state before it.
+pub fn run_commands(db0 : Db, commands : List(Json)) : List(Json) =
+  var db := db0
+  var replies := []
+  for c in sof(commands) do
+    let current = db
+    let (reply, next) =
+      handle run_command(current, c) with
+        never reject(code) => (error_reply(code), current)
+        return r => r
+    db := next
+    replies := append(replies, [reply])
+  replies

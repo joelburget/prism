@@ -1,11 +1,13 @@
--- One request, one response. Domain effects abort the complete query batch.
+-- One request, one response. In query mode domain errors abort the complete
+-- query batch; in command mode each command replies on its own.
 import Json (..)
 import Model (..)
 import Parser (..)
 import Binder (..)
 import Engine (..)
+import Commands (..)
 import Data.List (..)
-import Data.Foldable (length)
+import Data.Foldable (any, length)
 
 fn validate_query(q : Json) : Unit =
   fields(q, ["sql", "optimize"])
@@ -13,6 +15,16 @@ fn validate_query(q : Json) : Unit =
   match getfield(q, "optimize") of
     JBool(_) => ()
     _ => reject("INVALID_INPUT")
+
+fn has_key(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => any(\(kv) -> fst(kv) == key, xs)
+    _ => false
+
+fn validate_database(input : Json) : List(Table) =
+  let database = map(validate_table, arr(getfield(input, "database")))
+  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
+  database
 
 fn work(request : Json) : Json =
   demand(
@@ -22,16 +34,23 @@ fn work(request : Json) : Json =
     )
   demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
   let input = getfield(request, "input")
-  fields(input, ["database", "queries"])
-  let database = map(validate_table, arr(getfield(input, "database")))
-  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
-  let queries = arr(getfield(input, "queries"))
-  for q in sof(queries) do
-    validate_query(q)
-  let results = map(
-      \(q) -> let plan = bind(parse_sql(text(getfield(q, "sql"))), database) in execute(if truth(getfield(q, "optimize")) then optimize(plan) else plan),
-      queries,
-    )
+  let results =
+    if has_key(input, "commands") && not(has_key(input, "queries")) then
+      fields(input, ["database", "commands"])
+      let database = validate_database(input)
+      let commands = arr(getfield(input, "commands"))
+      demand(length(commands) <= 2000, "INVALID_INPUT")
+      run_commands(db_of(database), commands)
+    else
+      fields(input, ["database", "queries"])
+      let database = validate_database(input)
+      let queries = arr(getfield(input, "queries"))
+      for q in sof(queries) do
+        validate_query(q)
+      map(
+          \(q) -> let plan = bind(parse_sql(text(getfield(q, "sql"))), database) in execute(if truth(getfield(q, "optimize")) then optimize(plan) else plan),
+          queries,
+        )
   JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
 
 fn error_response(code : String) : Json =

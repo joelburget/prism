@@ -134,13 +134,13 @@ pub fn fold_constants(e : Expr) : Expr =
   else
     n
 
-fn conjuncts(e : Expr) : List(Expr) =
+pub fn conjuncts(e : Expr) : List(Expr) =
   if e.op == "AND" then
     append(conjuncts(at(e.args, 0)), conjuncts(at(e.args, 1)))
   else
     [e]
 
-fn sources(e : Expr) : List(Int) =
+pub fn sources(e : Expr) : List(Int) =
   if e.op == "col" then
     [e.source]
   else
@@ -268,7 +268,7 @@ fn distinct_rows(
       else
         Cons(r, distinct_rows(rest, Cons(key, seen)))
 
-fn compare_ordered(a : Json, b : Json, desc : Bool, nulls_first : Bool) : Int =
+pub fn compare_ordered(a : Json, b : Json, desc : Bool, nulls_first : Bool) : Int =
   if is_null(a) && is_null(b) then
     0
   elif is_null(a) then

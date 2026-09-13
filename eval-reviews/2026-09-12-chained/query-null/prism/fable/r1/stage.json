@@ -1,16 +1,19 @@
 {
-  "run_id": "run-93752f20cc3a",
-  "checkpoint": 1,
+  "run_id": "run-9a252dee4608",
+  "checkpoint": 2,
   "model": "fable",
   "model_id": "claude-fable-5-1",
   "task": "query-null",
   "language": "prism",
   "source_available": true,
-  "source_sha256": "10d826ad92165e11da20f68a4031e076a02d613e920bea51dafb7a78809412f0",
+  "source_sha256": "954661227440f02a211d52bfae91ec38ca989a3af2d7605cab5cd03d11a939c0",
   "passed": true,
-  "seconds": 903.7653708339785,
-  "tool_calls": 44,
-  "flags": [],
-  "result_sha256": "563a2e3ce746d368d4d8386a43b70ac0a05d8c7e4f2bef6daddf2f722c1536e2",
+  "seconds": 1671.1143034580164,
+  "tool_calls": 100,
+  "flags": [
+    "task_frozen_after_resource_limit",
+    "timeout"
+  ],
+  "result_sha256": "7df2e4ce512af1df74dc7faf37291b3a62824b7cfea058eeebaa05dc64d5a3d9",
   "archive_note": "Exact frozen source"
 }
