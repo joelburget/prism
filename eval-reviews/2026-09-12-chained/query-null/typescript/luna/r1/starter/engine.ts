@@ -6,17 +6,20 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
   if (e.op === "lit") return e.value as Value;
   if (e.op === "col") return row[e.index!];
   if (aggregates.has(e.op)) {
-    if (e.op === "COUNT") return group.length;
+    if (e.op === "COUNT") return e.args.length === 0 ? group.length : group.filter(r => evaluate(e.args[0], r) !== null).length;
     const vs = group.map((r) => evaluate(e.args[0], r));
-    if (e.op === "SUM")
-      return vs.reduce<number>((n, v) => n + (v as number), 0);
-    return vs.reduce((a, b) =>
-      e.op === "MIN" ? (a < b ? a : b) : a > b ? a : b,
-    );
+    const nonnull = vs.filter(v => v !== null);
+    if (!nonnull.length) return null;
+    if (e.op === "SUM") return nonnull.reduce<number>((n, v) => n + (v as number), 0);
+    return nonnull.slice(1).reduce((a, b) => e.op === "MIN" ? ((a as any) < b ? a : b) : ((a as any) > b ? a : b), nonnull[0]);
   }
   const a = evaluate(e.args[0], row, group);
-  if (e.op === "NOT") return !a;
+  if (e.op === "NOT") return a === null ? null : !a;
+  if (e.op === "IS NULL") return a === null;
+  if (e.op === "IS NOT NULL") return a !== null;
+  if (e.op === "COALESCE") return e.args.map(x => evaluate(x, row, group)).find(v => v !== null) ?? null;
   const b = evaluate(e.args[1], row, group);
+  if (["+", "-", "*", "=", "<>", "<", "<=", ">", ">="].includes(e.op) && (a === null || b === null)) return null;
   switch (e.op) {
     case "+":
       return (a as number) + (b as number);
@@ -24,22 +27,20 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
       return (a as number) - (b as number);
     case "*":
       return (a as number) * (b as number);
-    case "AND":
-      return (a as boolean) && (b as boolean);
-    case "OR":
-      return (a as boolean) || (b as boolean);
+    case "AND": return a === false || b === false ? false : a === null || b === null ? null : true;
+    case "OR": return a === true || b === true ? true : a === null || b === null ? null : false;
     case "=":
       return a === b;
     case "<>":
       return a !== b;
     case "<":
-      return a < b;
+      return (a as any) < (b as any);
     case "<=":
-      return a <= b;
+      return (a as any) <= (b as any);
     case ">":
-      return a > b;
+      return (a as any) > (b as any);
     case ">=":
-      return a >= b;
+      return (a as any) >= (b as any);
     default:
       throw new Error(`Unknown bound operator ${e.op}`);
   }
@@ -58,7 +59,7 @@ function conjuncts(e: Expr): Expr[] {
 export function optimize(plan: Plan): Plan {
   const q = plan.query;
   q.select = q.select.map(([e, a]) => [fold(e), a]);
-  q.joins = q.joins.map(fold);
+  q.joins = q.joins.map(j => ({ ...j, on: fold(j.on) }));
   if (q.having) q.having = fold(q.having);
   if (q.where) {
     const remaining: Expr[] = [];
@@ -66,7 +67,7 @@ export function optimize(plan: Plan): Plan {
       const sources = new Set(
         [...walk(e)].filter((n) => n.op === "col").map((n) => n.source!),
       );
-      if (plan.tables.length > 1 && sources.size === 1)
+      if (plan.tables.length > 1 && sources.size === 1 && q.joins.every(j => !j.left))
         plan.filters[[...sources][0]].push(e);
       else remaining.push(e);
     }
@@ -90,10 +91,11 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
     return rows;
   });
   let rows = scans[0];
-  q.joins.forEach((on, i) => {
-    rows = rows.flatMap((l) =>
-      scans[i + 1].map((r) => [...l, ...r]).filter((r) => evaluate(on, r)),
-    );
+  q.joins.forEach((join, i) => {
+    rows = rows.flatMap((l) => {
+      const matches = scans[i + 1].map((r) => [...l, ...r] as Value[]).filter(r => evaluate(join.on, r) === true);
+      return matches.length || !join.left ? matches : [[...l, ...Array<Value>(plan.tables[i + 1].columns.length).fill(null)]];
+    });
   });
   if (q.where) rows = rows.filter((r) => evaluate(q.where!, r));
   let units: [Value[], Value[][]][];
@@ -121,9 +123,15 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
     });
   }
   projected.sort((a, b) => {
-    for (const [index, desc] of q.order) {
+    for (const [index, desc, explicitNulls] of q.order) {
       const i = index as number;
-      const c = a[i] < b[i] ? -1 : a[i] > b[i] ? 1 : 0;
+      const an = a[i] === null, bn = b[i] === null;
+      if (an || bn) {
+        if (an && bn) continue;
+        const first = explicitNulls ?? desc;
+        return an === first ? -1 : 1;
+      }
+      const c = (a[i] as any) < (b[i] as any) ? -1 : (a[i] as any) > (b[i] as any) ? 1 : 0;
       if (c) return desc ? -c : c;
     }
     return 0;

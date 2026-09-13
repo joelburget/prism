@@ -38,29 +38,30 @@ function check(
     const ts = e.args.map((a) => a.type);
     if (e.op === "COUNT") e.type = "int";
     else if (["SUM", "+", "-", "*"].includes(e.op)) {
-      need(
-        ts.every((t) => t === "int"),
-        "TYPE_ERROR",
-      );
+      need(ts.every((t) => t === "int" || t === undefined), "TYPE_ERROR");
       e.type = "int";
     } else if (["MIN", "MAX"].includes(e.op)) {
-      need(ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
-      e.type = ts[0];
+      need(ts[0] === "int" || ts[0] === "text" || ts[0] === undefined, "TYPE_ERROR");
+      e.type = ts[0] ?? "int";
+    } else if (e.op === "COALESCE") {
+      const known = ts.filter((t): t is ScalarType => t !== undefined);
+      need(known.length === 0 || known.every((t) => t === known[0]), "TYPE_ERROR");
+      e.type = known[0] ?? "int";
+    } else if (e.op === "IS NULL" || e.op === "IS NOT NULL") {
+      e.type = "bool";
     } else if (["NOT", "AND", "OR"].includes(e.op)) {
-      need(
-        ts.every((t) => t === "bool"),
-        "TYPE_ERROR",
-      );
+      need(ts.every((t) => t === "bool" || t === undefined), "TYPE_ERROR");
       e.type = "bool";
     } else {
       need(
-        ts[0] === ts[1] && (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
+        (ts[0] === ts[1] || ts[0] === undefined || ts[1] === undefined) &&
+          (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
         "TYPE_ERROR",
       );
       e.type = "bool";
     }
   }
-  need(!predicate || e.type === "bool", "TYPE_ERROR");
+  need(!predicate || e.type === "bool" || e.type === undefined, "TYPE_ERROR");
 }
 function grouped(e: Expr, keys: Set<number>): void {
   if (aggregates.has(e.op)) return;
@@ -81,7 +82,7 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     need(t, "UNKNOWN_TABLE");
     tables.push(t);
     columns.push(...t.columns.map((c) => ({ ...c, qualifier, source })));
-    if (source) check(q.joins[source - 1], columns, false, false, true);
+    if (source) check(q.joins[source - 1].on, columns, false, false, true);
   });
   q.groups.forEach((e) => check(e, columns, false));
   const keys = new Set(q.groups.map((e) => e.index!));
@@ -95,15 +96,10 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     q.groups.length > 0 || nodes.some((e) => aggregates.has(e.op));
   need(!q.having || aggregate, "INVALID_AGGREGATION");
   if (aggregate) roots.forEach((e) => grouped(e, keys));
-  need(
-    q.groups.length > 0 ||
-      !nodes.some((e) => ["SUM", "MIN", "MAX"].includes(e.op)),
-    "UNSUPPORTED_FEATURE",
-  );
-  q.order = q.order.map(([a, d]) => {
+  q.order = q.order.map(([a, d, n]) => {
     const i = aliases.indexOf(a as string);
     need(i >= 0, "UNKNOWN_COLUMN");
-    return [i, d];
+    return [i, d, n];
   });
   return { query: q, tables, filters: tables.map(() => []), aggregate };
 }
