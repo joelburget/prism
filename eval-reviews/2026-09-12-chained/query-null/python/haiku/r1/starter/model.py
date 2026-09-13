@@ -14,6 +14,9 @@ RESERVED = set('SELECT DISTINCT AS FROM INNER JOIN LEFT OUTER ON WHERE GROUP BY 
 def identifier(s):
     return isinstance(s, str) and re.fullmatch('[a-z_][a-z0-9_]*', s) is not None and s.upper() not in RESERVED
 
+def view_name(s):
+    return isinstance(s, str) and re.fullmatch('[a-z][a-z0-9-]{0,39}', s) is not None
+
 @dataclass
 class Expr:
     op: str
@@ -50,8 +53,22 @@ class Plan:
 def validate(request):
     require(isinstance(request, dict) and request.get('protocol_version') == 1 and type(request.get('protocol_version')) is int and request.get('task') == 'query-null')
     data = request.get('input')
-    fields(data, {'database', 'queries'})
-    require(isinstance(data['database'], list) and isinstance(data['queries'], list))
+    
+    # Check if it's the old protocol (queries) or new protocol (commands)
+    has_queries = 'queries' in data
+    has_commands = 'commands' in data
+    
+    # Must have exactly one of them
+    require(bool(has_queries) != bool(has_commands), 'INVALID_INPUT')
+    require('database' in data, 'INVALID_INPUT')
+    
+    if has_queries:
+        fields(data, {'database', 'queries'})
+    else:
+        fields(data, {'database', 'commands'})
+    
+    require(isinstance(data['database'], list) and isinstance(data.get('queries') or data.get('commands'), list))
+    
     database = {}
     for t in data['database']:
         fields(t, {'name', 'columns', 'rows'})
@@ -70,10 +87,15 @@ def validate(request):
                 else:
                     require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
-    for q in data['queries']:
-        fields(q, {'sql', 'optimize'})
-        require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
-    return database, data['queries']
+    
+    if has_queries:
+        for q in data['queries']:
+            fields(q, {'sql', 'optimize'})
+            require(isinstance(q['sql'], str) and type(q['optimize']) is bool)
+        return database, data['queries'], None
+    else:
+        require(isinstance(data['commands'], list))
+        return database, None, data['commands']
 
 
 def fields(value, expected):
