@@ -1,0 +1,16 @@
+{
+  "run_id": "run-68f276177f96",
+  "checkpoint": 1,
+  "model": "sonnet",
+  "model_id": "claude-sonnet-5",
+  "task": "workflow-recovery",
+  "language": "python",
+  "source_available": true,
+  "source_sha256": "4e6af381030d58d1fb3fe6cb95b1276c4f9f0654a4eb20d9866dcf68e618d92f",
+  "passed": true,
+  "seconds": 264.61092645896133,
+  "tool_calls": 18,
+  "flags": [],
+  "result_sha256": "00635562fa34ae34ce422fbb4f9a99458f90630beec6597a9bab9278dddb27a6",
+  "archive_note": "Exact frozen source"
+}
