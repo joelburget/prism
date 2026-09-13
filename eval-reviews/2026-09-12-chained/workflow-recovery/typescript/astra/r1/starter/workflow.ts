@@ -7,13 +7,13 @@ export class DomainError extends Error {
     this.code = code;
   }
 }
-function require(
+export function require(
   condition: unknown,
   code = "INVALID_INPUT",
 ): asserts condition {
   if (!condition) throw new DomainError(code);
 }
-function fields(
+export function fields(
   value: unknown,
   required: string[],
   optional: string[] = [],
@@ -28,7 +28,7 @@ function fields(
   );
   return obj;
 }
-function integer(value: unknown, low: number, high: number): number {
+export function integer(value: unknown, low: number, high: number): number {
   require(
     typeof value === "number" &&
       Number.isInteger(value) &&
@@ -37,7 +37,7 @@ function integer(value: unknown, low: number, high: number): number {
   );
   return value;
 }
-function identifier(value: unknown): string {
+export function identifier(value: unknown): string {
   require(
     typeof value === "string" &&
       value.length >= 1 &&
@@ -63,7 +63,7 @@ export interface Workflow {
   readonly maxAttempts: number;
   readonly retryDelay: number;
 }
-function parseStep(raw: unknown): StepDefinition {
+export function parseStep(raw: unknown): StepDefinition {
   const obj = fields(raw, ["id", "needs", "amount"], ["failures"]);
   const id = identifier(obj.id);
   require(Array.isArray(obj.needs));
@@ -113,7 +113,7 @@ function parseCommand(raw: unknown): Command {
       throw new DomainError("INVALID_INPUT");
   }
 }
-function validateGraph(steps: readonly StepDefinition[]): void {
+export function validateGraph(steps: readonly StepDefinition[]): void {
   const ids = new Set(steps.map((step) => step.id));
   require(ids.size === steps.length, "DUPLICATE_STEP");
   require(steps.every((step) =>

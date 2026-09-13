@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { DomainError, parseWorkflow, Simulator } from "./workflow.ts";
+import { LeasedSimulator, parseLeasedWorkflow } from "./leased.ts";
 
 let response: unknown;
 try {
@@ -18,7 +19,10 @@ try {
   ) as { input?: unknown };
   response = {
     ok: true,
-    result: new Simulator(parseWorkflow(request?.input)).run(),
+    result: request?.input !== null && typeof request?.input === "object" &&
+      Object.hasOwn(request.input, "workers")
+      ? new LeasedSimulator(parseLeasedWorkflow(request.input)).run()
+      : new Simulator(parseWorkflow(request?.input)).run(),
   };
 } catch (error) {
   if (error instanceof DomainError)
