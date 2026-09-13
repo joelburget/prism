@@ -1,15 +1,38 @@
 import Data.List (..)
 import Data.Foldable (..)
-import Data.String (..)
-import Data.Result (..)
 import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
-  }
+fn same_key(a : ActionKey, b : ActionKey) : Bool = a.run_id == b.run_id && a.step_id == b.step_id
+
+fn has_effect(service : MockService, key : ActionKey) : Bool =
+  any(\(e) -> same_key(e.key, key), service.effects)
+
+fn is_execute(kind : CallKind) : Bool =
+  match kind of
+    ExecuteCall => true
+    LookupCall => false
+
+fn prior_execute_calls(service : MockService, key : ActionKey) : Int =
+  count(\(call) -> same_key(call.key, key) && is_execute(call.kind), service.calls)
+
+-- Atomically decides execute's outcome and appends its audit entry and effect, if any.
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : (MockService, CallOutcome) =
+  if has_effect(service, key) then
+    let call = ServiceCall { key = key, attempt = attempt, kind = ExecuteCall, outcome = Replayed }
+    (MockService { ..service, calls = append(service.calls, [call]) }, Replayed)
+  elif prior_execute_calls(service, key) < failures then
+    let call = ServiceCall { key = key, attempt = attempt, kind = ExecuteCall, outcome = Transient }
+    (MockService { ..service, calls = append(service.calls, [call]) }, Transient)
+  else
+    let call = ServiceCall { key = key, attempt = attempt, kind = ExecuteCall, outcome = Applied }
+    (MockService {
+      calls = append(service.calls, [call]),
+      effects = append(service.effects, [Effect { key = key, amount = amount }])
+    }, Applied)
+
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : (MockService, CallOutcome) =
+  let outcome = if has_effect(service, key) then Found else Missing
+  let call = ServiceCall { key = key, attempt = attempt, kind = LookupCall, outcome = outcome }
+  (MockService { ..service, calls = append(service.calls, [call]) }, outcome)
