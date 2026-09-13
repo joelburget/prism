@@ -1,0 +1,16 @@
+{
+  "run_id": "run-e74c7484b4ee",
+  "checkpoint": 1,
+  "model": "sol",
+  "model_id": "gpt-5.6-sol",
+  "task": "workflow-recovery",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "61ea30464f75f02cace2a31e1e85d38112f10476eb6f11d2a8971c25e65cfc82",
+  "passed": true,
+  "seconds": 164.6881590000121,
+  "tool_calls": 11,
+  "flags": [],
+  "result_sha256": "64c0863da734201738de27fdf5b52d9f5829dd1a469afeadcd84798dcc2a5748",
+  "archive_note": "Exact frozen source"
+}

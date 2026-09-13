@@ -6,10 +6,28 @@ import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
-  }
+fn same_key(a : ActionKey, b : ActionKey) : Bool =
+  a.run_id == b.run_id && a.step_id == b.step_id
+
+fn effect_exists(service : MockService, key : ActionKey) : Bool =
+  any(\(entry) -> same_key(entry.key, key), service.effects)
+
+fn execute_count(calls : List(ServiceCall), key : ActionKey) : Int =
+  foldl(\(n, call) -> if call.kind == "execute" && same_key(call.key, key) then n + 1 else n, 0, calls)
+
+fn add_call(service : MockService, kind : String, key : ActionKey, attempt : Int, outcome : String) : MockService =
+  MockService { ..service, calls = append(service.calls,
+    [ServiceCall { kind = kind, key = key, attempt = attempt, outcome = outcome }]) }
+
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : ServiceResult =
+  if effect_exists(service, key) then
+    ServiceResult { service = add_call(service, "execute", key, attempt, "replayed"), outcome = "replayed" }
+  elif execute_count(service.calls, key) < failures then
+    ServiceResult { service = add_call(service, "execute", key, attempt, "transient"), outcome = "transient" }
+  else
+    let effected = MockService { ..service, effects = append(service.effects, [Effect { key = key, amount = amount }]) }
+    ServiceResult { service = add_call(effected, "execute", key, attempt, "applied"), outcome = "applied" }
+
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : ServiceResult =
+  let outcome = if effect_exists(service, key) then "found" else "missing"
+  ServiceResult { service = add_call(service, "lookup", key, attempt, outcome), outcome = outcome }

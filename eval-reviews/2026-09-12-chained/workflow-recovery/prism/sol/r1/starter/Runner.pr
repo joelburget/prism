@@ -46,9 +46,23 @@ fn replace_step(run : RunState, replacement : StepState) : RunState =
 fn replace_run(sim : Simulator, replacement : RunState) : Simulator =
   Simulator { ..sim, runs = map(\(run) -> if run.id == replacement.id then replacement else run, sim.runs) }
 
-pub fn tick(sim : Simulator, workflow : Workflow) : Simulator =
+fn block_pending(step : StepState) : StepState =
+  if step.status == Pending then StepState { ..step, status = Blocked } else step
+
+fn cancel_pending(step : StepState) : StepState =
+  if step.status == Pending then StepState { ..step, status = Cancelled } else step
+
+fn commit_success(sim : Simulator, run : RunState, running : StepState) : Simulator =
+  let completed = replace_step(run, StepState { ..running, status = Succeeded })
+  let finished =
+    if all(\(step) -> step.status == Succeeded, completed.steps) then
+      RunState { ..completed, status = Completed }
+    else completed
+  replace_run(sim, finished)
+
+pub fn tick(sim : Simulator, workflow : Workflow, checkpoint : Option(Checkpoint)) : Result(Simulator, String) =
   match select_action(sim, workflow) of
-    None => sim
+    None => Ok(sim)
     Some(action) =>
       let running =
         if action.step.status == Pending then
@@ -56,29 +70,64 @@ pub fn tick(sim : Simulator, workflow : Workflow) : Simulator =
         else action.step
       let begun_run = replace_step(action.run, running)
       let begun = replace_run(sim, begun_run)
-      let key = ActionKey { run_id = action.run.id, step_id = running.id }
-      let service = execute(begun.service, key, action.definition.amount, running.attempts)
-      let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })
-      let finished =
-        if all(\(step) -> step.status == Succeeded, completed.steps) then
-          RunState { ..completed, status = Completed }
-        else completed
-      replace_run(Simulator { ..begun, service = service }, finished)
+      match checkpoint of
+        Some(AfterBegin) => Ok(Simulator { ..begun, up = false })
+        _ =>
+          let key = ActionKey { run_id = action.run.id, step_id = running.id }
+          let response =
+            if begun_run.status == Cancelling then lookup(begun.service, key, running.attempts)
+            else execute(begun.service, key, action.definition.amount, running.attempts, action.definition.failures)
+          let called = Simulator { ..begun, service = response.service }
+          match checkpoint of
+            Some(AfterCall) => Ok(Simulator { ..called, up = false })
+            _ =>
+              if begun_run.status == Cancelling then
+                let reconciled_status = if response.outcome == "found" then Succeeded else Cancelled
+                let reconciled = replace_step(begun_run, StepState { ..running, status = reconciled_status })
+                Ok(replace_run(called, RunState { ..reconciled, status = RunCancelled }))
+              elif response.outcome == "transient" then
+                if running.attempts < workflow.max_attempts then
+                  if sim.now + workflow.retry_delay > time_limit() then Err("TIME_OVERFLOW")
+                  else
+                    let pending = StepState { ..running, status = Pending, ready_at = sim.now + workflow.retry_delay }
+                    Ok(replace_run(called, replace_step(begun_run, pending)))
+                else
+                  let failed = replace_step(begun_run, StepState { ..running, status = Failed })
+                  let stopped = RunState { ..failed, status = RunFailed, steps = map(block_pending, failed.steps) }
+                  Ok(replace_run(called, stopped))
+              else Ok(commit_success(called, begun_run, running))
 
 pub fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : Result(Simulator, String) =
   match command of
     Start(id) =>
-      if any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
+      if not(sim.up) then Err("PROCESS_DOWN")
+      elif any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
       else
         let run = RunState { id = id, status = Active, cancel_requested = false,
           steps = map(\(definition) -> new_step(sim.now, definition), workflow.steps) }
         Ok(Simulator { ..sim, runs = append(sim.runs, [run]) })
-    Tick(None) => Ok(tick(sim, workflow))
+    Tick(checkpoint) =>
+      if not(sim.up) then Err("PROCESS_DOWN") else tick(sim, workflow, checkpoint)
     Advance(by) =>
       if sim.now + by > time_limit() then Err("TIME_OVERFLOW")
       else Ok(Simulator { ..sim, now = sim.now + by })
     Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })
-    _ => Err("UNSUPPORTED_FEATURE")
+    Crash =>
+      if not(sim.up) then Err("PROCESS_DOWN") else Ok(Simulator { ..sim, up = false })
+    Restart =>
+      if sim.up then Err("PROCESS_UP") else Ok(Simulator { ..sim, up = true })
+    Cancel(id) =>
+      if not(sim.up) then Err("PROCESS_DOWN")
+      else
+        match find(\(run) -> run.id == id, sim.runs) of
+          None => Err("UNKNOWN_RUN")
+          Some(run) =>
+            if run.status == Completed || run.status == RunFailed || run.status == RunCancelled then Ok(sim)
+            else
+              let steps = map(cancel_pending, run.steps)
+              let has_running = any(\(step) -> step.status == Running, steps)
+              let status = if has_running then Cancelling else RunCancelled
+              Ok(replace_run(sim, RunState { ..run, status = status, cancel_requested = true, steps = steps }))
 
 fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
   match commands of
@@ -88,5 +137,4 @@ fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) 
       run_commands(next, workflow, rest)
 
 pub fn simulate(workflow : Workflow) : Result(Simulator, String) =
-  if any(\(step) -> step.failures > 0, workflow.steps) then Err("UNSUPPORTED_FEATURE")
-  else run_commands(new_simulator(), workflow, workflow.commands)
+  run_commands(new_simulator(), workflow, workflow.commands)
