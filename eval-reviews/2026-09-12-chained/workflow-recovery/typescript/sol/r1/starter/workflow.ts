@@ -63,6 +63,23 @@ export interface Workflow {
   readonly maxAttempts: number;
   readonly retryDelay: number;
 }
+
+export type LeasedCommand =
+  | { op: "start" | "cancel"; run: string }
+  | { op: "advance"; by: number }
+  | { op: "observe" }
+  | { op: "crash" | "restart" | "claim"; worker: string }
+  | { op: "renew" | "call"; worker: string; ticket: number }
+  | { op: "deliver"; ticket: number };
+export interface LeasedWorkflow {
+  readonly leased: true;
+  readonly steps: readonly StepDefinition[];
+  readonly commands: readonly LeasedCommand[];
+  readonly workers: readonly string[];
+  readonly maxAttempts: number;
+  readonly retryDelay: number;
+  readonly leaseDuration: number;
+}
 function parseStep(raw: unknown): StepDefinition {
   const obj = fields(raw, ["id", "needs", "amount"], ["failures"]);
   const id = identifier(obj.id);
@@ -113,6 +130,40 @@ function parseCommand(raw: unknown): Command {
       throw new DomainError("INVALID_INPUT");
   }
 }
+function parseLeasedCommand(raw: unknown): LeasedCommand {
+  require(raw !== null && typeof raw === "object" && !Array.isArray(raw));
+  const obj = raw as Record<string, unknown>;
+  switch (obj.op) {
+    case "start":
+    case "cancel":
+      fields(raw, ["op", "run"]);
+      return { op: obj.op, run: identifier(obj.run) };
+    case "advance":
+      fields(raw, ["op", "by"]);
+      return { op: "advance", by: integer(obj.by, 0, TIME_LIMIT) };
+    case "observe":
+      fields(raw, ["op"]);
+      return { op: "observe" };
+    case "crash":
+    case "restart":
+    case "claim":
+      fields(raw, ["op", "worker"]);
+      return { op: obj.op, worker: identifier(obj.worker) };
+    case "renew":
+    case "call":
+      fields(raw, ["op", "worker", "ticket"]);
+      return {
+        op: obj.op,
+        worker: identifier(obj.worker),
+        ticket: integer(obj.ticket, 1, TIME_LIMIT),
+      };
+    case "deliver":
+      fields(raw, ["op", "ticket"]);
+      return { op: "deliver", ticket: integer(obj.ticket, 1, TIME_LIMIT) };
+    default:
+      throw new DomainError("INVALID_INPUT");
+  }
+}
 function validateGraph(steps: readonly StepDefinition[]): void {
   const ids = new Set(steps.map((step) => step.id));
   require(ids.size === steps.length, "DUPLICATE_STEP");
@@ -130,7 +181,29 @@ function validateGraph(steps: readonly StepDefinition[]): void {
     remaining = remaining.filter((step) => !visited.has(step.id));
   }
 }
-export function parseWorkflow(raw: unknown): Workflow {
+export function parseWorkflow(raw: unknown): Workflow | LeasedWorkflow {
+  if (raw !== null && typeof raw === "object" && !Array.isArray(raw) &&
+      Object.hasOwn(raw, "workers")) {
+    const obj = fields(raw, ["steps", "commands", "workers"], [
+      "max_attempts", "retry_delay", "lease_duration",
+    ]);
+    require(Array.isArray(obj.steps) && obj.steps.length > 0);
+    require(Array.isArray(obj.commands) && obj.commands.length <= 2_000);
+    require(Array.isArray(obj.workers) && obj.workers.length > 0 && obj.workers.length <= 100);
+    const workers = obj.workers.map(identifier);
+    require(new Set(workers).size === workers.length);
+    const workflow: LeasedWorkflow = {
+      leased: true,
+      steps: obj.steps.map(parseStep),
+      commands: obj.commands.map(parseLeasedCommand),
+      workers,
+      maxAttempts: integer(Object.hasOwn(obj, "max_attempts") ? obj.max_attempts : 3, 1, 10),
+      retryDelay: integer(Object.hasOwn(obj, "retry_delay") ? obj.retry_delay : 2, 1, 1_000_000),
+      leaseDuration: integer(Object.hasOwn(obj, "lease_duration") ? obj.lease_duration : 5, 1, 1_000_000),
+    };
+    validateGraph(workflow.steps);
+    return workflow;
+  }
   const obj = fields(
     raw,
     ["steps", "commands"],
@@ -250,7 +323,7 @@ interface Action {
   step: StepState;
   definition: StepDefinition;
 }
-export class Simulator {
+export class LegacySimulator {
   readonly workflow: Workflow;
   now = 0;
   up = true;
@@ -441,5 +514,312 @@ export class Simulator {
         effects: this.service.effects,
       },
     };
+  }
+}
+
+type Lease = { worker: string; ticket: number; expires: number };
+type LeasedStepState = StepState & { lease: Lease | null };
+type LeasedRunStatus = RunState["status"] | "failing";
+type LeasedRunState = Omit<RunState, "status" | "steps"> & {
+  status: LeasedRunStatus;
+  steps: LeasedStepState[];
+};
+type WorkerState = { id: string; up: boolean };
+type LeasedReceipt =
+  | { kind: "execute"; outcome: ExecuteOutcome }
+  | { kind: "lookup"; outcome: LookupOutcome };
+type LeasedCall = LeasedReceipt & {
+  worker: string;
+  ticket: number;
+  key: ActionKey;
+  attempt: number;
+};
+interface TicketState {
+  id: number;
+  worker: WorkerState;
+  run: LeasedRunState;
+  step: LeasedStepState;
+  definition: StepDefinition;
+  kind: "execute" | "lookup";
+  receipt?: LeasedReceipt;
+  delivered: boolean;
+}
+
+class LeasedMockService {
+  readonly calls: LeasedCall[] = [];
+  readonly effects: Effect[] = [];
+  private readonly effectsByKey = new Map<string, Effect>();
+  private readonly failuresByKey = new Map<string, number>();
+
+  invoke(ticket: TicketState): LeasedReceipt {
+    const key: ActionKey = [ticket.run.id, ticket.step.id];
+    const encoded = JSON.stringify(key);
+    let receipt: LeasedReceipt;
+    if (ticket.kind === "lookup") {
+      receipt = {
+        kind: "lookup",
+        outcome: this.effectsByKey.has(encoded) ? "found" : "missing",
+      };
+    } else {
+      let outcome: ExecuteOutcome;
+      if (this.effectsByKey.has(encoded)) {
+        outcome = "replayed";
+      } else {
+        const failures = this.failuresByKey.get(encoded) ?? 0;
+        if (failures < ticket.definition.failures) {
+          this.failuresByKey.set(encoded, failures + 1);
+          outcome = "transient";
+        } else {
+          const effect: Effect = { key, amount: ticket.definition.amount };
+          this.effectsByKey.set(encoded, effect);
+          this.effects.push(effect);
+          outcome = "applied";
+        }
+      }
+      receipt = { kind: "execute", outcome };
+    }
+    this.calls.push({
+      worker: ticket.worker.id,
+      ticket: ticket.id,
+      kind: receipt.kind,
+      key,
+      attempt: ticket.step.attempts,
+      outcome: receipt.outcome,
+    } as LeasedCall);
+    return receipt;
+  }
+}
+
+class LeasedSimulator {
+  readonly workflow: LeasedWorkflow;
+  now = 0;
+  readonly workers: WorkerState[];
+  readonly runs: LeasedRunState[] = [];
+  readonly tickets = new Map<number, TicketState>();
+  readonly service = new LeasedMockService();
+  private nextTicket = 1;
+
+  constructor(workflow: LeasedWorkflow) {
+    this.workflow = workflow;
+    this.workers = workflow.workers.map((id) => ({ id, up: true }));
+  }
+
+  private worker(id: string, mustBeUp: boolean): WorkerState {
+    const worker = this.workers.find((candidate) => candidate.id === id);
+    require(worker !== undefined, "UNKNOWN_WORKER");
+    if (mustBeUp) require(worker.up, "WORKER_DOWN");
+    return worker;
+  }
+
+  private ownedTicket(worker: WorkerState, id: number): TicketState {
+    const ticket = this.tickets.get(id);
+    require(ticket !== undefined, "UNKNOWN_TICKET");
+    require(ticket.worker === worker, "WRONG_WORKER");
+    return ticket;
+  }
+
+  private isCurrentLive(ticket: TicketState): boolean {
+    return ticket.step.lease?.ticket === ticket.id && this.now < ticket.step.lease.expires;
+  }
+
+  private addTime(delta: number): number {
+    require(this.now + delta <= TIME_LIMIT, "TIME_OVERFLOW");
+    return this.now + delta;
+  }
+
+  private definition(step: LeasedStepState): StepDefinition {
+    return this.workflow.steps.find((candidate) => candidate.id === step.id)!;
+  }
+
+  private findClaimable(): { run: LeasedRunState; step: LeasedStepState; definition: StepDefinition } | undefined {
+    for (const run of this.runs) {
+      for (const step of run.steps) {
+        if (step.status === "running" && step.lease !== null && step.lease.expires <= this.now)
+          return { run, step, definition: this.definition(step) };
+      }
+    }
+    for (const run of this.runs) {
+      if (run.status !== "active") continue;
+      const succeeded = new Set(run.steps.filter((step) => step.status === "succeeded").map((step) => step.id));
+      for (const [index, step] of run.steps.entries()) {
+        const definition = this.workflow.steps[index]!;
+        if (step.status === "pending" && step.ready_at <= this.now &&
+            definition.needs.every((id) => succeeded.has(id)))
+          return { run, step, definition };
+      }
+    }
+    return undefined;
+  }
+
+  private claim(worker: WorkerState): { ticket: number | null } {
+    require(!this.runs.some((run) => run.steps.some((step) =>
+      step.status === "running" && step.lease?.worker === worker.id && this.now < step.lease.expires,
+    )), "WORKER_BUSY");
+    const action = this.findClaimable();
+    if (!action) return { ticket: null };
+    const expires = this.addTime(this.workflow.leaseDuration);
+    require(this.nextTicket <= TIME_LIMIT, "TIME_OVERFLOW");
+    const id = this.nextTicket++;
+    if (action.step.status === "pending") {
+      action.step.status = "running";
+      action.step.attempts++;
+    }
+    action.step.lease = { worker: worker.id, ticket: id, expires };
+    const ticket: TicketState = {
+      id,
+      worker,
+      ...action,
+      kind: action.run.status === "active" ? "execute" : "lookup",
+      delivered: false,
+    };
+    this.tickets.set(id, ticket);
+    return { ticket: id };
+  }
+
+  private finishDraining(run: LeasedRunState): void {
+    if (run.steps.some((step) => step.status === "running")) return;
+    run.status = run.status === "failing" ? "failed" : "cancelled";
+  }
+
+  private beginFailure(run: LeasedRunState, failed: LeasedStepState): void {
+    failed.status = "failed";
+    for (const step of run.steps) {
+      if (step.status === "pending") step.status = "blocked";
+    }
+    const running = run.steps.filter((step) => step.status === "running");
+    if (running.length === 0) {
+      run.status = "failed";
+    } else {
+      run.status = "failing";
+      for (const step of running) if (step.lease) step.lease.expires = this.now;
+    }
+  }
+
+  private commit(ticket: TicketState): void {
+    const { run, step, receipt } = ticket;
+    if (!receipt) return;
+    step.lease = null;
+    ticket.delivered = true;
+    if (receipt.kind === "lookup") {
+      if (run.status === "failing")
+        step.status = receipt.outcome === "found" ? "succeeded" : "blocked";
+      else
+        step.status = receipt.outcome === "found" ? "succeeded" : "cancelled";
+      this.finishDraining(run);
+      return;
+    }
+    if (receipt.outcome === "applied" || receipt.outcome === "replayed") {
+      step.status = "succeeded";
+      if (run.steps.every((candidate) => candidate.status === "succeeded")) run.status = "succeeded";
+    } else if (step.attempts < this.workflow.maxAttempts) {
+      step.ready_at = this.addTime(this.workflow.retryDelay);
+      step.status = "pending";
+    } else {
+      this.beginFailure(run, step);
+    }
+  }
+
+  private cancel(runId: string): void {
+    const run = this.runs.find((candidate) => candidate.id === runId);
+    require(run !== undefined, "UNKNOWN_RUN");
+    if (["succeeded", "failed", "cancelled", "failing"].includes(run.status) || run.status === "cancelling") return;
+    run.cancel_requested = true;
+    for (const step of run.steps) {
+      if (step.status === "pending") step.status = "cancelled";
+      else if (step.status === "running" && step.lease) step.lease.expires = this.now;
+    }
+    run.status = run.steps.some((step) => step.status === "running") ? "cancelling" : "cancelled";
+  }
+
+  private snapshot(): { now: number; workers: WorkerState[]; runs: LeasedRunState[] } {
+    return {
+      now: this.now,
+      workers: this.workers.map((worker) => ({ ...worker })),
+      runs: this.runs.map((run) => ({
+        ...run,
+        steps: run.steps.map((step) => ({
+          ...step,
+          lease: step.lease === null ? null : { ...step.lease },
+        })),
+      })),
+    };
+  }
+
+  private apply(command: LeasedCommand): unknown {
+    switch (command.op) {
+      case "start":
+        require(this.runs.every((run) => run.id !== command.run), "DUPLICATE_RUN");
+        this.runs.push({
+          id: command.run, status: "active", cancel_requested: false,
+          steps: this.workflow.steps.map((step) => ({
+            id: step.id, status: "pending", attempts: 0, ready_at: this.now, lease: null,
+          })),
+        });
+        return null;
+      case "advance":
+        this.now = this.addTime(command.by);
+        return null;
+      case "observe":
+        return this.snapshot();
+      case "crash": {
+        const worker = this.worker(command.worker, true);
+        worker.up = false;
+        return null;
+      }
+      case "restart": {
+        const worker = this.worker(command.worker, false);
+        require(!worker.up, "WORKER_UP");
+        worker.up = true;
+        return null;
+      }
+      case "claim":
+        return this.claim(this.worker(command.worker, true));
+      case "renew": {
+        const worker = this.worker(command.worker, true);
+        const ticket = this.ownedTicket(worker, command.ticket);
+        if (!this.isCurrentLive(ticket)) return { renewed: false };
+        ticket.step.lease!.expires = this.addTime(this.workflow.leaseDuration);
+        return { renewed: true };
+      }
+      case "call": {
+        const worker = this.worker(command.worker, true);
+        const ticket = this.ownedTicket(worker, command.ticket);
+        if (!this.isCurrentLive(ticket)) return { outcome: "stale" };
+        ticket.receipt ??= this.service.invoke(ticket);
+        return { ...ticket.receipt };
+      }
+      case "deliver": {
+        const ticket = this.tickets.get(command.ticket);
+        require(ticket !== undefined, "UNKNOWN_TICKET");
+        if (!ticket.receipt || ticket.delivered || !ticket.worker.up || !this.isCurrentLive(ticket))
+          return { committed: false };
+        this.commit(ticket);
+        return { committed: true };
+      }
+      case "cancel":
+        this.cancel(command.run);
+        return null;
+    }
+  }
+
+  run(): { results: unknown[]; final: ReturnType<LeasedSimulator["snapshot"]> & { calls: LeasedCall[]; effects: Effect[] } } {
+    const results = this.workflow.commands.map((command) => this.apply(command));
+    return {
+      results,
+      final: { ...this.snapshot(), calls: this.service.calls, effects: this.service.effects },
+    };
+  }
+}
+
+/** Selects the checkpoint-one or leased protocol without changing either wire shape. */
+export class Simulator {
+  private readonly implementation: LegacySimulator | LeasedSimulator;
+  constructor(workflow: Workflow | LeasedWorkflow) {
+    this.implementation = "leased" in workflow
+      ? new LeasedSimulator(workflow)
+      : new LegacySimulator(workflow);
+  }
+  run(): unknown {
+    return this.implementation.run();
   }
 }

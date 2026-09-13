@@ -1,16 +1,16 @@
 {
-  "run_id": "run-25395b221f87",
-  "checkpoint": 1,
+  "run_id": "run-10e815b22f5b",
+  "checkpoint": 2,
   "model": "sol",
   "model_id": "gpt-5.6-sol",
   "task": "workflow-recovery",
   "language": "typescript",
   "source_available": true,
-  "source_sha256": "539782fb63c8bb7a5d158124909908e2c9a63d6aa1214878cafe70cb0bb6394c",
+  "source_sha256": "2647bfaeee321e3cd386d40d086649b1d2f7fb4bd17471eb9df0677dae0d57a9",
   "passed": true,
-  "seconds": 164.94609949999722,
-  "tool_calls": 9,
+  "seconds": 188.5323607089813,
+  "tool_calls": 8,
   "flags": [],
-  "result_sha256": "e199051c52678703262bf8373a1254ca57b48b18ef93ba4e270779f504997938",
+  "result_sha256": "284b8a48fc0964242973a7c4f180a0bb043fd933e4b24e26444924995868535c",
   "archive_note": "Exact frozen source"
 }
