@@ -1,4 +1,4 @@
-"""Run briefing examples with the pinned image or a supplied Prism 0.18.0 binary."""
+"""Run briefing examples with the pinned image or a supplied, supported Prism release binary."""
 import os
 from pathlib import Path
 import re
@@ -6,18 +6,24 @@ import subprocess
 import tempfile
 import unittest
 
-BRIEFING=Path(__file__).resolve().parents[1]/'experiments/context/prism-0.18.md'
+CONTEXT=Path(__file__).resolve().parents[1]/'experiments/context'
+EDITIONS={
+    'prism 0.18.0': ('prism-0.18.md', ['5\n2\n', '4\n6\n']),
+    'prism 0.22.0': ('prism-0.22.md', ['5\n2\n', '5\n2\n', '4\n6\n']),
+}
 TASK_IMAGE='sha256:4f6df9a771a25185f6d354eac92bddbad1b2addb27fda5014d3cb0f9cfabee39'
 
 class PrismBriefingExamples(unittest.TestCase):
-    @unittest.skipUnless(os.environ.get('PRISM_EVAL_DOCKER_TESTS')=='1' or os.environ.get('PRISM_BRIEFING_COMPILER'),'opt-in Prism 0.18.0 toolchain')
+    @unittest.skipUnless(os.environ.get('PRISM_EVAL_DOCKER_TESTS')=='1' or os.environ.get('PRISM_BRIEFING_COMPILER'),'opt-in Prism toolchain')
     def test_complete_examples_compile_and_match_documented_output(self):
-        blocks=re.findall(r'```prism\n(.*?)```',BRIEFING.read_text(),re.S)
-        expected=['5\n2\n','4\n6\n'];self.assertEqual(len(blocks),len(expected))
         compiler=os.environ.get('PRISM_BRIEFING_COMPILER')
+        version='prism 0.18.0'  # The Docker task image remains pinned.
         if compiler:
             version=subprocess.run([compiler,'--version'],capture_output=True,text=True,check=True).stdout.strip()
-            self.assertEqual(version,'prism 0.18.0')
+        self.assertIn(version,EDITIONS,'No verified briefing edition for this compiler')
+        filename,expected=EDITIONS[version]
+        blocks=re.findall(r'```prism\n(.*?)```',(CONTEXT/filename).read_text(),re.S)
+        self.assertEqual(len(blocks),len(expected))
         with tempfile.TemporaryDirectory(prefix='prism-briefing-check-') as temporary:
             for number,(code,answer) in enumerate(zip(blocks,expected),1):
                 with self.subTest(example=number):

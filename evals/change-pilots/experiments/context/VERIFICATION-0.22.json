@@ -1,0 +1,31 @@
+{
+  "verified_at": "2026-09-13T19:06:05.516223+00:00",
+  "briefing_sha256": "bf3a0841bac2572ddab8dc9090501837225e097c8f48312eaa131b61a0f4de88",
+  "compiler_version": "prism 0.22.0",
+  "upstream_source_commit": "b643c4acfd371ba37d13fdedf0742154e5b69806",
+  "compiler_binary_sha256": "ac0e17bc24e5abb460bf114dc687391d01c3eea72644b232e377408506e1598b",
+  "compiler_source": "Installed Homebrew binary",
+  "platform": "aarch64-apple-darwin",
+  "examples": [
+    {
+      "index": 1,
+      "source_sha256": "ce38f553e929dba1c5cf65741b66719709d3f66c8e4f8d55a12e96a14054c708",
+      "compiled": true,
+      "stdout": "5\n2\n"
+    },
+    {
+      "index": 2,
+      "source_sha256": "1bdf826fc71e8ee739b8e1a96ec35688f21d76cffe382ad7dc3007d7f421ab19",
+      "compiled": true,
+      "stdout": "5\n2\n"
+    },
+    {
+      "index": 3,
+      "source_sha256": "fc382d291f6f7e8a21206b497f567d16a39aec4e17842b8074561e97d7abaf3f",
+      "compiled": true,
+      "stdout": "4\n6\n"
+    }
+  ],
+  "model_inference_requests": 0,
+  "limitation": "Verified with the installed macOS 0.22.0 compiler. Evaluation Docker images and their 0.18 briefing profile remain pinned to 0.18.0; no 0.22 Docker verification or performance calibration was performed."
+}

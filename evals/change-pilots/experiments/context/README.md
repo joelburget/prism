@@ -6,11 +6,27 @@ stages, 25 recorded execute commands containing `/opt/prism-docs`, 20 mentioned
 `/opt/prism-docs/spec.md`, and 22 mentioned `/opt/prism-lib`. These are trace-string
 counts, not proof of what a model read or understood.
 
-`prism-0.18.md` is a short, task-independent briefing about syntax, standard-library
-APIs, collection costs, immutable state, and the build/test loop. Its complete code
-examples are checked with Prism 0.18.0; the opt-in test accepts the pinned task
-image or an explicitly supplied 0.18.0 release binary. It includes no held-out
-cases, test answers, performance thresholds, or query/workflow solution algorithm.
+The task-independent briefings cover syntax, standard-library APIs, collection
+costs, state, and the build/test loop. They include no held-out cases, test answers,
+performance thresholds, or query/workflow solution algorithm.
+
+- [`prism-0.22.md`](prism-0.22.md) is the current upstream edition, checked against
+  Prism 0.22.0. It adds typed `var` bindings and field-path assignments, explains
+  the inferred ordering brand on `Map`, and expands collection-cost guidance using
+  the new explicit complexity documentation. Local typed `let` bindings remain
+  unsupported. Its three complete examples are compiled and executed.
+- [`prism-0.18.md`](prism-0.18.md) is preserved for the existing 0.18.0 task images
+  and `prism-brief-v1` profile. Its original verification receipt and text remain
+  unchanged so archived experiments retain their documented language context.
+
+**The evaluation runtime is still pinned to 0.18.0.** `--prism-briefing` therefore
+continues to inject the 0.18 edition. Rebasing the repository does not update the
+Docker images, their offline documentation, native-client verification receipts,
+or performance calibration. Before using the 0.22 briefing in a cohort, rebuild
+and verify the task environment on 0.22, check the starters, recalibrate performance,
+and wire the new edition into a distinct frozen context profile. Do not inject the
+0.22 briefing into an existing 0.18 plan or compare a combined compiler/briefing
+upgrade as if it isolated the briefing's effect.
 
 For a new chained plan, add `--prism-briefing`:
 
@@ -47,8 +63,14 @@ PRISM_EVAL_DOCKER_TESTS=1 python3 -m unittest discover \
   -s evals/change-pilots/tests -p test_prism_briefing.py -v
 ```
 
-Alternatively, set `PRISM_BRIEFING_COMPILER=/absolute/path/to/prism-0.18.0` when
-running that test. It refuses a different compiler version. The installed host
-compiler may have advanced since the original evaluation; do not validate this
-briefing against its unpinned `prism` command. `VERIFICATION.json` records the
-release binary and outputs used for this briefing's initial verification.
+Alternatively, supply a release binary explicitly:
+
+```sh
+PRISM_BRIEFING_COMPILER=/absolute/path/to/prism python3 -m unittest discover \
+  -s evals/change-pilots/tests -p test_prism_briefing.py -v
+```
+
+The test reads `--version` and selects the matching 0.18.0 or 0.22.0 edition;
+other versions are rejected. The Docker mode always checks the 0.18 edition with
+the pinned image. `VERIFICATION.json` records the original 0.18 release-binary
+verification; `VERIFICATION-0.22.json` records the 0.22 compiler and example outputs.
