@@ -32,34 +32,71 @@ pub fn evaluate(e : Expr, row : List(Json), group : List(List(Json))) : Json =
     at(row, e.index)
   elif agg(op) then
     if op == "COUNT" then
-      JInt(length(group))
+      if length(e.args) == 0 then
+        JInt(length(group))
+      else
+        JInt(length(filter(\(r) -> not(is_null(evaluate(at(e.args, 0), r, []))), group)))
     else
-      let vs = map(\(r) -> evaluate(at(e.args, 0), r, []), group)
+      let vs = filter(
+          \(v) -> not(is_null(v)),
+          map(\(r) -> evaluate(at(e.args, 0), r, []), group),
+        )
       if op == "SUM" then
-        JInt(sum(map(integer, vs)))
+        if length(vs) == 0 then JNull else JInt(sum(map(integer, vs)))
       else
         extremum(vs, op == "MIN")
+  elif op == "COALESCE" then
+    coalesce(e.args, row, group)
   else
     let a = evaluate(at(e.args, 0), row, group)
-    if op == "NOT" then
-      JBool(not(truth(a)))
+    if op == "ISNULL" then
+      JBool(is_null(a))
+    elif op == "ISNOTNULL" then
+      JBool(not(is_null(a)))
+    elif op == "NOT" then
+      if is_null(a) then JNull else JBool(not(truth(a)))
     else
       let b = evaluate(at(e.args, 1), row, group)
-      if op == "+" then
+      if op == "AND" then
+        and_value(a, b)
+      elif op == "OR" then
+        or_value(a, b)
+      elif is_null(a) || is_null(b) then
+        JNull
+      elif op == "+" then
         JInt(integer(a) + integer(b))
       elif op == "-" then
         JInt(integer(a) - integer(b))
       elif op == "*" then
         JInt(integer(a) * integer(b))
-      elif op == "AND" then
-        JBool(truth(a) && truth(b))
-      elif op == "OR" then
-        JBool(truth(a) || truth(b))
       else
         let c = compare_value(a, b)
         JBool(
             if op == "=" then c == 0 elif op == "<>" then c /= 0 elif op == "<" then c < 0 elif op == ">" then c > 0 elif op == "<=" then c <= 0 else c >= 0,
           )
+
+fn coalesce(args : List(Expr), row : List(Json), group : List(List(Json))) : Json =
+  match args of
+    Nil => JNull
+    Cons(e, rest) =>
+      let v = evaluate(e, row, group)
+      if is_null(v) then coalesce(rest, row, group) else v
+
+fn and_value(a : Json, b : Json) : Json =
+  if not(is_null(a)) && not(truth(a)) || not(is_null(b)) && not(truth(b)) then
+    JBool(false)
+  elif is_null(a) || is_null(b) then
+    JNull
+  else
+    JBool(true)
+
+fn or_value(a : Json, b : Json) : Json =
+  if not(is_null(a)) && truth(a) || not(is_null(b)) && truth(b) then
+    JBool(true)
+  elif is_null(a) || is_null(b) then
+    JNull
+  else
+    JBool(false)
 
 fn extremum(vs : List(Json), minimum : Bool) : Json =
   match vs of
@@ -99,12 +136,20 @@ fn combine(es : List(Expr)) : Expr =
     Cons(e, Nil) => e
     Cons(e, rest) => Expr { ..node("AND", [e, combine(rest)]), kind = "bool" }
 
+fn can_push(e : Expr, table_count : Int, left_joins : List(Bool)) : Bool =
+  let ss = sources(e)
+  let source = if length(ss) > 0 then at(ss, 0) else -1
+  table_count > 1
+    && length(ss) > 0
+    && all(\(s) -> s == source, ss)
+    && all(\(left) -> not(left), take(source, left_joins))
+
 -- Push a conjunct only when every referenced slot belongs to one inner-join
 -- input. Slot numbers remain global; scan predicates receive a prefix padding.
 pub fn optimize(plan : Plan) : Plan =
   let q = plan.query
   let terms = conjuncts(fold_constants(q.predicate))
-  let pushable = \(e) -> let ss = sources(e) in length(plan.tables) > 1 && length(ss) > 0 && all(\(s) -> s == at(ss, 0), ss)
+  let pushable = \(e) -> can_push(e, length(plan.tables), q.left_joins)
   let fs = map(
       \(i) -> filter(\(e) -> pushable(e) && at(sources(e), 0) == i, terms),
       range(0, length(plan.tables)),
@@ -122,11 +167,21 @@ pub fn optimize(plan : Plan) : Plan =
 fn join_rows(
   left : List(List(Json)),
   right : List(List(Json)),
-  on : Expr
+  on : Expr,
+  outer : Bool,
+  right_width : Int
 ) : List(List(Json)) =
   flatten(
       map(
-          \(l) -> filter(\(r) -> truth(evaluate(on, r, [])), map(\(r) -> append(l, r), right)),
+          \(l) ->
+            let matches = filter(
+                \(r) -> truth(evaluate(on, r, [])),
+                map(\(r) -> append(l, r), right),
+              ) in
+            if outer && length(matches) == 0 then
+              [append(l, replicate(right_width, JNull))]
+            else
+              matches,
           left,
         ),
     )
@@ -178,15 +233,22 @@ fn distinct_rows(
 fn row_compare(
   a : List(Json),
   b : List(Json),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Int))
 ) : Int =
   match order of
     Nil => 0
-    Cons((i, desc), rest) =>
-      let c = compare_value(at(a, i), at(b, i))
+    Cons((i, desc, nulls), rest) =>
+      let av = at(a, i)
+      let bv = at(b, i)
+      let nulls_first = nulls == 1 || nulls == 0 && desc
+      let c =
+        if is_null(av) && is_null(bv) then 0
+        elif is_null(av) then if nulls_first then -1 else 1
+        elif is_null(bv) then if nulls_first then 1 else -1
+        else compare_value(av, bv)
       if c == 0 then
         row_compare(a, b, rest)
-      elif desc then
+      elif desc && not(is_null(av)) && not(is_null(bv)) then
         -c
       else
         c
@@ -194,7 +256,7 @@ fn row_compare(
 fn insert_row(
   r : List(Json),
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Int))
 ) : List(List(Json)) =
   match rows of
     Nil => [r]
@@ -206,7 +268,7 @@ fn insert_row(
 
 fn sort_rows(
   rows : List(List(Json)),
-  order : List((Int, Bool))
+  order : List((Int, Bool, Int))
 ) : List(List(Json)) =
   match rows of
     Nil => []
@@ -228,7 +290,13 @@ pub fn execute(plan : Plan) : Json =
     offset += length(t.columns)
   var rows := at(scans, 0)
   for i in srange(0, length(q.joins)) do
-    rows := join_rows(rows, at(scans, i + 1), at(q.joins, i))
+    rows := join_rows(
+        rows,
+        at(scans, i + 1),
+        at(q.joins, i),
+        at(q.left_joins, i),
+        length(at(plan.tables, i + 1).columns),
+      )
   let filtered = filter(\(r) -> truth(evaluate(q.predicate, r, [])), rows)
   let projected =
     if plan.aggregate then

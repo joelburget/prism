@@ -1,0 +1,16 @@
+{
+  "run_id": "run-0e592018d540",
+  "checkpoint": 1,
+  "model": "sol",
+  "model_id": "gpt-5.6-sol",
+  "task": "query-null",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "78a265105ac2214710f6bf4345bb8b7bb5708b0f434a55012ce95c69d1113c74",
+  "passed": false,
+  "seconds": 439.30584004096454,
+  "tool_calls": 26,
+  "flags": [],
+  "result_sha256": "0b772d61237ae15c3d35829ffb2e5bcee8f4141df193dd2c8eb1b4a138dee8f6",
+  "archive_note": "Exact frozen source"
+}

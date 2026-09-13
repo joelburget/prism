@@ -93,14 +93,21 @@ pub fn value_type(v : Json) : String =
     JInt(_) => "int"
     JBool(_) => "bool"
     JStr(_) => "text"
+    JNull => "null"
     _ => "invalid"
+
+pub fn is_null(v : Json) : Bool =
+  match v of
+    JNull => true
+    _ => false
 
 pub type Column = Column {
   name: String,
   kind: String,
   qualifier: String,
   source: Int,
-  index: Int
+  index: Int,
+  nullable: Bool
 }
 
 pub type Table = Table {
@@ -149,11 +156,12 @@ pub type Query = Query {
   select: List((Expr, String)),
   sources: List((String, String)),
   joins: List(Expr),
+  left_joins: List(Bool),
   predicate: Expr,
   groups: List(Expr),
   having: Expr,
   has_having: Bool,
-  order: List((String, Bool)),
+  order: List((String, Bool, Int)),
   distinct: Bool,
   limit: Int,
   offset: Int
@@ -164,7 +172,7 @@ pub type Plan = Plan {
   tables: List(Table),
   filters: List(List(Expr)),
   aggregate: Bool,
-  order: List((Int, Bool))
+  order: List((Int, Bool, Int))
 }
 
 pub fn validate_table(j : Json) : Table =
@@ -178,7 +186,11 @@ pub fn validate_table(j : Json) : Table =
   for row in sof(rows) do
     demand(length(row) == length(cs), "INVALID_INPUT")
     for i in srange(0, length(cs)) do
-      demand(value_type(at(row, i)) == at(cs, i).kind, "INVALID_INPUT")
+      let v = at(row, i)
+      demand(
+          value_type(v) == at(cs, i).kind || is_null(v) && at(cs, i).nullable,
+          "INVALID_INPUT",
+        )
   Table { name = n, columns = cs, rows = rows }
 
 fn validate_column(j : Json) : Column =
@@ -186,15 +198,19 @@ fn validate_column(j : Json) : Column =
   let n = text(getfield(j, "name"))
   let t = text(getfield(j, "type"))
   demand(name_ok(n) && elem(t, ["int", "text", "bool"]), "INVALID_INPUT")
-  match getfield(j, "nullable") of
-    JBool(b) => demand(not(b), "UNSUPPORTED_FEATURE")
-    _ => reject("INVALID_INPUT")
+  let nullable =
+    match getfield(j, "nullable") of
+      JBool(b) => b
+      _ =>
+        reject("INVALID_INPUT")
+        false
   Column {
     name = n,
     kind = t,
     qualifier = "",
     source = 0,
-    index = 0
+    index = 0,
+    nullable = nullable
   }
 
 pub fn unique(xs : List(String)) : Bool =

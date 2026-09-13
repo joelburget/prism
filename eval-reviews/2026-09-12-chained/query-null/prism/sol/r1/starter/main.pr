@@ -15,6 +15,7 @@ fn validate_query(q : Json) : Unit =
     _ => reject("INVALID_INPUT")
 
 fn work(request : Json) : Json =
+  fields(request, ["protocol_version", "task", "input"])
   demand(
       value_type(getfield(request, "protocol_version")) == "int"
         && integer(getfield(request, "protocol_version")) == 1,

@@ -8,6 +8,10 @@ The modules separate wire validation and models, SQL tokenization/parsing, bindi
 
 Optimization performs bottom-up folding of constant scalar expressions and pushes single-source WHERE conjuncts into inner-join input scans. Conjuncts referencing multiple sources remain above the join. Stable nested-loop joins, encounter-ordered groups, first-occurrence DISTINCT, stable sorting, and pagination preserve the documented ordering in either mode.
 
-This is the non-null baseline: SELECT/WHERE/inner joins, grouped COUNT/SUM/MIN/MAX, global COUNT, GROUP BY/HAVING, DISTINCT/ORDER BY/LIMIT/OFFSET. Nullable schemas, NULL/IS NULL/COALESCE, LEFT JOIN, explicit NULLS ordering, and global SUM/MIN/MAX are intentionally rejected with `UNSUPPORTED_FEATURE`. The starter does not implement the requested extension.
+The engine supports nullable schemas, SQL three-valued logic, NULL/IS NULL/COALESCE,
+left outer joins, explicit NULL ordering, and null-aware grouped and global
+aggregates. Optimized execution retains constant folding and pushes single-source
+filters only when doing so is safe with respect to preceding outer joins.
 
-Validation: all 21 public baseline cases pass. The extension suite is a future modification target, not a conformance claim. This directory is self-contained; `starter.json` lists its export files. Build outputs and dependency installations are ignored.
+This directory is self-contained; `starter.json` lists its export files. Build
+outputs and dependency installations are ignored.
