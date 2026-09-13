@@ -13,6 +13,9 @@
     "model.py",
     "parser.py",
     "run.sh",
-    "test_extension.py"
+    "test_extension.py",
+    "views.py",
+    "test_views.py",
+    "benchmark_views.py"
   ]
 }

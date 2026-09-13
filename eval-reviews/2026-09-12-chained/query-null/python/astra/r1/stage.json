@@ -1,16 +1,16 @@
 {
-  "run_id": "run-c4d2f0c4f8a0",
-  "checkpoint": 1,
+  "run_id": "run-438122f54d3b",
+  "checkpoint": 2,
   "model": "astra",
   "model_id": "gpt-6-astra",
   "task": "query-null",
   "language": "python",
   "source_available": true,
-  "source_sha256": "3f6eaec0175bf92d671176c946a788eadba41f6b2707ee75f4141a7af798c170",
+  "source_sha256": "9f1dbf30c37f5b63740b7acbc2d6ed7c1ce460a044d28e39f5167174ebcf070b",
   "passed": true,
-  "seconds": 259.01636012498057,
-  "tool_calls": 6,
+  "seconds": 323.8106995410053,
+  "tool_calls": 11,
   "flags": [],
-  "result_sha256": "8af52374d69cf8ad272b8c6e4ca4afa23eac9a0856bec395acb9b5388d2d0d5f",
+  "result_sha256": "eea263b207410abf03ff50b193eaf2fa3a2b3d4165eb571cda6359194625de9e",
   "archive_note": "Exact frozen source"
 }

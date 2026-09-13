@@ -8,6 +8,7 @@ def evaluate(e, row, group=None):
     if e.op == 'lit': return e.value
     if e.op == 'col': return row[e.index]
     if e.op in AGGREGATES:
+        if hasattr(group, 'aggregate'): return group.aggregate(e)
         if e.op == 'COUNT' and not e.args: return len(group)
         vs = [v for r in group if (v := evaluate(e.args[0], r)) is not None]
         if e.op == 'COUNT': return len(vs)

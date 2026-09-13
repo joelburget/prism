@@ -5,6 +5,7 @@ from model import DomainError, require, validate
 from parser import Parser
 from binder import bind
 from engine import optimize, execute
+from views import commands
 
 
 def unique_object(pairs):
@@ -20,7 +21,9 @@ def main():
         request = json.loads(sys.stdin.read(), object_pairs_hook=unique_object)
         database, queries = validate(request)
         results = []
-        for query in queries:
+        if 'commands' in request['input']:
+            results = commands(database, queries)
+        for query in ([] if 'commands' in request['input'] else queries):
             plan = bind(Parser(query['sql']).parse(), database)
             results.append(execute(optimize(plan) if query['optimize'] else plan))
         response = {'ok': True, 'result': {'results': results}}
