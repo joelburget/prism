@@ -21,21 +21,27 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
     demand(not(isagg) || allow && not(inside), "INVALID_AGGREGATION")
     let args = map(\(a) -> check(a, columns, allow, inside || isagg), e.args)
     let ts = map(\(a) -> a.kind, args)
+    let base = filter(\(t) -> t /= "null", ts)
     let kind =
       if e.op == "COUNT" then
         "int"
       elif elem(e.op, ["SUM", "+", "-", "*"]) then
-        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
+        demand(all(\(t) -> t == "null" || t == "int", ts), "TYPE_ERROR")
         "int"
       elif elem(e.op, ["MIN", "MAX"]) then
-        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
-        at(ts, 0)
+        demand(length(base) == 0 || elem(at(base, 0), ["int", "text"]), "TYPE_ERROR")
+        if length(base) == 0 then "null" else at(base, 0)
+      elif e.op == "COALESCE" then
+        demand(length(base) == 0 || all(\(t) -> t == at(base, 0), base), "TYPE_ERROR")
+        if length(base) == 0 then "null" else at(base, 0)
+      elif elem(e.op, ["ISNULL", "ISNOTNULL"]) then
+        "bool"
       elif elem(e.op, ["NOT", "AND", "OR"]) then
-        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
+        demand(all(\(t) -> t == "null" || t == "bool", ts), "TYPE_ERROR")
         "bool"
       else
         demand(
-            at(ts, 0) == at(ts, 1)
+            length(base) <= 2 && (length(base) < 2 || at(base, 0) == at(base, 1))
               && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
             "TYPE_ERROR",
           )
@@ -93,16 +99,6 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
   if aggregate then
     for e in sof(roots) do
       grouped(e, keys)
-  demand(
-      length(groups) > 0
-        || not(
-            any(
-                \(e) -> tree_any(\(n) -> elem(n.op, ["SUM", "MIN", "MAX"]), e),
-                roots,
-              ),
-          ),
-      "UNSUPPORTED_FEATURE",
-    )
   let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
   let bq =
     Query {
