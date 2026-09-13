@@ -28,6 +28,7 @@ class Query:
     select: list = field(default_factory=list)
     sources: list = field(default_factory=list)
     joins: list = field(default_factory=list)
+    join_kinds: list = field(default_factory=list)
     where: Expr | None = None
     groups: list = field(default_factory=list)
     having: Expr | None = None
@@ -59,11 +60,13 @@ def validate(request):
             fields(c, {'name', 'type', 'nullable'})
             require(identifier(c['name']) and c['name'] not in names and c['type'] in ('int', 'text', 'bool') and type(c['nullable']) is bool)
             names.add(c['name'])
-            require(not c['nullable'], 'UNSUPPORTED_FEATURE')
         for row in t['rows']:
             require(isinstance(row, list) and len(row) == len(t['columns']))
             for v, c in zip(row, t['columns']):
-                require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                if v is None:
+                    require(c['nullable'], 'INVALID_INPUT')
+                else:
+                    require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})

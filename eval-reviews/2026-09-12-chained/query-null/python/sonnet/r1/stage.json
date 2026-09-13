@@ -1,0 +1,16 @@
+{
+  "run_id": "run-b3636c69ae7b",
+  "checkpoint": 1,
+  "model": "sonnet",
+  "model_id": "claude-sonnet-5",
+  "task": "query-null",
+  "language": "python",
+  "source_available": true,
+  "source_sha256": "cb2b3f76d4837c7f8d76a3c6f2d608d9d6ffe1008cf07d6ffcf69655e47fab77",
+  "passed": true,
+  "seconds": 422.4376122499816,
+  "tool_calls": 33,
+  "flags": [],
+  "result_sha256": "15dc2becc86fdd12434b0b1953d8094d10458d3cbcaf3a04472b5adf99beb1cf",
+  "archive_note": "Exact frozen source"
+}

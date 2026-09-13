@@ -30,10 +30,8 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
+    q.order = [(aliases.index(a) if a in aliases else -1, d, n) for a, d, n in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
     return Plan(q, tables, [[] for _ in tables], aggregate)
 
 
@@ -51,22 +49,34 @@ def check(e, columns, allow, inside=False, predicate=False):
         require(len(matches) == 1, 'AMBIGUOUS_COLUMN')
         e.index, c = matches[0]
         e.type, e.source = c[2], c[3]
-    elif e.op != 'lit':
+    elif e.op == 'lit':
+        pass
+    elif e.op == 'ISNULL' or e.op == 'ISNOTNULL':
+        check(e.args[0], columns, allow, inside)
+        e.type = 'bool'
+    elif e.op == 'COALESCE':
+        for a in e.args: check(a, columns, allow, inside)
+        ts = {a.type for a in e.args if a.type != 'null'}
+        require(len(ts) <= 1, 'TYPE_ERROR')
+        e.type = next(iter(ts)) if ts else 'null'
+    else:
         agg = e.op in AGGREGATES
         require(not agg or (allow and not inside), 'INVALID_AGGREGATION')
         for a in e.args: check(a, columns, allow, inside or agg)
         ts = [a.type for a in e.args]
         if e.op == 'COUNT': e.type = 'int'
         elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
+            require(all(t in ('int', 'null') for t in ts), 'TYPE_ERROR')
             e.type = 'int'
         elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
+            require(ts[0] in ('int', 'text', 'null'), 'TYPE_ERROR')
             e.type = ts[0]
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
+            require(all(t in ('bool', 'null') for t in ts), 'TYPE_ERROR')
             e.type = 'bool'
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
+            concrete = {t for t in ts if t != 'null'}
+            require(len(concrete) <= 1, 'TYPE_ERROR')
+            require(not concrete or next(iter(concrete)) != 'bool' or e.op in ('=', '<>'), 'TYPE_ERROR')
             e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+    require(not predicate or e.type in ('bool', 'null'), 'TYPE_ERROR')
