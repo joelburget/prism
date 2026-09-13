@@ -1,4 +1,4 @@
-/** Deterministic in-memory DAG runner. Recovery and idempotency are extension work. */
+/** Deterministic in-memory DAG runner with durable recovery and idempotent effects. */
 export const TIME_LIMIT = 2_147_483_647;
 export class DomainError extends Error {
   readonly code: string;
@@ -160,34 +160,80 @@ export function parseWorkflow(raw: unknown): Workflow {
 }
 export interface StepState {
   id: string;
-  status: "pending" | "running" | "succeeded";
+  status:
+    | "pending"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "blocked"
+    | "cancelled";
   attempts: number;
   ready_at: number;
 }
 export interface RunState {
   id: string;
-  status: "active" | "succeeded";
+  status: "active" | "succeeded" | "failed" | "cancelling" | "cancelled";
   cancel_requested: boolean;
   steps: StepState[];
 }
 type ActionKey = readonly [string, string];
+type ExecuteOutcome = "applied" | "replayed" | "transient";
+type LookupOutcome = "found" | "missing";
 interface ServiceCall {
-  kind: "execute";
+  kind: "execute" | "lookup";
   key: ActionKey;
   attempt: number;
-  outcome: "applied";
+  outcome: ExecuteOutcome | LookupOutcome;
 }
 interface Effect {
   key: ActionKey;
   amount: number;
 }
+/** Per-key ledger held by the mock service; it survives runner crashes. */
+interface KeyRecord {
+  applied: boolean;
+  transients: number;
+}
 export class MockService {
   readonly calls: ServiceCall[] = [];
   readonly effects: Effect[] = [];
-  execute(key: ActionKey, amount: number, attempt: number): void {
-    // Successful baseline actions only; no replay cache or failure counters yet.
-    this.calls.push({ kind: "execute", key, attempt, outcome: "applied" });
-    this.effects.push({ key, amount });
+  // Structured two-level lookup: run and step components never concatenate.
+  private readonly ledger = new Map<string, Map<string, KeyRecord>>();
+  private record(key: ActionKey): KeyRecord {
+    let steps = this.ledger.get(key[0]);
+    if (!steps) this.ledger.set(key[0], (steps = new Map()));
+    let entry = steps.get(key[1]);
+    if (!entry) steps.set(key[1], (entry = { applied: false, transients: 0 }));
+    return entry;
+  }
+  /** Atomic: audit, then replay, fail transiently, or record exactly one effect. */
+  execute(
+    key: ActionKey,
+    amount: number,
+    attempt: number,
+    failures: number,
+  ): ExecuteOutcome {
+    const entry = this.record(key);
+    const outcome: ExecuteOutcome = entry.applied
+      ? "replayed"
+      : entry.transients < failures
+        ? "transient"
+        : "applied";
+    this.calls.push({ kind: "execute", key, attempt, outcome });
+    if (outcome === "transient") entry.transients += 1;
+    else if (outcome === "applied") {
+      entry.applied = true;
+      this.effects.push({ key, amount });
+    }
+    return outcome;
+  }
+  /** Atomic read-only probe: audited, repeatable, never an effect or a failure. */
+  lookup(key: ActionKey, attempt: number): LookupOutcome {
+    const outcome: LookupOutcome = this.record(key).applied
+      ? "found"
+      : "missing";
+    this.calls.push({ kind: "lookup", key, attempt, outcome });
+    return outcome;
   }
 }
 export interface Snapshot {
@@ -243,20 +289,78 @@ export class Simulator {
     }
     return undefined;
   }
-  tick(): void {
+  tick(crashAt: "after_begin" | "after_call" | null): void {
     const action = this.selectAction();
-    if (!action) return;
+    if (!action) return; // No eligible work means no checkpoint is ever reached.
     const { run, step, definition } = action;
+    // Beginning an attempt is durable and happens exactly once before the call.
     if (step.status === "pending") {
       step.status = "running";
       step.attempts += 1;
     }
-    this.service.execute([run.id, step.id], definition.amount, step.attempts);
-    step.status = "succeeded";
-    if (run.steps.every((state) => state.status === "succeeded"))
-      run.status = "succeeded";
+    if (crashAt === "after_begin") {
+      this.up = false;
+      return;
+    }
+    const key: ActionKey = [run.id, step.id];
+    const reconciling = run.status === "cancelling";
+    const outcome = reconciling
+      ? this.service.lookup(key, step.attempts)
+      : this.service.execute(
+          key,
+          definition.amount,
+          step.attempts,
+          definition.failures,
+        );
+    if (crashAt === "after_call") {
+      this.up = false; // The response is lost before the runner commits it.
+      return;
+    }
+    if (reconciling) {
+      step.status = outcome === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+      return;
+    }
+    if (outcome !== "transient") {
+      step.status = "succeeded";
+      if (run.steps.every((state) => state.status === "succeeded"))
+        run.status = "succeeded";
+      return;
+    }
+    if (step.attempts < this.workflow.maxAttempts) {
+      require(
+        this.now + this.workflow.retryDelay <= TIME_LIMIT,
+        "TIME_OVERFLOW",
+      );
+      step.status = "pending";
+      step.ready_at = this.now + this.workflow.retryDelay;
+      return;
+    }
+    step.status = "failed";
+    run.status = "failed";
+    for (const other of run.steps)
+      if (other.status === "pending") other.status = "blocked";
+  }
+  cancel(id: string): void {
+    const run = this.runs.find((candidate) => candidate.id === id);
+    require(run !== undefined, "UNKNOWN_RUN");
+    if (run.status !== "active" && run.status !== "cancelling") return;
+    run.cancel_requested = true;
+    for (const step of run.steps)
+      if (step.status === "pending") step.status = "cancelled";
+    // A running attempt stays uncertain until a tick reconciles it by lookup.
+    run.status = run.steps.some((step) => step.status === "running")
+      ? "cancelling"
+      : "cancelled";
   }
   apply(command: Command): void {
+    // Observe and advance work in either state; everything else needs the
+    // expected availability, checked before any run lookup.
+    if (command.op !== "observe" && command.op !== "advance")
+      require(
+        this.up !== (command.op === "restart"),
+        this.up ? "PROCESS_UP" : "PROCESS_DOWN",
+      );
     switch (command.op) {
       case "start":
         require(this.runs.every(
@@ -274,9 +378,11 @@ export class Simulator {
           })),
         });
         break;
+      case "cancel":
+        this.cancel(command.run);
+        break;
       case "tick":
-        require(command.crashAt === null, "UNSUPPORTED_FEATURE");
-        this.tick();
+        this.tick(command.crashAt);
         break;
       case "advance":
         require(this.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW");
@@ -285,8 +391,12 @@ export class Simulator {
       case "observe":
         this.observations.push(this.snapshot());
         break;
-      default:
-        throw new DomainError("UNSUPPORTED_FEATURE");
+      case "crash":
+        this.up = false; // Volatile work is discarded; the durable store persists.
+        break;
+      case "restart":
+        this.up = true; // Passive: recovery happens on the next tick.
+        break;
     }
   }
   snapshot(): Snapshot {
@@ -300,9 +410,6 @@ export class Simulator {
     };
   }
   run(): SimulationResult {
-    require(this.workflow.steps.every(
-      (step) => step.failures === 0,
-    ), "UNSUPPORTED_FEATURE");
     this.workflow.commands.forEach((command) => this.apply(command));
     return {
       observations: this.observations,
