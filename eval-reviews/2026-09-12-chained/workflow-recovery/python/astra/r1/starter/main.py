@@ -2,6 +2,7 @@
 import json
 import sys
 from workflow import DomainError, Simulator, integer, object_fields, parse_workflow, require
+from leased import LeasedSimulator
 
 
 def unique_object(pairs: list[tuple]) -> dict:
@@ -18,7 +19,11 @@ def main() -> None:
                                 {"protocol_version", "task", "input"})
         integer(request["protocol_version"], 1, 1)
         require(request["task"] == "workflow-recovery")
-        result = Simulator(parse_workflow(request["input"])).run()
+        data = request["input"]
+        if type(data) is dict and "workers" in data:
+            result = LeasedSimulator(data).run()
+        else:
+            result = Simulator(parse_workflow(data)).run()
         response = {"ok": True, "result": result}
     except DomainError as error:
         response = {"ok": False, "error": {"code": error.code}}
