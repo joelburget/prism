@@ -1,0 +1,16 @@
+{
+  "run_id": "run-fd43d30dfe10",
+  "checkpoint": 1,
+  "model": "astra",
+  "model_id": "gpt-6-astra",
+  "task": "workflow-recovery",
+  "language": "typescript",
+  "source_available": true,
+  "source_sha256": "9c1c1b50192a701ffe02dee2e3d0c475d81e8cfab546736e3613704ddd068bc9",
+  "passed": true,
+  "seconds": 81.72926020802697,
+  "tool_calls": 5,
+  "flags": [],
+  "result_sha256": "c83628dde3eb5f242a04da039354716c31c012e59b4d6a6f194072e59fd08630",
+  "archive_note": "Exact frozen source"
+}

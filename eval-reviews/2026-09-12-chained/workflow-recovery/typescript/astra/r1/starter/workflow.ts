@@ -1,4 +1,4 @@
-/** Deterministic in-memory DAG runner. Recovery and idempotency are extension work. */
+/** Deterministic durable DAG runner and independently persistent mock service. */
 export const TIME_LIMIT = 2_147_483_647;
 export class DomainError extends Error {
   readonly code: string;
@@ -160,22 +160,23 @@ export function parseWorkflow(raw: unknown): Workflow {
 }
 export interface StepState {
   id: string;
-  status: "pending" | "running" | "succeeded";
+  status: "pending" | "running" | "succeeded" | "failed" | "blocked" | "cancelled";
   attempts: number;
   ready_at: number;
 }
 export interface RunState {
   id: string;
-  status: "active" | "succeeded";
+  status: "active" | "succeeded" | "failed" | "cancelling" | "cancelled";
   cancel_requested: boolean;
   steps: StepState[];
 }
 type ActionKey = readonly [string, string];
+type ExecuteOutcome = "applied" | "replayed" | "transient";
 interface ServiceCall {
-  kind: "execute";
+  kind: "execute" | "lookup";
   key: ActionKey;
   attempt: number;
-  outcome: "applied";
+  outcome: ExecuteOutcome | "found" | "missing";
 }
 interface Effect {
   key: ActionKey;
@@ -184,10 +185,29 @@ interface Effect {
 export class MockService {
   readonly calls: ServiceCall[] = [];
   readonly effects: Effect[] = [];
-  execute(key: ActionKey, amount: number, attempt: number): void {
-    // Successful baseline actions only; no replay cache or failure counters yet.
-    this.calls.push({ kind: "execute", key, attempt, outcome: "applied" });
-    this.effects.push({ key, amount });
+  private readonly applied = new Set<string>();
+  private readonly failuresSeen = new Map<string, number>();
+  execute(key: ActionKey, amount: number, attempt: number, failures = 0): ExecuteOutcome {
+    const encoded = JSON.stringify(key);
+    const seen = this.failuresSeen.get(encoded) ?? 0;
+    let outcome: ExecuteOutcome;
+    if (this.applied.has(encoded)) {
+      outcome = "replayed";
+    } else if (seen < failures) {
+      this.failuresSeen.set(encoded, seen + 1);
+      outcome = "transient";
+    } else {
+      this.applied.add(encoded);
+      this.effects.push({ key, amount });
+      outcome = "applied";
+    }
+    this.calls.push({ kind: "execute", key, attempt, outcome });
+    return outcome;
+  }
+  lookup(key: ActionKey, attempt: number): "found" | "missing" {
+    const outcome = this.applied.has(JSON.stringify(key)) ? "found" : "missing";
+    this.calls.push({ kind: "lookup", key, attempt, outcome });
+    return outcome;
   }
 }
 export interface Snapshot {
@@ -243,7 +263,7 @@ export class Simulator {
     }
     return undefined;
   }
-  tick(): void {
+  tick(crashAt: "after_begin" | "after_call" | null = null): void {
     const action = this.selectAction();
     if (!action) return;
     const { run, step, definition } = action;
@@ -251,12 +271,45 @@ export class Simulator {
       step.status = "running";
       step.attempts += 1;
     }
-    this.service.execute([run.id, step.id], definition.amount, step.attempts);
+    if (crashAt === "after_begin") {
+      this.up = false;
+      return;
+    }
+    // Responses are volatile until the checkpoint has passed. Recovery always
+    // consults the service again using the durable attempt and structured key.
+    const outcome = run.status === "cancelling"
+      ? this.service.lookup([run.id, step.id], step.attempts)
+      : this.service.execute([run.id, step.id], definition.amount, step.attempts, definition.failures);
+    if (crashAt === "after_call") {
+      this.up = false;
+      return;
+    }
+    if (run.status === "cancelling") {
+      step.status = outcome === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+      return;
+    }
+    if (outcome === "transient") {
+      if (step.attempts < this.workflow.maxAttempts) {
+        const deadline = this.now + this.workflow.retryDelay;
+        require(deadline <= TIME_LIMIT, "TIME_OVERFLOW");
+        step.status = "pending";
+        step.ready_at = deadline;
+      } else {
+        step.status = "failed";
+        run.status = "failed";
+        for (const other of run.steps)
+          if (other.status === "pending") other.status = "blocked";
+      }
+      return;
+    }
     step.status = "succeeded";
     if (run.steps.every((state) => state.status === "succeeded"))
       run.status = "succeeded";
   }
   apply(command: Command): void {
+    if (command.op !== "observe" && command.op !== "advance" && command.op !== "restart")
+      require(this.up, "PROCESS_DOWN");
     switch (command.op) {
       case "start":
         require(this.runs.every(
@@ -275,9 +328,26 @@ export class Simulator {
         });
         break;
       case "tick":
-        require(command.crashAt === null, "UNSUPPORTED_FEATURE");
-        this.tick();
+        this.tick(command.crashAt);
         break;
+      case "crash":
+        this.up = false;
+        break;
+      case "restart":
+        require(!this.up, "PROCESS_UP");
+        this.up = true;
+        break;
+      case "cancel": {
+        const run = this.runs.find((run) => run.id === command.run);
+        require(run, "UNKNOWN_RUN");
+        if (run.status !== "active" && run.status !== "cancelling") break;
+        run.cancel_requested = true;
+        for (const step of run.steps)
+          if (step.status === "pending") step.status = "cancelled";
+        run.status = run.steps.some((step) => step.status === "running")
+          ? "cancelling" : "cancelled";
+        break;
+      }
       case "advance":
         require(this.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW");
         this.now += command.by;
@@ -285,8 +355,6 @@ export class Simulator {
       case "observe":
         this.observations.push(this.snapshot());
         break;
-      default:
-        throw new DomainError("UNSUPPORTED_FEATURE");
     }
   }
   snapshot(): Snapshot {
@@ -300,9 +368,6 @@ export class Simulator {
     };
   }
   run(): SimulationResult {
-    require(this.workflow.steps.every(
-      (step) => step.failures === 0,
-    ), "UNSUPPORTED_FEATURE");
     this.workflow.commands.forEach((command) => this.apply(command));
     return {
       observations: this.observations,
