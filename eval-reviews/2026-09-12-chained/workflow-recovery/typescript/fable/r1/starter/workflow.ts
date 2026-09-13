@@ -7,13 +7,13 @@ export class DomainError extends Error {
     this.code = code;
   }
 }
-function require(
+export function require(
   condition: unknown,
   code = "INVALID_INPUT",
 ): asserts condition {
   if (!condition) throw new DomainError(code);
 }
-function fields(
+export function fields(
   value: unknown,
   required: string[],
   optional: string[] = [],
@@ -28,7 +28,7 @@ function fields(
   );
   return obj;
 }
-function integer(value: unknown, low: number, high: number): number {
+export function integer(value: unknown, low: number, high: number): number {
   require(
     typeof value === "number" &&
       Number.isInteger(value) &&
@@ -37,7 +37,7 @@ function integer(value: unknown, low: number, high: number): number {
   );
   return value;
 }
-function identifier(value: unknown): string {
+export function identifier(value: unknown): string {
   require(
     typeof value === "string" &&
       value.length >= 1 &&
@@ -64,7 +64,7 @@ export interface Workflow {
   readonly maxAttempts: number;
   readonly retryDelay: number;
 }
-function parseStep(raw: unknown): StepDefinition {
+export function parseStep(raw: unknown): StepDefinition {
   const obj = fields(raw, ["id", "needs", "amount"], ["failures"]);
   const id = identifier(obj.id);
   require(Array.isArray(obj.needs));
@@ -109,7 +109,7 @@ function parseCommand(raw: unknown): Command {
       throw new DomainError("INVALID_INPUT");
   }
 }
-function validateGraph(steps: readonly StepDefinition[]): void {
+export function validateGraph(steps: readonly StepDefinition[]): void {
   const ids = new Set(steps.map((step) => step.id));
   require(ids.size === steps.length, "DUPLICATE_STEP");
   require(steps.every((step) =>
@@ -182,9 +182,28 @@ export interface RunState {
 export type ActionKey = readonly [string, string];
 export type ExecuteOutcome = "applied" | "replayed" | "transient";
 export type LookupOutcome = "found" | "missing";
+/** Optional worker/ticket attribution recorded on leased-mode audit entries. */
+export interface CallOrigin {
+  readonly worker: string;
+  readonly ticket: number;
+}
 export type ServiceCall =
-  | { kind: "execute"; key: ActionKey; attempt: number; outcome: ExecuteOutcome }
-  | { kind: "lookup"; key: ActionKey; attempt: number; outcome: LookupOutcome };
+  | {
+      worker?: string;
+      ticket?: number;
+      kind: "execute";
+      key: ActionKey;
+      attempt: number;
+      outcome: ExecuteOutcome;
+    }
+  | {
+      worker?: string;
+      ticket?: number;
+      kind: "lookup";
+      key: ActionKey;
+      attempt: number;
+      outcome: LookupOutcome;
+    };
 export interface Effect {
   key: ActionKey;
   amount: number;
@@ -193,6 +212,7 @@ export interface Effect {
  * Idempotent mock external service. Its audit and effects survive runner
  * crashes; the runner never inspects the effect list directly. Keys are
  * structured [run, step] pairs stored in nested maps, never concatenated.
+ * Without an origin the audit keeps the checkpoint-one shape exactly.
  */
 export class MockService {
   readonly calls: ServiceCall[] = [];
@@ -206,7 +226,12 @@ export class MockService {
   private hasEffect(key: ActionKey): boolean {
     return this.applied.get(key[0])?.has(key[1]) ?? false;
   }
-  execute(key: ActionKey, amount: number, attempt: number): ExecuteOutcome {
+  execute(
+    key: ActionKey,
+    amount: number,
+    attempt: number,
+    origin?: CallOrigin,
+  ): ExecuteOutcome {
     let outcome: ExecuteOutcome;
     if (this.hasEffect(key)) {
       outcome = "replayed";
@@ -232,12 +257,12 @@ export class MockService {
         outcome = "applied";
       }
     }
-    this.calls.push({ kind: "execute", key, attempt, outcome });
+    this.calls.push({ ...origin, kind: "execute", key, attempt, outcome });
     return outcome;
   }
-  lookup(key: ActionKey, attempt: number): LookupOutcome {
+  lookup(key: ActionKey, attempt: number, origin?: CallOrigin): LookupOutcome {
     const outcome: LookupOutcome = this.hasEffect(key) ? "found" : "missing";
-    this.calls.push({ kind: "lookup", key, attempt, outcome });
+    this.calls.push({ ...origin, kind: "lookup", key, attempt, outcome });
     return outcome;
   }
 }

@@ -4,7 +4,7 @@ Requires Node.js 25 or later. Run `npm ci --ignore-scripts` and `npm run typeche
 
 Read one newline-terminated workflow-recovery request from stdin and write one response to stdout. Every request creates a fresh simulator and service. The launcher works from any working directory.
 
-`workflow.ts` contains typed request/state interfaces, upfront validation, graph checks, the idempotent mock service, scheduler, recovery/cancellation logic, and snapshot serializer. `main.ts` is the JSON process adapter.
+`workflow.ts` contains typed request/state interfaces, upfront validation, graph checks, the idempotent mock service, scheduler, recovery/cancellation logic, and snapshot serializer for the checkpoint-one contract. `leased.ts` implements checkpoint two (leased workers and fenced recovery) on top of the same validation helpers and mock service. `main.ts` is the JSON process adapter; it selects leased mode when the input carries a `workers` field and otherwise runs the unchanged checkpoint-one simulator.
 
 Implemented behavior:
 
@@ -15,6 +15,14 @@ Implemented behavior:
 * Crash windows: `crash_at: after_begin` (before the call) and `after_call` (after the atomic service response, before commit). Idle checkpointed ticks stay up.
 * Process state: `crash`, `restart` (passive), `PROCESS_DOWN` / `PROCESS_UP` errors, availability checked before run lookup.
 * Cancellation: pending steps become `cancelled`; a running step leaves the run `cancelling` until a tick reconciles it by lookup (`found` -> succeeded, `missing` -> cancelled).
+
+Checkpoint two (leased mode, `workers` present):
+
+* Commands `start`, `advance`, `observe`, `crash`/`restart` per worker, `claim`, `renew`, `call`, `deliver`, `cancel`; each yields one value in `results`. `tick` and checkpoints are rejected here, and `lease_duration` is rejected in the old mode.
+* Leases: `claim` first reclaims the earliest running step with an expired lease (`now >= expires`, including cancelling/failing runs, lookup kind), else starts the first ready pending step of an active run (execute kind). Tickets are global, monotonic, and never reused; reclaims keep the attempt number. A worker with a live lease is `WORKER_BUSY`.
+* Fencing: `call` invokes the mock once per live ticket and saves the receipt; stale tickets get `{"outcome":"stale"}`. `deliver` commits only an undelivered response whose ticket is still the step's current live lease and whose owner is up. Retries are scheduled from delivery time.
+* Cancellation expires all running leases once and recovers them via lookup (`found` -> succeeded, `missing` -> cancelled). Retry exhaustion with other running steps enters `failing`, expires their leases, and drains by lookup (`missing` -> blocked) before `failed`.
+* Audit entries in leased mode carry `worker` and `ticket`; observations carry `now`, `workers`, `runs`, with a `lease` object or null on each step.
 
 From the public corpus root, validate with:
 

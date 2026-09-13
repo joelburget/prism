@@ -43,4 +43,41 @@ check boolean-crash-at \
 check float-amount \
   '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":[{"id":"a","needs":[],"amount":5.0}],"commands":[]}}' \
   '{"ok":false,"error":{"code":"INVALID_INPUT"}}'
+# --- Checkpoint two: leased workers (selected by a `workers` field) ---
+W='"workers":["a","b"]'
+# Spec example: expiry lets a replacement replay under the same attempt; the stale ticket cannot commit.
+check leased-expired-replay \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"start","run":"r"},{"op":"claim","worker":"a"},{"op":"call","worker":"a","ticket":1},{"op":"advance","by":5},{"op":"claim","worker":"b"},{"op":"deliver","ticket":1},{"op":"call","worker":"b","ticket":2},{"op":"deliver","ticket":2}]}}' \
+  '{"ok":true,"result":{"results":[null,{"ticket":1},{"kind":"execute","outcome":"applied"},null,{"ticket":2},{"committed":false},{"kind":"execute","outcome":"replayed"},{"committed":true}],"final":{"now":5,"workers":[{"id":"a","up":true},{"id":"b","up":true}],"runs":[{"id":"r","status":"succeeded","cancel_requested":false,"steps":[{"id":"a","status":"succeeded","attempts":1,"ready_at":0,"lease":null}]}],"calls":[{"worker":"a","ticket":1,"kind":"execute","key":["r","a"],"attempt":1,"outcome":"applied"},{"worker":"b","ticket":2,"kind":"execute","key":["r","a"],"attempt":1,"outcome":"replayed"}],"effects":[{"key":["r","a"],"amount":5}]}}}'
+# A stale transient never commits: the reclaim keeps attempt 1 and the retry budget is untouched.
+check leased-stale-transient \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":[{"id":"s","needs":[],"amount":5,"failures":1}],'"$W"',"commands":[{"op":"start","run":"r"},{"op":"claim","worker":"a"},{"op":"call","worker":"a","ticket":1},{"op":"advance","by":5},{"op":"claim","worker":"b"},{"op":"deliver","ticket":1},{"op":"renew","worker":"a","ticket":1},{"op":"call","worker":"a","ticket":1},{"op":"call","worker":"b","ticket":2},{"op":"deliver","ticket":2}]}}' \
+  '{"ok":true,"result":{"results":[null,{"ticket":1},{"kind":"execute","outcome":"transient"},null,{"ticket":2},{"committed":false},{"renewed":false},{"outcome":"stale"},{"kind":"execute","outcome":"applied"},{"committed":true}],"final":{"now":5,"workers":[{"id":"a","up":true},{"id":"b","up":true}],"runs":[{"id":"r","status":"succeeded","cancel_requested":false,"steps":[{"id":"s","status":"succeeded","attempts":1,"ready_at":0,"lease":null}]}],"calls":[{"worker":"a","ticket":1,"kind":"execute","key":["r","s"],"attempt":1,"outcome":"transient"},{"worker":"b","ticket":2,"kind":"execute","key":["r","s"],"attempt":1,"outcome":"applied"}],"effects":[{"key":["r","s"],"amount":5}]}}}'
+# Repeated cancellation does not revoke a lookup lease; a saved lookup survives the worker crash.
+check leased-repeated-cancel-keeps-lookup \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"start","run":"r"},{"op":"claim","worker":"a"},{"op":"cancel","run":"r"},{"op":"claim","worker":"b"},{"op":"cancel","run":"r"},{"op":"call","worker":"b","ticket":2},{"op":"crash","worker":"b"},{"op":"deliver","ticket":2},{"op":"restart","worker":"b"},{"op":"call","worker":"b","ticket":2},{"op":"deliver","ticket":2}]}}' \
+  '{"ok":true,"result":{"results":[null,{"ticket":1},null,{"ticket":2},null,{"kind":"lookup","outcome":"missing"},null,{"committed":false},null,{"kind":"lookup","outcome":"missing"},{"committed":true}],"final":{"now":0,"workers":[{"id":"a","up":true},{"id":"b","up":true}],"runs":[{"id":"r","status":"cancelled","cancel_requested":true,"steps":[{"id":"a","status":"cancelled","attempts":1,"ready_at":0,"lease":null}]}],"calls":[{"worker":"b","ticket":2,"kind":"lookup","key":["r","a"],"attempt":1,"outcome":"missing"}],"effects":[]}}}'
+# A failing run cannot be cancelled; its running branch drains by lookup to blocked.
+check leased-failing-not-cancellable \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"max_attempts":1,"steps":[{"id":"x","needs":[],"amount":1,"failures":1},{"id":"y","needs":[],"amount":2}],'"$W"',"commands":[{"op":"start","run":"r"},{"op":"claim","worker":"a"},{"op":"claim","worker":"b"},{"op":"call","worker":"a","ticket":1},{"op":"deliver","ticket":1},{"op":"cancel","run":"r"},{"op":"claim","worker":"a"},{"op":"call","worker":"a","ticket":3},{"op":"deliver","ticket":3}]}}' \
+  '{"ok":true,"result":{"results":[null,{"ticket":1},{"ticket":2},{"kind":"execute","outcome":"transient"},{"committed":true},null,{"ticket":3},{"kind":"lookup","outcome":"missing"},{"committed":true}],"final":{"now":0,"workers":[{"id":"a","up":true},{"id":"b","up":true}],"runs":[{"id":"r","status":"failed","cancel_requested":false,"steps":[{"id":"x","status":"failed","attempts":1,"ready_at":0,"lease":null},{"id":"y","status":"blocked","attempts":1,"ready_at":0,"lease":null}]}],"calls":[{"worker":"a","ticket":1,"kind":"execute","key":["r","x"],"attempt":1,"outcome":"transient"},{"worker":"a","ticket":3,"kind":"lookup","key":["r","y"],"attempt":1,"outcome":"missing"}],"effects":[]}}}'
+# Runtime validation precedence and mode isolation.
+check leased-unknown-worker-before-down \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"crash","worker":"a"},{"op":"renew","worker":"zz","ticket":9}]}}' \
+  '{"ok":false,"error":{"code":"UNKNOWN_WORKER"}}'
+check leased-down-before-ticket \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"crash","worker":"a"},{"op":"renew","worker":"a","ticket":9}]}}' \
+  '{"ok":false,"error":{"code":"WORKER_DOWN"}}'
+check leased-wrong-worker \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"start","run":"r"},{"op":"claim","worker":"a"},{"op":"call","worker":"b","ticket":1}]}}' \
+  '{"ok":false,"error":{"code":"WRONG_WORKER"}}'
+check leased-claim-overflow \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"advance","by":2147483647},{"op":"claim","worker":"a"},{"op":"start","run":"r"},{"op":"claim","worker":"a"}]}}' \
+  '{"ok":false,"error":{"code":"TIME_OVERFLOW"}}'
+check leased-rejects-tick \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],'"$W"',"commands":[{"op":"tick"}]}}' \
+  '{"ok":false,"error":{"code":"INVALID_INPUT"}}'
+check classic-rejects-lease-duration \
+  '{"protocol_version":1,"task":"workflow-recovery","input":{"steps":['"$S"'],"lease_duration":3,"commands":[]}}' \
+  '{"ok":false,"error":{"code":"INVALID_INPUT"}}'
 exit $fail

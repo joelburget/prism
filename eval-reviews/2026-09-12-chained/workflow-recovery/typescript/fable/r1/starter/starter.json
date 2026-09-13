@@ -7,6 +7,7 @@
   "files": [
     ".gitignore",
     "README.md",
+    "leased.ts",
     "main.ts",
     "package-lock.json",
     "package.json",

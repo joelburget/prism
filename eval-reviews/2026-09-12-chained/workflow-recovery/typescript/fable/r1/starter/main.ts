@@ -1,6 +1,15 @@
 import { readFileSync } from "node:fs";
+import { LeasedSimulator, parseLeasedWorkflow } from "./leased.ts";
 import { DomainError, parseWorkflow, Simulator } from "./workflow.ts";
 
+function isLeased(input: unknown): boolean {
+  return (
+    input !== null &&
+    typeof input === "object" &&
+    !Array.isArray(input) &&
+    Object.hasOwn(input, "workers")
+  );
+}
 let response: unknown;
 try {
   const request = JSON.parse(
@@ -16,10 +25,11 @@ try {
       return value;
     },
   ) as { input?: unknown };
-  response = {
-    ok: true,
-    result: new Simulator(parseWorkflow(request?.input)).run(),
-  };
+  const input = request?.input;
+  const result = isLeased(input)
+    ? new LeasedSimulator(parseLeasedWorkflow(input)).run()
+    : new Simulator(parseWorkflow(input)).run();
+  response = { ok: true, result };
 } catch (error) {
   if (error instanceof DomainError)
     response = { ok: false, error: { code: error.code } };
