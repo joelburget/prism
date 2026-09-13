@@ -1,0 +1,16 @@
+{
+  "run_id": "run-540f3d965ad7",
+  "checkpoint": 1,
+  "model": "terra",
+  "model_id": "gpt-5.6-terra",
+  "task": "workflow-recovery",
+  "language": "python",
+  "source_available": true,
+  "source_sha256": "532afd50de5836882836a6133bca3a34c6a24584eb0cbb8f1b907db32ac4beda",
+  "passed": true,
+  "seconds": 102.7263090419583,
+  "tool_calls": 5,
+  "flags": [],
+  "result_sha256": "36f8b4a85a7e6d489109ab35c09e647edbdfc52d987a2357a75418884a75de19",
+  "archive_note": "Exact frozen source"
+}

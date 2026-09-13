@@ -1,7 +1,7 @@
-"""Deterministic in-memory DAG runner; persistence/recovery is the exercise."""
+"""Deterministic durable in-memory workflow simulator."""
 from dataclasses import dataclass, field
 import re
-from typing import Any, Literal
+from typing import Any
 
 TIME_LIMIT = 2_147_483_647
 
@@ -90,7 +90,6 @@ def validate_graph(steps: tuple[StepDefinition, ...]) -> None:
     ids = {step.id for step in steps}
     require(len(ids) == len(steps), "DUPLICATE_STEP")
     require(all(dep in ids for step in steps for dep in step.needs), "UNKNOWN_DEPENDENCY")
-    # Kahn's algorithm avoids depending on the interpreter's recursion limit.
     remaining = list(steps)
     visited: set[str] = set()
     while remaining:
@@ -108,14 +107,14 @@ def parse_workflow(raw: Any) -> Workflow:
     commands = tuple(parse_command(command) for command in obj["commands"])
     workflow = Workflow(steps, commands, integer(obj.get("max_attempts", 3), 1, 10),
                         integer(obj.get("retry_delay", 2), 1, 1_000_000))
-    validate_graph(steps)  # All static validation precedes command execution.
+    validate_graph(steps)
     return workflow
 
 
 @dataclass
 class StepState:
     id: str
-    status: Literal["pending", "running", "succeeded"] = "pending"
+    status: str = "pending"
     attempts: int = 0
     ready_at: int = 0
 
@@ -124,7 +123,7 @@ class StepState:
 class RunState:
     id: str
     steps: list[StepState]
-    status: Literal["active", "succeeded"] = "active"
+    status: str = "active"
     cancel_requested: bool = False
 
 
@@ -132,8 +131,8 @@ class RunState:
 class ServiceCall:
     key: tuple[str, str]
     attempt: int
-    kind: str = "execute"
-    outcome: str = "applied"
+    kind: str
+    outcome: str
 
 
 @dataclass(frozen=True)
@@ -146,11 +145,25 @@ class Effect:
 class MockService:
     calls: list[ServiceCall] = field(default_factory=list)
     effects: list[Effect] = field(default_factory=list)
+    # This is deliberately independent from runner state, just as a remote service is.
+    failed_calls: dict[tuple[str, str], int] = field(default_factory=dict)
 
-    def execute(self, key: tuple[str, str], amount: int, attempt: int) -> None:
-        # Baseline only invokes each action once. Idempotency and failures are extension work.
-        self.calls.append(ServiceCall(key, attempt))
-        self.effects.append(Effect(key, amount))
+    def execute(self, key: tuple[str, str], amount: int, attempt: int, failures: int) -> str:
+        if any(effect.key == key for effect in self.effects):
+            outcome = "replayed"
+        elif self.failed_calls.get(key, 0) < failures:
+            self.failed_calls[key] = self.failed_calls.get(key, 0) + 1
+            outcome = "transient"
+        else:
+            self.effects.append(Effect(key, amount))
+            outcome = "applied"
+        self.calls.append(ServiceCall(key, attempt, "execute", outcome))
+        return outcome
+
+    def lookup(self, key: tuple[str, str], attempt: int) -> str:
+        outcome = "found" if any(effect.key == key for effect in self.effects) else "missing"
+        self.calls.append(ServiceCall(key, attempt, "lookup", outcome))
+        return outcome
 
 
 class Simulator:
@@ -162,7 +175,8 @@ class Simulator:
         self.service = MockService()
         self.observations: list[dict] = []
 
-    def select_action(self) -> tuple[RunState, StepState, StepDefinition] | None:
+    def select_action(self):
+        # A durably begun action always wins, even if other ready work precedes it.
         for run in self.runs:
             for state, definition in zip(run.steps, self.workflow.steps):
                 if state.status == "running":
@@ -177,48 +191,106 @@ class Simulator:
                     return run, state, definition
         return None
 
-    def tick(self) -> None:
-        action = self.select_action()
-        if action is None:
-            return
-        run, state, definition = action
-        if state.status == "pending":
-            state.status = "running"
-            state.attempts += 1
-        self.service.execute((run.id, state.id), definition.amount, state.attempts)
+    def complete_success(self, run: RunState, state: StepState) -> None:
         state.status = "succeeded"
         if all(step.status == "succeeded" for step in run.steps):
             run.status = "succeeded"
 
+    def fail_attempt(self, run: RunState, state: StepState) -> None:
+        if state.attempts < self.workflow.max_attempts:
+            require(self.now + self.workflow.retry_delay <= TIME_LIMIT, "TIME_OVERFLOW")
+            state.status = "pending"
+            state.ready_at = self.now + self.workflow.retry_delay
+            return
+        state.status = "failed"
+        run.status = "failed"
+        for other in run.steps:
+            if other.status == "pending":
+                other.status = "blocked"
+
+    def tick(self, crash_at: str | None) -> None:
+        action = self.select_action()
+        if action is None:
+            return
+        run, state, definition = action
+        begun = state.status == "pending"
+        if begun:
+            state.status = "running"
+            state.attempts += 1
+        if crash_at == "after_begin":
+            self.up = False
+            return
+
+        key = (run.id, state.id)
+        if run.status == "cancelling":
+            outcome = self.service.lookup(key, state.attempts)
+            if crash_at == "after_call":
+                self.up = False
+                return
+            state.status = "succeeded" if outcome == "found" else "cancelled"
+            run.status = "cancelled"
+            return
+
+        outcome = self.service.execute(key, definition.amount, state.attempts, definition.failures)
+        if crash_at == "after_call":
+            self.up = False
+            return
+        if outcome in ("applied", "replayed"):
+            self.complete_success(run, state)
+        else:
+            self.fail_attempt(run, state)
+
+    def cancel(self, run_id: str) -> None:
+        run = next((item for item in self.runs if item.id == run_id), None)
+        require(run is not None, "UNKNOWN_RUN")
+        if run.status in ("succeeded", "failed", "cancelled"):
+            return
+        run.cancel_requested = True
+        for state in run.steps:
+            if state.status == "pending":
+                state.status = "cancelled"
+        if any(state.status == "running" for state in run.steps):
+            run.status = "cancelling"
+        else:
+            run.status = "cancelled"
+
     def apply(self, command: Command) -> None:
-        if command.op == "start":
+        if command.op == "observe":
+            self.observations.append(self.snapshot())
+            return
+        if command.op == "advance":
+            require(self.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW")
+            self.now += command.by
+            return
+        if command.op == "restart":
+            require(not self.up, "PROCESS_UP")
+            self.up = True
+            return
+        # Availability is intentionally checked before a cancellation's run lookup.
+        require(self.up, "PROCESS_DOWN")
+        if command.op == "crash":
+            self.up = False
+        elif command.op == "start":
             require(all(run.id != command.run for run in self.runs), "DUPLICATE_RUN")
             self.runs.append(RunState(command.run, [StepState(step.id, ready_at=self.now)
                                                    for step in self.workflow.steps]))
-        elif command.op == "tick" and command.crash_at is None:
-            self.tick()
-        elif command.op == "advance":
-            require(self.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW")
-            self.now += command.by
-        elif command.op == "observe":
-            self.observations.append(self.snapshot())
-        else:
-            raise DomainError("UNSUPPORTED_FEATURE")
+        elif command.op == "cancel":
+            self.cancel(command.run)
+        elif command.op == "tick":
+            self.tick(command.crash_at)
 
     def snapshot(self) -> dict:
-        # New containers at every level keep observations independent of mutable state.
         return {"now": self.now, "up": self.up, "runs": [
             {"id": run.id, "status": run.status, "cancel_requested": run.cancel_requested,
              "steps": [{"id": step.id, "status": step.status, "attempts": step.attempts,
                         "ready_at": step.ready_at} for step in run.steps]} for run in self.runs]}
 
     def run(self) -> dict:
-        require(all(step.failures == 0 for step in self.workflow.steps), "UNSUPPORTED_FEATURE")
         for command in self.workflow.commands:
             self.apply(command)
         final = self.snapshot()
         final["calls"] = [{"kind": call.kind, "key": list(call.key), "attempt": call.attempt,
                            "outcome": call.outcome} for call in self.service.calls]
         final["effects"] = [{"key": list(effect.key), "amount": effect.amount}
-                             for effect in self.service.effects]
+                            for effect in self.service.effects]
         return {"observations": self.observations, "final": final}
