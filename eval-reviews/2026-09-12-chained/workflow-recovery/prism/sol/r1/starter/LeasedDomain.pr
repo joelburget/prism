@@ -1,0 +1,52 @@
+import Json (..)
+import Domain (StepDefinition, StepStatus, RunStatus, ActionKey, Effect)
+
+pub type LeasedCommand
+  = LStart(String)
+  | LAdvance(Int)
+  | LObserve
+  | LCrash(String)
+  | LRestart(String)
+  | LClaim(String)
+  | LRenew(String, Int)
+  | LCall(String, Int)
+  | LDeliver(Int)
+  | LCancel(String)
+
+pub type LeasedWorkflow = LeasedWorkflow {
+  steps: List(StepDefinition), commands: List(LeasedCommand), workers: List(String),
+  max_attempts: Int, retry_delay: Int, lease_duration: Int
+}
+
+pub type WorkerState = WorkerState { id: String, up: Bool }
+pub type Lease = Lease { worker: String, ticket: Int, expires: Int }
+pub type LeasedStep = LeasedStep {
+  id: String, status: StepStatus, attempts: Int, ready_at: Int, lease: Option(Lease)
+}
+pub type LeasedRun = LeasedRun {
+  id: String, status: RunStatus, cancel_requested: Bool, steps: List(LeasedStep)
+}
+pub type Ticket = Ticket {
+  id: Int, worker: String, run_id: String, step_id: String, kind: String,
+  response: Option(String), delivered: Bool
+}
+pub type LeasedCall = LeasedCall {
+  worker: String, ticket: Int, kind: String, key: ActionKey, attempt: Int, outcome: String
+}
+pub type LeasedService = LeasedService { calls: List(LeasedCall), effects: List(Effect) }
+pub type LeasedSnapshot = LeasedSnapshot { now: Int, workers: List(WorkerState), runs: List(LeasedRun) }
+pub type CommandValue
+  = NullValue
+  | SnapshotValue(LeasedSnapshot)
+  | TicketValue(Option(Int))
+  | RenewedValue(Bool)
+  | ReceiptValue(String, String)
+  | StaleValue
+  | CommittedValue(Bool)
+
+pub type LeasedSimulator = LeasedSimulator {
+  now: Int, workers: List(WorkerState), runs: List(LeasedRun), tickets: List(Ticket),
+  next_ticket: Int, service: LeasedService, results: List(CommandValue)
+}
+
+pub type LeasedAction = LeasedAction { run: LeasedRun, step: LeasedStep, definition: StepDefinition }

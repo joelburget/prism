@@ -5,15 +5,15 @@ import Data.Result (..)
 import Json (..)
 import Domain (..)
 
-fn ensure(valid : Bool, code : String) : Result(Unit, String) =
+pub fn ensure(valid : Bool, code : String) : Result(Unit, String) =
   if valid then Ok(()) else Err(code)
 
-fn unique(xs : List(String)) : Bool =
+pub fn unique(xs : List(String)) : Bool =
   match xs of
     Nil => true
     Cons(x, rest) => not(elem(x, rest)) && unique(rest)
 
-fn fields(value : Json, required : List(String), optional : List(String)) : Result(List((String, Json)), String) =
+pub fn fields(value : Json, required : List(String), optional : List(String)) : Result(List((String, Json)), String) =
   match value of
     JObj(pairs) =>
       let keys = map(\(pair) -> fst(pair), pairs)
@@ -27,12 +27,12 @@ pub fn get_field(pairs : List((String, Json)), key : String) : Json =
     Some(pair) => snd(pair)
     None => JNull
 
-fn optional_field(pairs : List((String, Json)), key : String, default : Json) : Json =
+pub fn optional_field(pairs : List((String, Json)), key : String, default : Json) : Json =
   match find(\(pair) -> fst(pair) == key, pairs) of
     Some(pair) => snd(pair)
     None => default
 
-fn integer(value : Json, low : Int, high : Int) : Result(Int, String) =
+pub fn integer(value : Json, low : Int, high : Int) : Result(Int, String) =
   match value of
     JInt(n) =>
       let _ = ensure(n >= low && n <= high, "INVALID_INPUT")?
@@ -46,19 +46,19 @@ fn valid_id_bytes(s : String, i : Int) : Bool =
     ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)
       || (c >= 48 && c <= 57) || c == 95 || c == 45) && valid_id_bytes(s, i + 1)
 
-fn identifier(value : Json) : Result(String, String) =
+pub fn identifier(value : Json) : Result(String, String) =
   match value of
     JStr(s) =>
       let _ = ensure(byte_len(s) >= 1 && byte_len(s) <= 64 && valid_id_bytes(s, 0), "INVALID_INPUT")?
       Ok(s)
     _ => Err("INVALID_INPUT")
 
-fn array(value : Json) : Result(List(Json), String) =
+pub fn array(value : Json) : Result(List(Json), String) =
   match value of
     JArr(xs) => Ok(xs)
     _ => Err("INVALID_INPUT")
 
-fn parse_ids(xs : List(Json)) : Result(List(String), String) =
+pub fn parse_ids(xs : List(Json)) : Result(List(String), String) =
   match xs of
     Nil => Ok(Nil)
     Cons(x, rest) =>
@@ -76,7 +76,7 @@ fn parse_step(raw : Json) : Result(StepDefinition, String) =
   let failures = integer(optional_field(obj, "failures", JInt(0)), 0, 100)?
   Ok(StepDefinition { id = id, needs = needs, amount = amount, failures = failures })
 
-fn parse_steps(xs : List(Json)) : Result(List(StepDefinition), String) =
+pub fn parse_steps(xs : List(Json)) : Result(List(StepDefinition), String) =
   match xs of
     Nil => Ok(Nil)
     Cons(x, rest) =>
@@ -137,7 +137,7 @@ fn acyclic(remaining : List(StepDefinition), visited : List(String)) : Bool =
       let seen = append(visited, map(\(step) -> step.id, ready))
       acyclic(filter(\(step) -> not(elem(step.id, seen)), remaining), seen)
 
-fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
+pub fn validate_graph(steps : List(StepDefinition)) : Result(Unit, String) =
   let ids = map(\(step) -> step.id, steps)
   let _ = ensure(unique(ids), "DUPLICATE_STEP")?
   let _ = ensure(all(\(step) -> all(\(dep) -> elem(dep, ids), step.needs), steps), "UNKNOWN_DEPENDENCY")?

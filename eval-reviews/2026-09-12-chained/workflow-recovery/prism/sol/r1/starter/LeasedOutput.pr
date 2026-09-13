@@ -1,0 +1,82 @@
+import Data.List (..)
+import Json (..)
+import Domain (..)
+import LeasedDomain (..)
+import LeasedRunner (leased_snapshot)
+
+fn status_step(status : StepStatus) : String =
+  match status of
+    Pending => "pending"
+    Running => "running"
+    Succeeded => "succeeded"
+    Failed => "failed"
+    Blocked => "blocked"
+    Cancelled => "cancelled"
+
+fn status_run(status : RunStatus) : String =
+  match status of
+    Active => "active"
+    Completed => "succeeded"
+    RunFailed => "failed"
+    Failing => "failing"
+    Cancelling => "cancelling"
+    RunCancelled => "cancelled"
+
+fn lease_json(lease : Option(Lease)) : Json =
+  match lease of
+    None => JNull
+    Some(value) => JObj([("worker", JStr(value.worker)), ("ticket", JInt(value.ticket)),
+      ("expires", JInt(value.expires))])
+
+fn step_json(step : LeasedStep) : Json =
+  JObj([("id", JStr(step.id)), ("status", JStr(status_step(step.status))),
+    ("attempts", JInt(step.attempts)), ("ready_at", JInt(step.ready_at)),
+    ("lease", lease_json(step.lease))])
+
+fn run_json(run : LeasedRun) : Json =
+  JObj([("id", JStr(run.id)), ("status", JStr(status_run(run.status))),
+    ("cancel_requested", JBool(run.cancel_requested)), ("steps", JArr(map(step_json, run.steps)))])
+
+fn worker_json(worker : WorkerState) : Json =
+  JObj([("id", JStr(worker.id)), ("up", JBool(worker.up))])
+
+fn snapshot_fields(snapshot : LeasedSnapshot) : List((String, Json)) =
+  [("now", JInt(snapshot.now)), ("workers", JArr(map(worker_json, snapshot.workers))),
+    ("runs", JArr(map(run_json, snapshot.runs)))]
+
+fn snapshot_json(snapshot : LeasedSnapshot) : Json = JObj(snapshot_fields(snapshot))
+
+fn value_json(value : CommandValue) : Json =
+  match value of
+    NullValue => JNull
+    SnapshotValue(snapshot) => snapshot_json(snapshot)
+    TicketValue(ticket) =>
+      let value = match ticket of
+        Some(id) => JInt(id)
+        None => JNull
+      JObj([("ticket", value)])
+    RenewedValue(value) => JObj([("renewed", JBool(value))])
+    ReceiptValue(kind, outcome) => JObj([("kind", JStr(kind)), ("outcome", JStr(outcome))])
+    StaleValue => JObj([("outcome", JStr("stale"))])
+    CommittedValue(value) => JObj([("committed", JBool(value))])
+
+fn key_json(key : ActionKey) : Json = JArr([JStr(key.run_id), JStr(key.step_id)])
+
+fn call_json(call : LeasedCall) : Json =
+  JObj([("worker", JStr(call.worker)), ("ticket", JInt(call.ticket)),
+    ("kind", JStr(call.kind)), ("key", key_json(call.key)),
+    ("attempt", JInt(call.attempt)), ("outcome", JStr(call.outcome))])
+
+fn effect_json(entry : Effect) : Json =
+  JObj([("key", key_json(entry.key)), ("amount", JInt(entry.amount))])
+
+pub fn leased_result_json(sim : LeasedSimulator) : Json =
+  let final = append(snapshot_fields(leased_snapshot(sim)),
+    [("calls", JArr(map(call_json, sim.service.calls))),
+      ("effects", JArr(map(effect_json, sim.service.effects)))])
+  JObj([("results", JArr(map(value_json, sim.results))), ("final", JObj(final))])
+
+pub fn leased_response_json(result : Result(LeasedSimulator, String)) : Json =
+  match result of
+    Ok(sim) => JObj([("ok", JBool(true)), ("result", leased_result_json(sim))])
+    Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])

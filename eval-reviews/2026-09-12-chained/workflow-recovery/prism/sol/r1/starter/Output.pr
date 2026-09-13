@@ -20,6 +20,7 @@ fn run_status(status : RunStatus) : String =
     Active => "active"
     Completed => "succeeded"
     RunFailed => "failed"
+    Failing => "failing"
     Cancelling => "cancelling"
     RunCancelled => "cancelled"
 

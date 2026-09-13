@@ -1,0 +1,37 @@
+import Data.List (..)
+import Data.Foldable (..)
+import Domain (..)
+import LeasedDomain (..)
+
+pub type LeasedServiceResult = LeasedServiceResult { service: LeasedService, outcome: String }
+
+pub fn new_leased_service() : LeasedService = LeasedService { calls = [], effects = [] }
+
+fn same_key(a : ActionKey, b : ActionKey) : Bool =
+  a.run_id == b.run_id && a.step_id == b.step_id
+
+fn effect_exists(service : LeasedService, key : ActionKey) : Bool =
+  any(\(entry) -> same_key(entry.key, key), service.effects)
+
+fn execute_count(calls : List(LeasedCall), key : ActionKey) : Int =
+  foldl(\(n, call) -> if call.kind == "execute" && same_key(call.key, key) then n + 1 else n, 0, calls)
+
+fn add_call(service : LeasedService, worker : String, ticket : Int, kind : String,
+    key : ActionKey, attempt : Int, outcome : String) : LeasedService =
+  LeasedService { ..service, calls = append(service.calls, [LeasedCall { worker = worker,
+    ticket = ticket, kind = kind, key = key, attempt = attempt, outcome = outcome }]) }
+
+pub fn leased_execute(service : LeasedService, worker : String, ticket : Int, key : ActionKey,
+    amount : Int, attempt : Int, failures : Int) : LeasedServiceResult =
+  if effect_exists(service, key) then
+    LeasedServiceResult { service = add_call(service, worker, ticket, "execute", key, attempt, "replayed"), outcome = "replayed" }
+  elif execute_count(service.calls, key) < failures then
+    LeasedServiceResult { service = add_call(service, worker, ticket, "execute", key, attempt, "transient"), outcome = "transient" }
+  else
+    let effected = LeasedService { ..service, effects = append(service.effects, [Effect { key = key, amount = amount }]) }
+    LeasedServiceResult { service = add_call(effected, worker, ticket, "execute", key, attempt, "applied"), outcome = "applied" }
+
+pub fn leased_lookup(service : LeasedService, worker : String, ticket : Int,
+    key : ActionKey, attempt : Int) : LeasedServiceResult =
+  let outcome = if effect_exists(service, key) then "found" else "missing"
+  LeasedServiceResult { service = add_call(service, worker, ticket, "lookup", key, attempt, outcome), outcome = outcome }

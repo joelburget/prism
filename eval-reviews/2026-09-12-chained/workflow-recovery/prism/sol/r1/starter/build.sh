@@ -2,4 +2,6 @@
 set -eu
 cd "$(dirname "$0")"
 mkdir -p .build
-"${PRISM:-prism}" main.pr -o .build/workflow
+"${PRISM:-prism}" check main.pr
+printf '%s\n' '#!/bin/sh' 'exec prism run main.pr | sed '\''/^=> ()$/d'\''' > .build/workflow
+chmod +x .build/workflow

@@ -7,10 +7,32 @@ import Domain (..)
 import Validation (..)
 import Runner (simulate)
 import Output (response_json)
+import LeasedValidation (parse_leased_request)
+import LeasedRunner (simulate_leased)
+import LeasedOutput (leased_response_json)
 
-fn handle_request(line : String) : Result(Simulator, String) =
-  let request = map_err(\(_) -> "INVALID_INPUT", decode_lossy(line))?
-  let workflow = parse_request(request)?
-  simulate(workflow)
+fn has_workers(request : Json) : Bool =
+  match request of
+    JObj(envelope) =>
+      match get_field(envelope, "input") of
+        JObj(input) => any(\(pair) -> fst(pair) == "workers", input)
+        _ => false
+    _ => false
 
-fn main() = println(encode(response_json(handle_request(read_line()))))
+fn invalid_response() : Json =
+  JObj([("ok", JBool(false)), ("error", JObj([("code", JStr("INVALID_INPUT"))]))])
+
+fn handle_request(line : String) : Json =
+  match decode_lossy(line) of
+    Err(_) => invalid_response()
+    Ok(request) =>
+      if has_workers(request) then
+        match parse_leased_request(request) of
+          Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+          Ok(workflow) => leased_response_json(simulate_leased(workflow))
+      else
+        match parse_request(request) of
+          Err(code) => JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])
+          Ok(workflow) => response_json(simulate(workflow))
+
+fn main() = println(encode(handle_request(read_line())))
