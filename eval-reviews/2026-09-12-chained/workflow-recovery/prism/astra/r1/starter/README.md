@@ -1,4 +1,4 @@
-# Workflow runner baseline (prism)
+# Durable workflow runner (prism)
 
 Requires Prism 0.18.0 on PATH (or set `PRISM` to its executable path). Run `./build.sh` once, then `./run.sh`. The launcher executes `.build/workflow` without recompiling. Rebuild after source edits.
 
@@ -8,7 +8,7 @@ Read one newline-terminated workflow-recovery request from stdin and write one r
 
 The baseline supports DAG validation, run creation, single-action ticks, time advances, immutable observations, successful external calls, and deterministic run/definition ordering. All field/scalar checks finish before graph validation and command execution. Errors stop execution and return only the error envelope.
 
-Recovery, persistence, retries, cancellation, service lookup, and idempotent replays are intentionally unimplemented. Valid extension commands/checkpoints and positive service failure configurations return `UNSUPPORTED_FEATURE`; invalid extension field shapes still return `INVALID_INPUT`. Configuration defaults/ranges are validated and retained for the extension.
+Recovery preserves running attempts across both crash checkpoints. The mock service records structured idempotency keys, transient failures, replays, and cancellation lookups independently of runner commits. Retries use bounded attempt budgets and durable deadlines; exhaustion blocks remaining pending work. Cancellation reconciles uncertain effects through lookup without executing new effects. Restart only changes process availability.
 
 From the public corpus root, validate with:
 
@@ -16,4 +16,4 @@ From the public corpus root, validate with:
 python3 run.py run --task workflow-recovery --phase baseline --command '/absolute/path/to/this/starter/run.sh' --timeout 30
 ```
 
-The 19 public baseline cases pass. The public specification defines the extension to implement. This is baseline authoring material, not a completed extension submission.
+The public suite covers 19 baseline and 38 extension cases. Run both phases by omitting `--phase baseline` from the command above.

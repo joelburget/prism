@@ -6,10 +6,27 @@ import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
+fn same_key(a : ActionKey, b : ActionKey) : Bool =
+  a.run_id == b.run_id && a.step_id == b.step_id
+
+pub fn has_effect(service : MockService, key : ActionKey) : Bool =
+  any(\(entry) -> same_key(entry.key, key), service.effects)
+
+-- The service audit survives runner crashes, including uncommitted transients.
+pub fn call_service(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int, lookup_only : Bool) : (MockService, String) =
+  let found = has_effect(service, key)
+  let failed_calls = length(filter(\(call) -> same_key(call.key, key) && call.outcome == "transient", service.calls))
+  let outcome =
+    if lookup_only then (if found then "found" else "missing")
+    elif found then "replayed"
+    elif failed_calls < failures then "transient"
+    else "applied"
+  let updated = MockService {
+    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt,
+      kind = if lookup_only then "lookup" else "execute", outcome = outcome }]),
+    effects = if outcome == "applied" then append(service.effects, [Effect { key = key, amount = amount }]) else service.effects
   }
+  (updated, outcome)
+
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
+  fst(call_service(service, key, amount, attempt, 0, false))

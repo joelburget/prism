@@ -155,3 +155,12 @@ pub fn parse_workflow(raw : Json) : Result(Workflow, String) =
   -- No runtime work occurs until every shape/scalar and then the graph is validated.
   let _ = validate_graph(steps)?
   Ok(Workflow { steps = steps, commands = commands, max_attempts = attempts, retry_delay = delay })
+
+pub fn parse_request(raw : Json) : Result(Workflow, String) =
+  let obj = fields(raw, ["protocol_version", "task", "input"], [])?
+  let _ = integer(get_field(obj, "protocol_version"), 1, 1)?
+  let valid_task = match get_field(obj, "task") of
+    JStr(name) => name == "workflow-recovery"
+    _ => false
+  let _ = ensure(valid_task, "INVALID_INPUT")?
+  parse_workflow(get_field(obj, "input"))
