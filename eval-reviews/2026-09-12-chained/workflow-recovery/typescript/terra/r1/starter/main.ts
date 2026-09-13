@@ -15,10 +15,17 @@ try {
         throw new DomainError("INVALID_INPUT");
       return value;
     },
-  ) as { input?: unknown };
+  ) as unknown;
+  if (
+    request === null || typeof request !== "object" || Array.isArray(request) ||
+    !Object.hasOwn(request, "protocol_version") || !Object.hasOwn(request, "task") || !Object.hasOwn(request, "input") ||
+    Object.keys(request).some(key => key !== "protocol_version" && key !== "task" && key !== "input") ||
+    (request as Record<string, unknown>).protocol_version !== 1 ||
+    (request as Record<string, unknown>).task !== "workflow-recovery"
+  ) throw new DomainError("INVALID_INPUT");
   response = {
     ok: true,
-    result: new Simulator(parseWorkflow(request?.input)).run(),
+    result: new Simulator(parseWorkflow((request as Record<string, unknown>).input)).run(),
   };
 } catch (error) {
   if (error instanceof DomainError)
