@@ -1,6 +1,6 @@
 /** Stable relational operators and real constant-fold / scan-filter rewrites. */
 import { aggregates } from "./model.ts";
-import type { Expr, Plan, ScalarType, Value } from "./model.ts";
+import type { Expr, OrderItem, Plan, ScalarType, Value } from "./model.ts";
 import { walk } from "./binder.ts";
 type Known = Exclude<Value, null>;
 /**
@@ -87,7 +87,7 @@ function isLiteral(e: Expr, value: Value): boolean {
   return e.op === "lit" && e.value === value;
 }
 /** Structural equality of bound, aggregate-free deterministic expressions. */
-function same(a: Expr, b: Expr): boolean {
+export function same(a: Expr, b: Expr): boolean {
   return (
     a.op === b.op &&
     a.index === b.index &&
@@ -139,8 +139,29 @@ function fold(e: Expr): Expr {
   if (e.op === "IS NOT NULL" && !a.nullable) return literal(true, "bool");
   return e;
 }
-function conjuncts(e: Expr): Expr[] {
+export function conjuncts(e: Expr): Expr[] {
   return e.op === "AND" ? e.args.flatMap(conjuncts) : [e];
+}
+/**
+ * ORDER BY comparator over projected rows. NULLs go where the item's NULLS
+ * flag says; booleans sort false before true; text uses code-unit order,
+ * which is ASCII order for the fixture alphabet. Ties return zero so a stable
+ * sort (or an explicit tie-break) preserves encounter order.
+ */
+export function compareRows(order: OrderItem[]): (a: Value[], b: Value[]) => number {
+  return (a, b) => {
+    for (const [index, desc, nullsFirst] of order) {
+      const x = a[index as number],
+        y = b[index as number];
+      if (x === null || y === null) {
+        if (x === y) continue;
+        return (x === null) === nullsFirst ? -1 : 1;
+      }
+      const c = x < y ? -1 : x > y ? 1 : 0;
+      if (c) return desc ? -c : c;
+    }
+    return 0;
+  };
 }
 export function optimize(plan: Plan): Plan {
   const q = plan.query;
@@ -224,19 +245,7 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
       return true;
     });
   }
-  projected.sort((a, b) => {
-    for (const [index, desc, nullsFirst] of q.order) {
-      const x = a[index as number],
-        y = b[index as number];
-      if (x === null || y === null) {
-        if (x === y) continue;
-        return (x === null) === nullsFirst ? -1 : 1;
-      }
-      const c = x < y ? -1 : x > y ? 1 : 0;
-      if (c) return desc ? -c : c;
-    }
-    return 0;
-  });
+  projected.sort(compareRows(q.order));
   return {
     columns: q.select.map(([, a]) => a),
     rows: projected.slice(

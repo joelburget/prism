@@ -16,6 +16,8 @@
     "package.json",
     "parser.ts",
     "run.sh",
-    "tsconfig.json"
+    "tsconfig.json",
+    "views.test.ts",
+    "views.ts"
   ]
 }

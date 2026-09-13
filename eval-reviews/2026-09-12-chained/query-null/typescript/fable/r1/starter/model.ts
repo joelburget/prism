@@ -15,6 +15,12 @@ export interface InputQuery {
   sql: string;
   optimize: boolean;
 }
+/** A validated request: the old query list or the new command list. */
+export interface Request {
+  database: Map<string, Table>;
+  queries?: InputQuery[];
+  commands?: unknown[];
+}
 /**
  * Bound expression node. `type` is undefined only for an untyped NULL literal
  * (or an expression whose only inputs are untyped NULLs); such a node takes the
@@ -84,16 +90,19 @@ function fields(
       names.every((k) => Object.hasOwn(x, k)),
   );
 }
-function typed(v: unknown, type: ScalarType): boolean {
+export function typed(v: unknown, type: ScalarType): boolean {
   if (type === "int") return typeof v === "number" && Number.isInteger(v);
   return typeof v === (type === "text" ? "string" : "boolean");
 }
-export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
+export function validate(request: unknown): Request {
   object(request);
   requireThat(request.protocol_version === 1 && request.task === "query-null");
   const data = request.input;
-  fields(data, ["database", "queries"]);
-  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+  object(data);
+  const commandMode = Object.hasOwn(data, "commands");
+  fields(data, ["database", commandMode ? "commands" : "queries"]);
+  requireThat(Array.isArray(data.database));
+  requireThat(Array.isArray(commandMode ? data.commands : data.queries));
   const database = new Map<string, Table>();
   for (const item of data.database as unknown[]) {
     fields(item, ["name", "columns", "rows"]);
@@ -125,11 +134,12 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       rows: item.rows as Value[][],
     });
   }
+  if (commandMode) return { database, commands: data.commands as unknown[] };
   const queries: InputQuery[] = [];
   for (const q of data.queries as unknown[]) {
     fields(q, ["sql", "optimize"]);
     requireThat(typeof q.sql === "string" && typeof q.optimize === "boolean");
     queries.push({ sql: q.sql, optimize: q.optimize });
   }
-  return [database, queries];
+  return { database, queries };
 }
