@@ -11,6 +11,7 @@
     "package-lock.json",
     "package.json",
     "run.sh",
+    "test.sh",
     "tsconfig.json",
     "workflow.ts"
   ]

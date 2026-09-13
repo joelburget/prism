@@ -1,4 +1,4 @@
-/** Deterministic in-memory DAG runner. Recovery and idempotency are extension work. */
+/** Deterministic in-memory DAG runner with durable execution, recovery, retries, and cancellation. */
 export const TIME_LIMIT = 2_147_483_647;
 export class DomainError extends Error {
   readonly code: string;
@@ -52,10 +52,11 @@ export interface StepDefinition {
   readonly amount: number;
   readonly failures: number;
 }
+export type CrashAt = "after_begin" | "after_call" | null;
 export type Command =
   | { op: "start" | "cancel"; run: string }
   | { op: "advance"; by: number }
-  | { op: "tick"; crashAt: "after_begin" | "after_call" | null }
+  | { op: "tick"; crashAt: CrashAt }
   | { op: "observe" | "crash" | "restart" };
 export interface Workflow {
   readonly steps: readonly StepDefinition[];
@@ -95,14 +96,9 @@ function parseCommand(raw: unknown): Command {
       fields(raw, ["op"], ["crash_at"]);
       const crashAt = Object.hasOwn(obj, "crash_at") ? obj.crash_at : null;
       require(
-        !Object.hasOwn(obj, "crash_at") ||
-          crashAt === "after_begin" ||
-          crashAt === "after_call",
+        crashAt === null || crashAt === "after_begin" || crashAt === "after_call",
       );
-      return {
-        op: obj.op,
-        crashAt: crashAt as "after_begin" | "after_call" | null,
-      };
+      return { op: obj.op, crashAt: crashAt as CrashAt };
     }
     case "observe":
     case "crash":
@@ -158,36 +154,91 @@ export function parseWorkflow(raw: unknown): Workflow {
   validateGraph(workflow.steps); // Scalar and shape validation has finished before graph checks.
   return workflow;
 }
+export type StepStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "blocked"
+  | "cancelled";
+export type RunStatus =
+  | "active"
+  | "succeeded"
+  | "failed"
+  | "cancelling"
+  | "cancelled";
 export interface StepState {
   id: string;
-  status: "pending" | "running" | "succeeded";
+  status: StepStatus;
   attempts: number;
   ready_at: number;
 }
 export interface RunState {
   id: string;
-  status: "active" | "succeeded";
+  status: RunStatus;
   cancel_requested: boolean;
   steps: StepState[];
 }
-type ActionKey = readonly [string, string];
-interface ServiceCall {
-  kind: "execute";
-  key: ActionKey;
-  attempt: number;
-  outcome: "applied";
-}
-interface Effect {
+export type ActionKey = readonly [string, string];
+export type ExecuteOutcome = "applied" | "replayed" | "transient";
+export type LookupOutcome = "found" | "missing";
+export type ServiceCall =
+  | { kind: "execute"; key: ActionKey; attempt: number; outcome: ExecuteOutcome }
+  | { kind: "lookup"; key: ActionKey; attempt: number; outcome: LookupOutcome };
+export interface Effect {
   key: ActionKey;
   amount: number;
 }
+/**
+ * Idempotent mock external service. Its audit and effects survive runner
+ * crashes; the runner never inspects the effect list directly. Keys are
+ * structured [run, step] pairs stored in nested maps, never concatenated.
+ */
 export class MockService {
   readonly calls: ServiceCall[] = [];
   readonly effects: Effect[] = [];
-  execute(key: ActionKey, amount: number, attempt: number): void {
-    // Successful baseline actions only; no replay cache or failure counters yet.
-    this.calls.push({ kind: "execute", key, attempt, outcome: "applied" });
-    this.effects.push({ key, amount });
+  private readonly applied = new Map<string, Set<string>>();
+  private readonly transientsLeft = new Map<string, Map<string, number>>();
+  private readonly failures: ReadonlyMap<string, number>;
+  constructor(steps: readonly StepDefinition[]) {
+    this.failures = new Map(steps.map((step) => [step.id, step.failures]));
+  }
+  private hasEffect(key: ActionKey): boolean {
+    return this.applied.get(key[0])?.has(key[1]) ?? false;
+  }
+  execute(key: ActionKey, amount: number, attempt: number): ExecuteOutcome {
+    let outcome: ExecuteOutcome;
+    if (this.hasEffect(key)) {
+      outcome = "replayed";
+    } else {
+      const [run, step] = key;
+      let perRun = this.transientsLeft.get(run);
+      if (!perRun) {
+        perRun = new Map();
+        this.transientsLeft.set(run, perRun);
+      }
+      const left = perRun.get(step) ?? this.failures.get(step) ?? 0;
+      if (left > 0) {
+        perRun.set(step, left - 1);
+        outcome = "transient";
+      } else {
+        let runSet = this.applied.get(run);
+        if (!runSet) {
+          runSet = new Set();
+          this.applied.set(run, runSet);
+        }
+        runSet.add(step);
+        this.effects.push({ key, amount });
+        outcome = "applied";
+      }
+    }
+    this.calls.push({ kind: "execute", key, attempt, outcome });
+    return outcome;
+  }
+  lookup(key: ActionKey, attempt: number): LookupOutcome {
+    const outcome: LookupOutcome = this.hasEffect(key) ? "found" : "missing";
+    this.calls.push({ kind: "lookup", key, attempt, outcome });
+    return outcome;
   }
 }
 export interface Snapshot {
@@ -204,15 +255,21 @@ interface Action {
   step: StepState;
   definition: StepDefinition;
 }
+const TERMINAL_RUN: ReadonlySet<RunStatus> = new Set([
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 export class Simulator {
   readonly workflow: Workflow;
   now = 0;
   up = true;
   readonly runs: RunState[] = [];
-  readonly service = new MockService();
+  readonly service: MockService;
   readonly observations: Snapshot[] = [];
   constructor(workflow: Workflow) {
     this.workflow = workflow;
+    this.service = new MockService(workflow.steps);
   }
   selectAction(): Action | undefined {
     for (const run of this.runs) {
@@ -243,22 +300,69 @@ export class Simulator {
     }
     return undefined;
   }
-  tick(): void {
+  private crash(): void {
+    this.up = false;
+  }
+  tick(crashAt: CrashAt): void {
     const action = this.selectAction();
-    if (!action) return;
+    if (!action) return; // No checkpoint is reached without eligible work.
     const { run, step, definition } = action;
+    const key: ActionKey = [run.id, step.id];
     if (step.status === "pending") {
+      // Durable begin: happens exactly once per attempt.
       step.status = "running";
       step.attempts += 1;
     }
-    this.service.execute([run.id, step.id], definition.amount, step.attempts);
+    if (crashAt === "after_begin") {
+      this.crash();
+      return;
+    }
+    if (run.status === "cancelling") {
+      // Reconcile an uncertain in-flight attempt without executing new work.
+      const outcome = this.service.lookup(key, step.attempts);
+      if (crashAt === "after_call") {
+        this.crash();
+        return;
+      }
+      step.status = outcome === "found" ? "succeeded" : "cancelled";
+      run.status = "cancelled";
+      return;
+    }
+    const outcome = this.service.execute(key, definition.amount, step.attempts);
+    if (crashAt === "after_call") {
+      this.crash();
+      return;
+    }
+    if (outcome === "transient") {
+      if (step.attempts < this.workflow.maxAttempts) {
+        require(this.now + this.workflow.retryDelay <= TIME_LIMIT, "TIME_OVERFLOW");
+        step.status = "pending";
+        step.ready_at = this.now + this.workflow.retryDelay;
+      } else {
+        step.status = "failed";
+        run.status = "failed";
+        for (const other of run.steps)
+          if (other.status === "pending") other.status = "blocked";
+      }
+      return;
+    }
     step.status = "succeeded";
     if (run.steps.every((state) => state.status === "succeeded"))
       run.status = "succeeded";
   }
+  cancel(run: RunState): void {
+    if (TERMINAL_RUN.has(run.status)) return;
+    run.cancel_requested = true;
+    for (const step of run.steps)
+      if (step.status === "pending") step.status = "cancelled";
+    run.status = run.steps.some((step) => step.status === "running")
+      ? "cancelling"
+      : "cancelled";
+  }
   apply(command: Command): void {
     switch (command.op) {
       case "start":
+        require(this.up, "PROCESS_DOWN");
         require(this.runs.every(
           (run) => run.id !== command.run,
         ), "DUPLICATE_RUN");
@@ -275,8 +379,23 @@ export class Simulator {
         });
         break;
       case "tick":
-        require(command.crashAt === null, "UNSUPPORTED_FEATURE");
-        this.tick();
+        require(this.up, "PROCESS_DOWN");
+        this.tick(command.crashAt);
+        break;
+      case "cancel": {
+        require(this.up, "PROCESS_DOWN");
+        const run = this.runs.find((candidate) => candidate.id === command.run);
+        require(run !== undefined, "UNKNOWN_RUN");
+        this.cancel(run);
+        break;
+      }
+      case "crash":
+        require(this.up, "PROCESS_DOWN");
+        this.crash();
+        break;
+      case "restart":
+        require(!this.up, "PROCESS_UP");
+        this.up = true; // Passive: no service calls or status transitions.
         break;
       case "advance":
         require(this.now + command.by <= TIME_LIMIT, "TIME_OVERFLOW");
@@ -285,8 +404,6 @@ export class Simulator {
       case "observe":
         this.observations.push(this.snapshot());
         break;
-      default:
-        throw new DomainError("UNSUPPORTED_FEATURE");
     }
   }
   snapshot(): Snapshot {
@@ -300,9 +417,6 @@ export class Simulator {
     };
   }
   run(): SimulationResult {
-    require(this.workflow.steps.every(
-      (step) => step.failures === 0,
-    ), "UNSUPPORTED_FEATURE");
     this.workflow.commands.forEach((command) => this.apply(command));
     return {
       observations: this.observations,
