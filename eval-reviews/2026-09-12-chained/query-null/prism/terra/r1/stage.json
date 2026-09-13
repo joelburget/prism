@@ -1,0 +1,19 @@
+{
+  "run_id": "run-1a51a8daa45b",
+  "checkpoint": 1,
+  "model": "terra",
+  "model_id": "gpt-5.6-terra",
+  "task": "query-null",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "8681bf1fbd880a3ea70f19e613d6419195679af479d388f6f847aa58cb4d3a6d",
+  "passed": false,
+  "seconds": 296.8400160410092,
+  "tool_calls": 25,
+  "flags": [
+    "task_frozen_after_resource_limit",
+    "timeout"
+  ],
+  "result_sha256": "72029a1dee5e217564ac4eb103c8b9ec019ae894f1e75c5354478e22b82c9d3f",
+  "archive_note": "Exact frozen source"
+}

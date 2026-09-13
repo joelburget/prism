@@ -25,18 +25,24 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
       if e.op == "COUNT" then
         "int"
       elif elem(e.op, ["SUM", "+", "-", "*"]) then
-        demand(all(\(t) -> t == "int", ts), "TYPE_ERROR")
+        demand(all(\(t) -> t == "int" || t == "null", ts), "TYPE_ERROR")
         "int"
       elif elem(e.op, ["MIN", "MAX"]) then
-        demand(elem(at(ts, 0), ["int", "text"]), "TYPE_ERROR")
+        demand(elem(at(ts, 0), ["int", "text", "null"]), "TYPE_ERROR")
         at(ts, 0)
       elif elem(e.op, ["NOT", "AND", "OR"]) then
-        demand(all(\(t) -> t == "bool", ts), "TYPE_ERROR")
+        demand(all(\(t) -> t == "bool" || t == "null", ts), "TYPE_ERROR")
         "bool"
+      elif elem(e.op, ["ISNULL", "ISNOTNULL"]) then
+        "bool"
+      elif e.op == "COALESCE" then
+        let concrete = filter(\(t) -> t /= "null", ts)
+        demand(length(concrete) == 0 || all(\(t) -> t == at(concrete, 0), concrete), "TYPE_ERROR")
+        if length(concrete) == 0 then "null" else at(concrete, 0)
       else
         demand(
-            at(ts, 0) == at(ts, 1)
-              && (at(ts, 0) /= "bool" || elem(e.op, ["=", "<>"])),
+            (at(ts, 0) == at(ts, 1) || at(ts, 0) == "null" || at(ts, 1) == "null")
+              && (at(ts, 0) /= "bool" && at(ts, 1) /= "bool" || elem(e.op, ["=", "<>"])),
             "TYPE_ERROR",
           )
         "bool"
@@ -44,7 +50,7 @@ fn check(e : Expr, columns : List(Column), allow : Bool, inside : Bool) : Expr =
 
 fn predicate(e : Expr, columns : List(Column), allow : Bool) : Expr =
   let b = check(e, columns, allow, false)
-  demand(b.kind == "bool", "TYPE_ERROR")
+  demand(b.kind == "bool" || b.kind == "null", "TYPE_ERROR")
   b
 
 pub fn tree_any(p : (Expr) -> Bool, e : Expr) : Bool =
@@ -103,7 +109,7 @@ pub fn bind(q : Query, database : List(Table)) : Plan =
           ),
       "UNSUPPORTED_FEATURE",
     )
-  let order = map(\(o) -> (alias_index(aliases, fst(o), 0), snd(o)), q.order)
+  let order = map(\((n, desc, null_first)) -> (alias_index(aliases, n, 0), desc, null_first), q.order)
   let bq =
     Query {
       ..q,
