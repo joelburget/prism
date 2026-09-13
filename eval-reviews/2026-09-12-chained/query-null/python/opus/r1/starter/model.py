@@ -11,6 +11,9 @@ def require(condition, code='INVALID_INPUT'):
 
 RESERVED = set('SELECT DISTINCT AS FROM INNER JOIN LEFT OUTER ON WHERE GROUP BY HAVING ORDER ASC DESC NULLS FIRST LAST LIMIT OFFSET AND OR NOT IS NULL TRUE FALSE COALESCE COUNT SUM MIN MAX'.split())
 
+# 'null' is the type of an untyped NULL literal; it unifies with any concrete type.
+TYPES = ('int', 'text', 'bool')
+
 def identifier(s):
     return isinstance(s, str) and re.fullmatch('[a-z_][a-z0-9_]*', s) is not None and s.upper() not in RESERVED
 
@@ -22,6 +25,19 @@ class Expr:
     type: str = ''
     index: int = -1
     source: int = -1
+    nullable: bool = True
+
+@dataclass
+class Join:
+    """One join step; `outer` marks LEFT [OUTER] JOIN."""
+    on: Expr
+    outer: bool = False
+
+@dataclass
+class Order:
+    index: int
+    descending: bool = False
+    nulls_first: bool | None = None
 
 @dataclass
 class Query:
@@ -57,13 +73,15 @@ def validate(request):
         names = set()
         for c in t['columns']:
             fields(c, {'name', 'type', 'nullable'})
-            require(identifier(c['name']) and c['name'] not in names and c['type'] in ('int', 'text', 'bool') and type(c['nullable']) is bool)
+            require(identifier(c['name']) and c['name'] not in names and c['type'] in TYPES and type(c['nullable']) is bool)
             names.add(c['name'])
-            require(not c['nullable'], 'UNSUPPORTED_FEATURE')
         for row in t['rows']:
             require(isinstance(row, list) and len(row) == len(t['columns']))
             for v, c in zip(row, t['columns']):
-                require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                if v is None:
+                    require(c['nullable'])
+                else:
+                    require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})

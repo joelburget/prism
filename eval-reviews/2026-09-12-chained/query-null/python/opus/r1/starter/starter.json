@@ -12,6 +12,7 @@
     "main.py",
     "model.py",
     "parser.py",
-    "run.sh"
+    "run.sh",
+    "tests.py"
   ]
 }
