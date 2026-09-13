@@ -1,19 +1,16 @@
 {
-  "run_id": "run-c0b7b2ebaa21",
-  "checkpoint": 1,
+  "run_id": "run-a979c604ac49",
+  "checkpoint": 2,
   "model": "haiku",
   "model_id": "claude-haiku-4-5-20251001",
   "task": "workflow-recovery",
   "language": "typescript",
   "source_available": true,
-  "source_sha256": "f9a03d3f93ba39f49bc61c4b9dd719160ca7afbb445a1279e214b5a0cbc07693",
+  "source_sha256": "860b8675045aff116d3cd446afc9f2526aa278bdc1077f1030c5be1c4a56b206",
   "passed": false,
-  "seconds": 158.45702970901038,
-  "tool_calls": 44,
-  "flags": [
-    "task_frozen_after_resource_limit",
-    "timeout"
-  ],
-  "result_sha256": "61e09c7e6642e347228f144585b5984e5a9d50adeefe0c5974dc2ac49f56f5a5",
+  "seconds": 586.7981096250005,
+  "tool_calls": 48,
+  "flags": [],
+  "result_sha256": "bded192e67123a57173f62ac23261cf10ec3cb0c61a0fb2148b99581043d1056",
   "archive_note": "Exact frozen source"
 }
