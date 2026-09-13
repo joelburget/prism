@@ -1,15 +1,24 @@
 import Data.List (..)
 import Data.Foldable (..)
-import Data.String (..)
-import Data.Result (..)
 import Domain (..)
 
 pub fn new_service() : MockService = MockService { calls = [], effects = [] }
 
--- The baseline has successful calls only. Replay caching, transient responses,
--- failure counters and lookup reconciliation are left for the requested extension.
-pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int) : MockService =
-  MockService {
-    calls = append(service.calls, [ServiceCall { key = key, attempt = attempt }]),
-    effects = append(service.effects, [Effect { key = key, amount = amount }])
-  }
+fn same(a : ActionKey, b : ActionKey) : Bool = a.run_id == b.run_id && a.step_id == b.step_id
+fn has_effect(xs : List(Effect), key : ActionKey) : Bool = any(\(x) -> same(x.key, key), xs)
+fn transient_count(xs : List(ServiceCall), key : ActionKey) : Int =
+  match xs of
+    Nil => 0
+    Cons(x, rest) => (if x.kind == ExecuteCall && same(x.key, key) && x.outcome == Transient then 1 else 0) + transient_count(rest, key)
+
+pub fn execute(service : MockService, key : ActionKey, amount : Int, attempt : Int, failures : Int) : ServiceResult =
+  if has_effect(service.effects, key) then
+    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Replayed }]) }, outcome = Replayed }
+  elif transient_count(service.calls, key) < failures then
+    ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Transient }]) }, outcome = Transient }
+  else
+    ServiceResult { service = MockService { calls = append(service.calls, [ServiceCall { kind = ExecuteCall, key = key, attempt = attempt, outcome = Applied }]), effects = append(service.effects, [Effect { key = key, amount = amount }]) }, outcome = Applied }
+
+pub fn lookup(service : MockService, key : ActionKey, attempt : Int) : ServiceResult =
+  let outcome = if has_effect(service.effects, key) then Found else Missing
+  ServiceResult { service = MockService { ..service, calls = append(service.calls, [ServiceCall { kind = LookupCall, key = key, attempt = attempt, outcome = outcome }]) }, outcome = outcome }

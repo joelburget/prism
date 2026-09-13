@@ -1,0 +1,16 @@
+{
+  "run_id": "run-d471d755b090",
+  "checkpoint": 1,
+  "model": "luna",
+  "model_id": "gpt-5.6-luna",
+  "task": "workflow-recovery",
+  "language": "prism",
+  "source_available": true,
+  "source_sha256": "3d1d22227c8360e4b4ab9c697e13e86ad0913b141cad3e1c697fde6206de121d",
+  "passed": true,
+  "seconds": 175.28810204204638,
+  "tool_calls": 16,
+  "flags": [],
+  "result_sha256": "e235e510a5571239b1ba6e854b0b46d7f6595f1d94188501d831c142f37ea92b",
+  "archive_note": "Exact frozen source"
+}

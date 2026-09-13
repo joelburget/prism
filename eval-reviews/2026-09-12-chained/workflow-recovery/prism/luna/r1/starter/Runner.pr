@@ -1,92 +1,107 @@
 import Data.List (..)
 import Data.Foldable (..)
-import Data.String (..)
 import Data.Result (..)
 import Domain (..)
 import Service (..)
 
-pub fn new_simulator() : Simulator =
-  Simulator { now = 0, up = true, runs = [], service = new_service(), observations = [] }
+pub fn new_simulator() : Simulator = Simulator { now = 0, up = true, runs = [], service = new_service(), observations = [] }
+pub fn snapshot(sim : Simulator) : Snapshot = Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
 
-pub fn snapshot(sim : Simulator) : Snapshot =
-  -- Persistent values make every historical snapshot independent of later updates.
-  Snapshot { now = sim.now, up = sim.up, runs = sim.runs }
+fn new_step(now : Int, d : StepDefinition) : StepState = StepState { id = d.id, status = Pending, attempts = 0, ready_at = now }
+fn replace_step(run : RunState, replacement : StepState) : RunState = RunState { ..run, steps = map(\(s) -> if s.id == replacement.id then replacement else s, run.steps) }
+fn replace_run(sim : Simulator, replacement : RunState) : Simulator = Simulator { ..sim, runs = map(\(r) -> if r.id == replacement.id then replacement else r, sim.runs) }
+fn definition_for(defs : List(StepDefinition), id : String) : Option(StepDefinition) = find(\(d) -> d.id == id, defs)
 
-fn new_step(now : Int, definition : StepDefinition) : StepState =
-  StepState { id = definition.id, status = Pending, attempts = 0, ready_at = now }
-
-fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), definitions : List(StepDefinition)) : Option(Action) =
-  match (states, definitions) of
-    (Cons(step, more_states), Cons(definition, more_definitions)) =>
-      let ready =
-        if inflight then step.status == Running
-        else run.status == Active && step.status == Pending && step.ready_at <= now
-          && all(\(dep) -> any(\(s) -> s.id == dep && s.status == Succeeded, run.steps), definition.needs)
-      if ready then Some(Action { run = run, step = step, definition = definition })
-      else select_step(now, inflight, run, more_states, more_definitions)
+fn deps_done(run : RunState, d : StepDefinition) : Bool = all(\(dep) -> any(\(s) -> s.id == dep && s.status == Succeeded, run.steps), d.needs)
+fn select_step(now : Int, inflight : Bool, run : RunState, states : List(StepState), defs : List(StepDefinition)) : Option(Action) =
+  match (states, defs) of
+    (Cons(s, ss), Cons(d, ds)) =>
+      let eligible = if inflight then s.status == Running else run.status == Active && s.status == Pending && s.ready_at <= now && deps_done(run, d)
+      if eligible then Some(Action { run = run, step = s, definition = d }) else select_step(now, inflight, run, ss, ds)
     _ => None
-
-fn select_run(now : Int, inflight : Bool, runs : List(RunState), definitions : List(StepDefinition)) : Option(Action) =
+fn select_run(now : Int, inflight : Bool, runs : List(RunState), defs : List(StepDefinition)) : Option(Action) =
   match runs of
     Nil => None
-    Cons(run, rest) =>
-      match select_step(now, inflight, run, run.steps, definitions) of
-        Some(action) => Some(action)
-        None => select_run(now, inflight, rest, definitions)
-
+    Cons(r, rest) => match select_step(now, inflight, r, r.steps, defs) of
+      Some(a) => Some(a)
+      None => select_run(now, inflight, rest, defs)
 pub fn select_action(sim : Simulator, workflow : Workflow) : Option(Action) =
-  -- Resume the oldest in-flight attempt before scanning ready pending work.
   match select_run(sim.now, true, sim.runs, workflow.steps) of
-    Some(action) => Some(action)
+    Some(a) => Some(a)
     None => select_run(sim.now, false, sim.runs, workflow.steps)
 
-fn replace_step(run : RunState, replacement : StepState) : RunState =
-  RunState { ..run, steps = map(\(step) -> if step.id == replacement.id then replacement else step, run.steps) }
+fn all_succeeded(xs : List(StepState)) : Bool = all(\(s) -> s.status == Succeeded, xs)
+fn block_pending(run : RunState) : RunState = RunState { ..run, steps = map(\(s) -> if s.status == Pending then StepState { ..s, status = Blocked } else s, run.steps) }
+fn finish_success(run : RunState) : RunState = if all_succeeded(run.steps) then RunState { ..run, status = SucceededRun } else run
 
-fn replace_run(sim : Simulator, replacement : RunState) : Simulator =
-  Simulator { ..sim, runs = map(\(run) -> if run.id == replacement.id then replacement else run, sim.runs) }
-
-pub fn tick(sim : Simulator, workflow : Workflow) : Simulator =
-  match select_action(sim, workflow) of
-    None => sim
-    Some(action) =>
-      let running =
-        if action.step.status == Pending then
-          StepState { ..action.step, status = Running, attempts = action.step.attempts + 1 }
-        else action.step
-      let begun_run = replace_step(action.run, running)
-      let begun = replace_run(sim, begun_run)
+fn do_action(sim : Simulator, workflow : Workflow, action : Action, checkpoint : Option(Checkpoint)) : Result(Simulator, String) =
+  let running = if action.step.status == Pending then StepState { ..action.step, status = Running, attempts = action.step.attempts + 1 } else action.step
+  let begun_run = replace_step(action.run, running)
+  let begun = replace_run(sim, begun_run)
+  match checkpoint of
+    Some(AfterBegin) => Ok(Simulator { ..begun, up = false })
+    _ =>
       let key = ActionKey { run_id = action.run.id, step_id = running.id }
-      let service = execute(begun.service, key, action.definition.amount, running.attempts)
-      let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })
-      let finished =
-        if all(\(step) -> step.status == Succeeded, completed.steps) then
-          RunState { ..completed, status = Completed }
-        else completed
-      replace_run(Simulator { ..begun, service = service }, finished)
+      if action.run.status == Cancelling then
+        let looked = lookup(begun.service, key, running.attempts)
+        match checkpoint of
+          Some(AfterCall) => Ok(Simulator { ..begun, service = looked.service, up = false })
+          _ =>
+            let final_step = if looked.outcome == Found then StepState { ..running, status = Succeeded } else StepState { ..running, status = Cancelled }
+            let final_run = RunState { ..replace_step(begun_run, final_step), status = CancelledRun }
+            Ok(replace_run(Simulator { ..begun, service = looked.service }, final_run))
+      else
+        let called = execute(begun.service, key, action.definition.amount, running.attempts, action.definition.failures)
+        match checkpoint of
+          Some(AfterCall) => Ok(Simulator { ..begun, service = called.service, up = false })
+          _ =>
+            if called.outcome == Transient then
+              if running.attempts >= workflow.max_attempts then
+                let failed = block_pending(RunState { ..replace_step(begun_run, StepState { ..running, status = Failed }), status = FailedRun })
+                Ok(replace_run(Simulator { ..begun, service = called.service }, failed))
+              elif sim.now + workflow.retry_delay > time_limit() then Err("TIME_OVERFLOW")
+              else
+                let retry = StepState { ..running, status = Pending, ready_at = sim.now + workflow.retry_delay }
+                Ok(replace_run(Simulator { ..begun, service = called.service }, replace_step(begun_run, retry)))
+            else
+              let completed = replace_step(begun_run, StepState { ..running, status = Succeeded })
+              Ok(replace_run(Simulator { ..begun, service = called.service }, finish_success(completed)))
+
+pub fn tick(sim : Simulator, workflow : Workflow, checkpoint : Option(Checkpoint)) : Result(Simulator, String) =
+  if not(sim.up) then Err("PROCESS_DOWN")
+  else match select_action(sim, workflow) of
+    None => Ok(sim)
+    Some(action) => do_action(sim, workflow, action, checkpoint)
+
+fn cancel_run(sim : Simulator, id : String) : Result(Simulator, String) =
+  match find(\(r) -> r.id == id, sim.runs) of
+    None => Err("UNKNOWN_RUN")
+    Some(run) =>
+      match run.status of
+        SucceededRun => Ok(sim)
+        FailedRun => Ok(sim)
+        CancelledRun => Ok(sim)
+        _ =>
+          let changed = RunState { ..run, cancel_requested = true, steps = map(\(s) -> if s.status == Pending then StepState { ..s, status = Cancelled } else s, run.steps) }
+          let has_running = any(\(s) -> s.status == Running, changed.steps)
+          let final_run = if has_running then RunState { ..changed, status = Cancelling } else RunState { ..changed, status = CancelledRun }
+          Ok(replace_run(sim, final_run))
 
 pub fn apply_command(sim : Simulator, workflow : Workflow, command : Command) : Result(Simulator, String) =
   match command of
-    Start(id) =>
-      if any(\(run) -> run.id == id, sim.runs) then Err("DUPLICATE_RUN")
-      else
-        let run = RunState { id = id, status = Active, cancel_requested = false,
-          steps = map(\(definition) -> new_step(sim.now, definition), workflow.steps) }
-        Ok(Simulator { ..sim, runs = append(sim.runs, [run]) })
-    Tick(None) => Ok(tick(sim, workflow))
-    Advance(by) =>
-      if sim.now + by > time_limit() then Err("TIME_OVERFLOW")
-      else Ok(Simulator { ..sim, now = sim.now + by })
     Observe => Ok(Simulator { ..sim, observations = append(sim.observations, [snapshot(sim)]) })
-    _ => Err("UNSUPPORTED_FEATURE")
+    Advance(by) => if sim.now + by > time_limit() then Err("TIME_OVERFLOW") else Ok(Simulator { ..sim, now = sim.now + by })
+    Crash => if not(sim.up) then Err("PROCESS_DOWN") else Ok(Simulator { ..sim, up = false })
+    Restart => if sim.up then Err("PROCESS_UP") else Ok(Simulator { ..sim, up = true })
+    Start(id) => if not(sim.up) then Err("PROCESS_DOWN") elif any(\(r) -> r.id == id, sim.runs) then Err("DUPLICATE_RUN") else
+      Ok(Simulator { ..sim, runs = append(sim.runs, [RunState { id = id, status = Active, cancel_requested = false, steps = map(\(d) -> new_step(sim.now, d), workflow.steps) }]) })
+    Cancel(id) => if not(sim.up) then Err("PROCESS_DOWN") else cancel_run(sim, id)
+    Tick(cp) => tick(sim, workflow, cp)
 
 fn run_commands(sim : Simulator, workflow : Workflow, commands : List(Command)) : Result(Simulator, String) =
   match commands of
     Nil => Ok(sim)
-    Cons(command, rest) =>
-      let next = apply_command(sim, workflow, command)?
+    Cons(c, rest) =>
+      let next = apply_command(sim, workflow, c)?
       run_commands(next, workflow, rest)
-
-pub fn simulate(workflow : Workflow) : Result(Simulator, String) =
-  if any(\(step) -> step.failures > 0, workflow.steps) then Err("UNSUPPORTED_FEATURE")
-  else run_commands(new_simulator(), workflow, workflow.commands)
+pub fn simulate(workflow : Workflow) : Result(Simulator, String) = run_commands(new_simulator(), workflow, workflow.commands)
