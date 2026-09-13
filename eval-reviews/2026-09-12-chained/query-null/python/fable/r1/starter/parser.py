@@ -1,6 +1,6 @@
 """SQL tokenizer and recursive precedence parser; no database access."""
 import re
-from model import Expr, Query, DomainError, RESERVED, identifier, require
+from model import Expr, Query, RESERVED, identifier, require
 
 TOKEN = re.compile(r"\s+|'(?:[^']|'')*'|[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|<>|<=|>=|[(),.;+*=<>-]")
 PRECEDENCE = {'OR': 1, 'AND': 2, '=': 4, '<>': 4, '<': 4, '>': 4, '<=': 4, '>=': 4, '+': 5, '-': 5, '*': 6}
@@ -39,8 +39,6 @@ class Parser:
 
     def expr(self, minimum=1):
         t = self.pop()
-        if t in ('NULL', 'COALESCE'):
-            raise DomainError('UNSUPPORTED_FEATURE')
         if t == 'NOT': left = Expr('NOT', args=[self.expr(3)])
         elif t == '(':
             left = self.expr()
@@ -52,6 +50,14 @@ class Parser:
         elif t.isdigit(): left = Expr('lit', int(t), type='int')
         elif t.startswith("'"): left = Expr('lit', t[1:-1].replace("''", "'"), type='text')
         elif t in ('TRUE', 'FALSE'): left = Expr('lit', t == 'TRUE', type='bool')
+        elif t == 'NULL': left = Expr('lit', None, type='null')
+        elif t == 'COALESCE':
+            self.need('(')
+            args = [self.expr()]
+            while self.take(','): args.append(self.expr())
+            self.need(')')
+            require(len(args) >= 2, 'PARSE_ERROR')
+            left = Expr('COALESCE', args=args)
         elif t in AGGREGATES:
             self.need('(')
             if t == 'COUNT' and self.take('*'): left = Expr(t)
@@ -61,14 +67,24 @@ class Parser:
             require(identifier(t), 'PARSE_ERROR')
             left = Expr('col', (t, self.name()) if self.take('.') else ('', t))
         compared = False
-        while PRECEDENCE.get(self.peek(), 0) >= minimum:
+        while True:
+            if self.peek() == 'IS':
+                # Postfix IS [NOT] NULL binds at comparison level; chaining with a comparison is invalid.
+                if minimum > 4: break
+                self.pop()
+                negated = self.take('NOT')
+                self.need('NULL')
+                require(not compared, 'PARSE_ERROR')
+                left = Expr('ISNOTNULL' if negated else 'ISNULL', args=[left])
+                compared = True
+                continue
+            if PRECEDENCE.get(self.peek(), 0) < minimum: break
             op = self.pop()
             p = PRECEDENCE[op]
             require(not (p == 4 and compared), 'PARSE_ERROR')
             right = self.expr(p + 1)
             left = Expr(op, args=[left, right])
             if p == 4: compared = True
-        if self.peek() == 'IS': raise DomainError('UNSUPPORTED_FEATURE')
         return left
 
     def source(self):
@@ -87,8 +103,12 @@ class Parser:
         self.need('FROM')
         q.sources.append(self.source())
         while self.peek() in ('INNER', 'JOIN', 'LEFT'):
-            if self.take('LEFT'): raise DomainError('UNSUPPORTED_FEATURE')
-            self.take('INNER')
+            if self.take('LEFT'):
+                self.take('OUTER')
+                q.kinds.append('LEFT')
+            else:
+                self.take('INNER')
+                q.kinds.append('INNER')
             self.need('JOIN')
             q.sources.append(self.source())
             self.need('ON')
@@ -106,8 +126,13 @@ class Parser:
                 alias = self.name()
                 desc = self.take('DESC')
                 if not desc: self.take('ASC')
-                if self.peek() == 'NULLS': raise DomainError('UNSUPPORTED_FEATURE')
-                q.order.append((alias, desc))
+                nulls_first = desc
+                if self.take('NULLS'):
+                    if self.take('FIRST'): nulls_first = True
+                    else:
+                        self.need('LAST')
+                        nulls_first = False
+                q.order.append((alias, desc, nulls_first))
                 if not self.take(','): break
         if self.take('LIMIT'):
             q.limit = self.natural()

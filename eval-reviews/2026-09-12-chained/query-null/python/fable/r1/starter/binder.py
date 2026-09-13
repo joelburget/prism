@@ -17,7 +17,9 @@ def bind(q, database):
         require(name in database, 'UNKNOWN_TABLE')
         t = database[name]
         tables.append(t)
-        columns.extend((alias, c['name'], c['type'], si) for c in t['columns'])
+        # The null-supplied side of a LEFT JOIN may be padded with NULL regardless of declaration.
+        padded = si > 0 and q.kinds[si - 1] == 'LEFT'
+        columns.extend((alias, c['name'], c['type'], si, c['nullable'] or padded) for c in t['columns'])
         if si: check(q.joins[si - 1], columns, False, False, True)
     for e in q.groups: check(e, columns, False)
     keys = [e.index for e in q.groups]
@@ -30,10 +32,8 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
+    q.order = [(aliases.index(a) if a in aliases else -1, d, nf) for a, d, nf in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
     return Plan(q, tables, [[] for _ in tables], aggregate)
 
 
@@ -44,29 +44,45 @@ def grouped(e, keys):
 
 
 def check(e, columns, allow, inside=False, predicate=False):
+    """Resolve names and compute type plus a conservative nullable flag.
+
+    'null' is the type of an untyped NULL literal; it unifies with any type
+    required by its context."""
     if e.op == 'col':
         qualifier, name = e.value
         matches = [(i, c) for i, c in enumerate(columns) if c[1] == name and (not qualifier or c[0] == qualifier)]
         require(bool(matches), 'UNKNOWN_COLUMN')
         require(len(matches) == 1, 'AMBIGUOUS_COLUMN')
         e.index, c = matches[0]
-        e.type, e.source = c[2], c[3]
-    elif e.op != 'lit':
+        e.type, e.source, e.nullable = c[2], c[3], c[4]
+    elif e.op == 'lit':
+        e.nullable = e.value is None
+    else:
         agg = e.op in AGGREGATES
         require(not agg or (allow and not inside), 'INVALID_AGGREGATION')
         for a in e.args: check(a, columns, allow, inside or agg)
         ts = [a.type for a in e.args]
-        if e.op == 'COUNT': e.type = 'int'
+        typed = [t for t in ts if t != 'null']
+        e.nullable = any(a.nullable for a in e.args)
+        if e.op == 'COUNT':
+            e.type, e.nullable = 'int', False
         elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
+            require(all(t == 'int' for t in typed), 'TYPE_ERROR')
             e.type = 'int'
+            if e.op == 'SUM': e.nullable = True
         elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
-            e.type = ts[0]
+            require(ts[0] in ('int', 'text', 'null'), 'TYPE_ERROR')
+            e.type, e.nullable = ts[0], True
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
+            require(all(t == 'bool' for t in typed), 'TYPE_ERROR')
             e.type = 'bool'
+        elif e.op in ('ISNULL', 'ISNOTNULL'):
+            e.type, e.nullable = 'bool', False
+        elif e.op == 'COALESCE':
+            require(all(t == typed[0] for t in typed), 'TYPE_ERROR')
+            e.type = typed[0] if typed else 'null'
+            e.nullable = all(a.nullable for a in e.args)
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
+            require(all(t == typed[0] for t in typed) and (not typed or typed[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
             e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+    require(not predicate or e.type in ('bool', 'null'), 'TYPE_ERROR')

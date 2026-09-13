@@ -16,22 +16,29 @@ def identifier(s):
 
 @dataclass
 class Expr:
+    """Syntax node; the binder fills type/index/source/nullable.
+
+    Types are 'int', 'text', 'bool', or 'null' for an untyped NULL literal.
+    `nullable` is a static upper bound: False means the expression can never
+    evaluate to NULL (declared NOT NULL and not padded by an outer join)."""
     op: str
     value: object = None
     args: list = field(default_factory=list)
     type: str = ''
     index: int = -1
     source: int = -1
+    nullable: bool = True
 
 @dataclass
 class Query:
     select: list = field(default_factory=list)
     sources: list = field(default_factory=list)
-    joins: list = field(default_factory=list)
+    joins: list = field(default_factory=list)   # ON expressions, one per source after the first
+    kinds: list = field(default_factory=list)   # 'INNER' or 'LEFT', parallel to joins
     where: Expr | None = None
     groups: list = field(default_factory=list)
     having: Expr | None = None
-    order: list = field(default_factory=list)
+    order: list = field(default_factory=list)   # (alias or index, descending, nulls_first)
     distinct: bool = False
     limit: int | None = None
     offset: int = 0
@@ -59,11 +66,10 @@ def validate(request):
             fields(c, {'name', 'type', 'nullable'})
             require(identifier(c['name']) and c['name'] not in names and c['type'] in ('int', 'text', 'bool') and type(c['nullable']) is bool)
             names.add(c['name'])
-            require(not c['nullable'], 'UNSUPPORTED_FEATURE')
         for row in t['rows']:
             require(isinstance(row, list) and len(row) == len(t['columns']))
             for v, c in zip(row, t['columns']):
-                require(type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
+                require((v is None and c['nullable']) or type(v) is {'int': int, 'text': str, 'bool': bool}[c['type']])
         database[t['name']] = t
     for q in data['queries']:
         fields(q, {'sql', 'optimize'})
