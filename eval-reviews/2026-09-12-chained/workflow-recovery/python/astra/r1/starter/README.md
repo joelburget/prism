@@ -1,19 +1,29 @@
-# Workflow runner baseline (python)
+# Workflow runner (Python)
 
 Requires Python 3.10 or later. Run `./run.sh`; no build or dependencies are needed.
+The launcher works from any working directory and reads one JSON request from
+stdin, returning one JSON response.
 
-Read one newline-terminated workflow-recovery request from stdin and write one response to stdout. Every request creates a fresh simulator and service. The launcher works from any working directory.
+`workflow.py` contains typed request/state records, upfront validation, graph
+checks, the mock service, scheduler, and immutable snapshot serializer. `main.py`
+is the JSON adapter.
 
-`workflow.py` contains typed request/state records, upfront validation, graph checks, the mock service, scheduler, and snapshot serializer. `main.py` is the JSON process adapter.
+The runner supports dependency scheduling, independent runs, bounded retries,
+simulated crash/restart recovery, cancellation, and idempotent external effects.
+Run and step state persist across simulated crashes. Service effects, per-key
+failure counters, and ordered call audits persist independently. Checkpoints
+interrupt attempts before the call or before committing its response; recovery
+reuses the durable attempt number. Cancellation reconciles uncertain work using
+service lookup without executing new effects.
 
-The baseline supports DAG validation, run creation, single-action ticks, time advances, immutable observations, successful external calls, and deterministic run/definition ordering. All field/scalar checks finish before graph validation and command execution. Errors stop execution and return only the error envelope.
-
-Recovery, persistence, retries, cancellation, service lookup, and idempotent replays are intentionally unimplemented. Valid extension commands/checkpoints and positive service failure configurations return `UNSUPPORTED_FEATURE`; invalid extension field shapes still return `INVALID_INPUT`. Configuration defaults/ranges are validated and retained for the extension.
-
-From the public corpus root, validate with:
+Run additional regression checks with:
 
 ```sh
-python3 run.py run --task workflow-recovery --phase baseline --command '/absolute/path/to/this/starter/run.sh' --timeout 30
+python3 -m unittest discover -s starter -p 'test_*.py'
 ```
 
-The 19 public baseline cases pass. The public specification defines the extension to implement. This is baseline authoring material, not a completed extension submission.
+From the public corpus root, run the full acceptance suite with:
+
+```sh
+python3 run.py run --task workflow-recovery --command './starter/run.sh'
+```
