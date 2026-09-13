@@ -8,7 +8,7 @@ Read one newline-terminated workflow-recovery request from stdin and write one r
 
 The baseline supports DAG validation, run creation, single-action ticks, time advances, immutable observations, successful external calls, and deterministic run/definition ordering. All field/scalar checks finish before graph validation and command execution. Errors stop execution and return only the error envelope.
 
-Recovery, persistence, retries, cancellation, service lookup, and idempotent replays are intentionally unimplemented. Valid extension commands/checkpoints and positive service failure configurations return `UNSUPPORTED_FEATURE`; invalid extension field shapes still return `INVALID_INPUT`. Configuration defaults/ranges are validated and retained for the extension.
+The extension is implemented: durable begin/commit boundaries with `after_begin`/`after_call` crash checkpoints, `crash`/`restart`, bounded retries with `retry_delay` deadlines, run failure with blocked pending steps, `cancel` with lookup-based reconciliation of in-flight attempts, and an idempotent mock service whose audit (`execute` applied/replayed/transient, `lookup` found/missing) and effects survive runner crashes. `test_workflow.py` holds additional unit checks.
 
 From the public corpus root, validate with:
 
@@ -16,4 +16,4 @@ From the public corpus root, validate with:
 python3 run.py run --task workflow-recovery --phase baseline --command '/absolute/path/to/this/starter/run.sh' --timeout 30
 ```
 
-The 19 public baseline cases pass. The public specification defines the extension to implement. This is baseline authoring material, not a completed extension submission.
+All public baseline and extension cases pass (drop `--phase baseline` to run both).
