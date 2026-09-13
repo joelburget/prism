@@ -3,20 +3,46 @@ import { aggregates } from "./model.ts";
 import type { Expr, Plan, Value } from "./model.ts";
 import { walk } from "./binder.ts";
 export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
-  if (e.op === "lit") return e.value as Value;
+  if (e.op === "lit") return e.value === undefined ? null : (e.value as Value);
   if (e.op === "col") return row[e.index!];
+  if (e.op === "ISNULL") return evaluate(e.args[0], row, group) === null;
+  if (e.op === "ISNOTNULL") return evaluate(e.args[0], row, group) !== null;
+  if (e.op === "COALESCE") {
+    for (const a of e.args) {
+      const v = evaluate(a, row, group);
+      if (v !== null) return v;
+    }
+    return null;
+  }
   if (aggregates.has(e.op)) {
-    if (e.op === "COUNT") return group.length;
-    const vs = group.map((r) => evaluate(e.args[0], r));
+    if (e.op === "COUNT")
+      return e.args.length === 0
+        ? group.length
+        : group.filter((r) => evaluate(e.args[0], r) !== null).length;
+    const vs = group.map((r) => evaluate(e.args[0], r)).filter((v) => v !== null);
     if (e.op === "SUM")
-      return vs.reduce<number>((n, v) => n + (v as number), 0);
+      return vs.length === 0
+        ? null
+        : vs.reduce<number>((n, v) => n + (v as number), 0);
+    if (vs.length === 0) return null;
     return vs.reduce((a, b) =>
       e.op === "MIN" ? (a < b ? a : b) : a > b ? a : b,
     );
   }
   const a = evaluate(e.args[0], row, group);
-  if (e.op === "NOT") return !a;
+  if (e.op === "NOT") return a === null ? null : !a;
   const b = evaluate(e.args[1], row, group);
+  if (e.op === "AND") {
+    if (a === false || b === false) return false;
+    if (a === null || b === null) return null;
+    return true;
+  }
+  if (e.op === "OR") {
+    if (a === true || b === true) return true;
+    if (a === null || b === null) return null;
+    return false;
+  }
+  if (a === null || b === null) return null;
   switch (e.op) {
     case "+":
       return (a as number) + (b as number);
@@ -24,10 +50,6 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
       return (a as number) - (b as number);
     case "*":
       return (a as number) * (b as number);
-    case "AND":
-      return (a as boolean) && (b as boolean);
-    case "OR":
-      return (a as boolean) || (b as boolean);
     case "=":
       return a === b;
     case "<>":
@@ -47,7 +69,8 @@ export function evaluate(e: Expr, row: Value[], group: Value[][] = []): Value {
 function fold(e: Expr): Expr {
   e.args = e.args.map(fold);
   return !aggregates.has(e.op) &&
-    !["lit", "col"].includes(e.op) &&
+    e.op !== "lit" &&
+    e.op !== "col" &&
     e.args.every((a) => a.op === "lit")
     ? { op: "lit", value: evaluate(e, []), args: [], type: e.type }
     : e;
@@ -58,7 +81,7 @@ function conjuncts(e: Expr): Expr[] {
 export function optimize(plan: Plan): Plan {
   const q = plan.query;
   q.select = q.select.map(([e, a]) => [fold(e), a]);
-  q.joins = q.joins.map(fold);
+  q.joins = q.joins.map((j) => ({ ...j, on: fold(j.on) }));
   if (q.having) q.having = fold(q.having);
   if (q.where) {
     const remaining: Expr[] = [];
@@ -66,8 +89,10 @@ export function optimize(plan: Plan): Plan {
       const sources = new Set(
         [...walk(e)].filter((n) => n.op === "col").map((n) => n.source!),
       );
-      if (plan.tables.length > 1 && sources.size === 1)
-        plan.filters[[...sources][0]].push(e);
+      const idx = [...sources][0];
+      const rightOfLeftJoin = sources.size === 1 && idx > 0 && q.joins[idx - 1].left;
+      if (plan.tables.length > 1 && sources.size === 1 && !rightOfLeftJoin)
+        plan.filters[idx].push(e);
       else remaining.push(e);
     }
     q.where = remaining.reduce<Expr | undefined>(
@@ -90,12 +115,18 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
     return rows;
   });
   let rows = scans[0];
-  q.joins.forEach((on, i) => {
-    rows = rows.flatMap((l) =>
-      scans[i + 1].map((r) => [...l, ...r]).filter((r) => evaluate(on, r)),
-    );
+  q.joins.forEach((join, i) => {
+    const rightWidth = plan.tables[i + 1].columns.length;
+    rows = rows.flatMap((l) => {
+      const matched = scans[i + 1]
+        .map((r) => [...l, ...r])
+        .filter((r) => evaluate(join.on, r) === true);
+      if (matched.length === 0 && join.left)
+        return [[...l, ...Array<Value>(rightWidth).fill(null)]];
+      return matched;
+    });
   });
-  if (q.where) rows = rows.filter((r) => evaluate(q.where!, r));
+  if (q.where) rows = rows.filter((r) => evaluate(q.where!, r) === true);
   let units: [Value[], Value[][]][];
   if (plan.aggregate) {
     const groups = new Map<string, Value[][]>();
@@ -109,7 +140,7 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
     units = [...groups.values()].map((g) => [g[0] ?? [], g]);
   } else units = rows.map((r) => [r, []]);
   let projected = units
-    .filter(([r, g]) => !q.having || evaluate(q.having, r, g))
+    .filter(([r, g]) => !q.having || evaluate(q.having, r, g) === true)
     .map(([r, g]) => q.select.map(([e]) => evaluate(e, r, g)));
   if (q.distinct) {
     const seen = new Set<string>();
@@ -120,14 +151,26 @@ export function execute(plan: Plan): { columns: string[]; rows: Value[][] } {
       return true;
     });
   }
-  projected.sort((a, b) => {
-    for (const [index, desc] of q.order) {
-      const i = index as number;
-      const c = a[i] < b[i] ? -1 : a[i] > b[i] ? 1 : 0;
-      if (c) return desc ? -c : c;
-    }
-    return 0;
-  });
+  projected = projected
+    .map((r, i) => [r, i] as [Value[], number])
+    .sort((a, b) => {
+      for (const o of q.order) {
+        const i = o.index!;
+        const av = a[0][i],
+          bv = b[0][i];
+        if (av === null || bv === null) {
+          if (av === bv) continue;
+          const c = av === null ? -1 : 1;
+          const signed = o.nullsFirst ? c : -c;
+          if (signed) return signed;
+          continue;
+        }
+        const c = av < bv ? -1 : av > bv ? 1 : 0;
+        if (c) return o.desc ? -c : c;
+      }
+      return a[1] - b[1];
+    })
+    .map(([r]) => r);
   return {
     columns: q.select.map(([, a]) => a),
     rows: projected.slice(

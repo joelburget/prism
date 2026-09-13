@@ -11,6 +11,12 @@ export function* walk(e: Expr): Generator<Expr> {
   yield e;
   for (const a of e.args) yield* walk(a);
 }
+function unify(a: ScalarType | undefined, b: ScalarType | undefined): ScalarType | undefined {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  need(a === b, "TYPE_ERROR");
+  return a;
+}
 function check(
   e: Expr,
   columns: BoundColumn[],
@@ -31,36 +37,48 @@ function check(
     e.index = i;
     e.type = c.type;
     e.source = c.source;
-  } else if (e.op !== "lit") {
+  } else if (e.op === "lit") {
+    // e.type stays undefined for a NULL literal.
+  } else if (e.op === "ISNULL" || e.op === "ISNOTNULL") {
+    check(e.args[0], columns, allow, inside);
+    e.type = "bool";
+  } else if (e.op === "COALESCE") {
+    for (const a of e.args) check(a, columns, allow, inside);
+    e.type = e.args.reduce<ScalarType | undefined>((t, a) => unify(t, a.type), undefined);
+  } else {
     const agg = aggregates.has(e.op);
     need(!agg || (allow && !inside), "INVALID_AGGREGATION");
     for (const a of e.args) check(a, columns, allow, inside || agg);
     const ts = e.args.map((a) => a.type);
     if (e.op === "COUNT") e.type = "int";
-    else if (["SUM", "+", "-", "*"].includes(e.op)) {
+    else if (e.op === "SUM") {
+      need(ts[0] === undefined || ts[0] === "int", "TYPE_ERROR");
+      e.type = "int";
+    } else if (["+", "-", "*"].includes(e.op)) {
       need(
-        ts.every((t) => t === "int"),
+        ts.every((t) => t === undefined || t === "int"),
         "TYPE_ERROR",
       );
       e.type = "int";
     } else if (["MIN", "MAX"].includes(e.op)) {
-      need(ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
-      e.type = ts[0];
+      need(ts[0] === undefined || ts[0] === "int" || ts[0] === "text", "TYPE_ERROR");
+      e.type = ts[0] ?? "int";
     } else if (["NOT", "AND", "OR"].includes(e.op)) {
       need(
-        ts.every((t) => t === "bool"),
+        ts.every((t) => t === undefined || t === "bool"),
         "TYPE_ERROR",
       );
       e.type = "bool";
     } else {
+      const combined = unify(ts[0], ts[1]);
       need(
-        ts[0] === ts[1] && (ts[0] !== "bool" || ["=", "<>"].includes(e.op)),
+        combined === undefined || combined !== "bool" || ["=", "<>"].includes(e.op),
         "TYPE_ERROR",
       );
       e.type = "bool";
     }
   }
-  need(!predicate || e.type === "bool", "TYPE_ERROR");
+  need(!predicate || e.type === undefined || e.type === "bool", "TYPE_ERROR");
 }
 function grouped(e: Expr, keys: Set<number>): void {
   if (aggregates.has(e.op)) return;
@@ -80,8 +98,8 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     const t = database.get(name);
     need(t, "UNKNOWN_TABLE");
     tables.push(t);
-    columns.push(...t.columns.map((c) => ({ ...c, qualifier, source })));
-    if (source) check(q.joins[source - 1], columns, false, false, true);
+    columns.push(...t.columns.map((c) => ({ name: c.name, type: c.type, qualifier, source })));
+    if (source) check(q.joins[source - 1].on, columns, false, false, true);
   });
   q.groups.forEach((e) => check(e, columns, false));
   const keys = new Set(q.groups.map((e) => e.index!));
@@ -95,15 +113,10 @@ export function bind(q: Query, database: Map<string, Table>): Plan {
     q.groups.length > 0 || nodes.some((e) => aggregates.has(e.op));
   need(!q.having || aggregate, "INVALID_AGGREGATION");
   if (aggregate) roots.forEach((e) => grouped(e, keys));
-  need(
-    q.groups.length > 0 ||
-      !nodes.some((e) => ["SUM", "MIN", "MAX"].includes(e.op)),
-    "UNSUPPORTED_FEATURE",
-  );
-  q.order = q.order.map(([a, d]) => {
-    const i = aliases.indexOf(a as string);
+  q.order.forEach((o) => {
+    const i = aliases.indexOf(o.alias);
     need(i >= 0, "UNKNOWN_COLUMN");
-    return [i, d];
+    o.index = i;
   });
   return { query: q, tables, filters: tables.map(() => []), aggregate };
 }

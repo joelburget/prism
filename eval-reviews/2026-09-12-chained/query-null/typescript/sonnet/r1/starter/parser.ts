@@ -6,7 +6,7 @@ import {
   requireThat as need,
   DomainError,
 } from "./model.ts";
-import type { Expr, Query } from "./model.ts";
+import type { Expr, Query, JoinClause, OrderKey } from "./model.ts";
 const precedence: Record<string, number> = {
   OR: 1,
   AND: 2,
@@ -73,9 +73,15 @@ export class Parser {
   expr(minimum = 1): Expr {
     const t = this.pop();
     let e: Expr;
-    if (t === "NULL" || t === "COALESCE")
-      throw new DomainError("UNSUPPORTED_FEATURE");
-    if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
+    if (t === "NULL") e = { op: "lit", value: null, args: [] };
+    else if (t === "COALESCE") {
+      this.expect("(");
+      const args = [this.expr()];
+      while (this.take(",")) args.push(this.expr());
+      need(args.length >= 2, "PARSE_ERROR");
+      this.expect(")");
+      e = { op: "COALESCE", args };
+    } else if (t === "NOT") e = { op: "NOT", args: [this.expr(3)] };
     else if (t === "(") {
       e = this.expr();
       this.expect(")");
@@ -105,14 +111,23 @@ export class Parser {
       };
     }
     let compared = false;
-    while ((precedence[this.peek()] ?? 0) >= minimum) {
-      const op = this.pop(),
-        p = precedence[op];
+    for (;;) {
+      if (this.peek() === "IS" && 4 >= minimum) {
+        need(!compared, "PARSE_ERROR");
+        this.pop();
+        const negate = this.take("NOT");
+        this.expect("NULL");
+        e = { op: negate ? "ISNOTNULL" : "ISNULL", args: [e] };
+        compared = true;
+        continue;
+      }
+      const p = precedence[this.peek()] ?? 0;
+      if (p < minimum) break;
+      const op = this.pop();
       need(!(p === 4 && compared), "PARSE_ERROR");
       e = { op, args: [e, this.expr(p + 1)] };
       if (p === 4) compared = true;
     }
-    if (this.peek() === "IS") throw new DomainError("UNSUPPORTED_FEATURE");
     return e;
   }
   parse(): Query {
@@ -135,12 +150,14 @@ export class Parser {
     this.expect("FROM");
     q.sources.push(this.source());
     while (["INNER", "JOIN", "LEFT"].includes(this.peek())) {
-      if (this.take("LEFT")) throw new DomainError("UNSUPPORTED_FEATURE");
-      this.take("INNER");
+      const left = this.take("LEFT");
+      if (left) this.take("OUTER");
+      else this.take("INNER");
       this.expect("JOIN");
       q.sources.push(this.source());
       this.expect("ON");
-      q.joins.push(this.expr());
+      const on = this.expr();
+      q.joins.push({ on, left });
     }
     if (this.take("WHERE")) q.where = this.expr();
     if (this.take("GROUP")) {
@@ -153,12 +170,18 @@ export class Parser {
     if (this.take("ORDER")) {
       this.expect("BY");
       do {
-        const a = this.name(),
-          desc = this.take("DESC");
+        const alias = this.name();
+        const desc = this.take("DESC");
         if (!desc) this.take("ASC");
-        if (this.peek() === "NULLS")
-          throw new DomainError("UNSUPPORTED_FEATURE");
-        q.order.push([a, desc]);
+        let nullsFirst = desc;
+        if (this.take("NULLS")) {
+          if (this.take("FIRST")) nullsFirst = true;
+          else {
+            this.expect("LAST");
+            nullsFirst = false;
+          }
+        }
+        q.order.push({ alias, desc, nullsFirst });
       } while (this.take(","));
     }
     if (this.take("LIMIT")) {

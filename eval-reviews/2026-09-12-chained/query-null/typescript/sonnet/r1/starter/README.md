@@ -1,13 +1,34 @@
-# Query engine baseline — Typescript
+# Query engine — Typescript (checkpoint 2)
 
-Node.js 25+ executes the erasable TypeScript directly. For static validation, run `npm ci --ignore-scripts` then `npm run typecheck` (TypeScript 5.9.3, strict mode).
+Node.js 25+ executes the erasable TypeScript directly. For static validation, run
+`tsc --noEmit --typeRoots /opt/typescript/node_modules/@types -p tsconfig.json`
+(TypeScript 5.9.3, strict mode).
 
-Run `./run.sh`. It reads one protocol-v1 `query-null` JSON request from stdin and writes one JSON response. Every request starts a fresh process. Domain errors exit zero and contain only the fixed error code. No SQL library or external query engine is used.
+Run `./run.sh`. It reads one protocol-v1 `query-null` JSON request from stdin and
+writes one JSON response. Every request starts a fresh process. Domain errors
+exit zero and contain only the fixed error code. No SQL library or external
+query engine is used.
 
-The modules separate wire validation and models, SQL tokenization/parsing, binding and type checking, and execution/optimization. Binding resolves columns to flattened row slots and verifies all expressions before evaluating rows, including unreachable expressions and empty tables. The logical plan carries typed expressions, input tables, scan predicates, and ordering.
+## Modules
 
-Optimization performs bottom-up folding of constant scalar expressions and pushes single-source WHERE conjuncts into inner-join input scans. Conjuncts referencing multiple sources remain above the join. Stable nested-loop joins, encounter-ordered groups, first-occurrence DISTINCT, stable sorting, and pagination preserve the documented ordering in either mode.
+- `model.ts`: wire validation for both the `queries` protocol and the new
+  `commands`/view protocol, plus the shared AST/value types.
+- `parser.ts` / `binder.ts`: tokenizer, precedence parser, and static
+  type/name checking, including NULL literals, COALESCE, IS [NOT] NULL,
+  LEFT [OUTER] JOIN, and NULLS FIRST/LAST.
+- `engine.ts`: batch execution and optimization (constant folding plus
+  single-source WHERE-to-scan pushdown that skips the right side of a LEFT
+  JOIN) used directly by the one-shot `queries` protocol.
+- `views.ts`: base-table storage (per-table row identity, encounter order,
+  used-ID tracking) and incrementally maintained views for the `commands`
+  protocol. Each view keeps, per join step, materialized intermediate tuples
+  and a match index so that a single row insert/update/delete only touches
+  the rows/groups it can affect (nested-loop against the *other*, already
+  materialized side — not a full requery), including LEFT JOIN NULL-padding
+  transitions, grouped aggregate revisits, and DISTINCT membership counts.
+  ORDER BY/LIMIT/OFFSET are applied to the maintained result set at read time.
 
-This is the non-null baseline: SELECT/WHERE/inner joins, grouped COUNT/SUM/MIN/MAX, global COUNT, GROUP BY/HAVING, DISTINCT/ORDER BY/LIMIT/OFFSET. Nullable schemas, NULL/IS NULL/COALESCE, LEFT JOIN, explicit NULLS ordering, and global SUM/MIN/MAX are intentionally rejected with `UNSUPPORTED_FEATURE`. The starter does not implement the requested extension.
+## Status
 
-Validation: all 21 public baseline cases pass. The extension suite is a future modification target, not a conformance claim. This directory is self-contained; `starter.json` lists its export files. Build outputs and dependency installations are ignored.
+All public baseline (checkpoint 1) and extension (checkpoint 2) cases pass via
+`python3 run.py run --task query-null --command './starter/run.sh'`.
