@@ -18,7 +18,7 @@ def bind(q, database):
         t = database[name]
         tables.append(t)
         columns.extend((alias, c['name'], c['type'], si) for c in t['columns'])
-        if si: check(q.joins[si - 1], columns, False, False, True)
+        if si: check(q.joins[si - 1][1], columns, False, False, True)
     for e in q.groups: check(e, columns, False)
     keys = [e.index for e in q.groups]
     require(len(set(keys)) == len(keys), 'INVALID_AGGREGATION')
@@ -30,10 +30,8 @@ def bind(q, database):
     require(not q.having or aggregate, 'INVALID_AGGREGATION')
     if aggregate:
         for root in roots: grouped(root, keys)
-    if not q.groups:
-        require(not any(e.op in {'SUM', 'MIN', 'MAX'} for root in roots for e in walk(root)), 'UNSUPPORTED_FEATURE')
-    q.order = [(aliases.index(a) if a in aliases else -1, d) for a, d in q.order]
-    require(all(i >= 0 for i, _ in q.order), 'UNKNOWN_COLUMN')
+    q.order = [(aliases.index(a) if a in aliases else -1, d, n) for a, d, n in q.order]
+    require(all(i >= 0 for i, _, _ in q.order), 'UNKNOWN_COLUMN')
     return Plan(q, tables, [[] for _ in tables], aggregate)
 
 
@@ -58,15 +56,21 @@ def check(e, columns, allow, inside=False, predicate=False):
         ts = [a.type for a in e.args]
         if e.op == 'COUNT': e.type = 'int'
         elif e.op in ('SUM', '+', '-', '*'):
-            require(all(t == 'int' for t in ts), 'TYPE_ERROR')
+            require(all(t in ('int', 'null') for t in ts), 'TYPE_ERROR')
             e.type = 'int'
         elif e.op in ('MIN', 'MAX'):
-            require(ts[0] in ('int', 'text'), 'TYPE_ERROR')
+            require(ts[0] in ('int', 'text', 'null'), 'TYPE_ERROR')
             e.type = ts[0]
         elif e.op in ('NOT', 'AND', 'OR'):
-            require(all(t == 'bool' for t in ts), 'TYPE_ERROR')
+            require(all(t in ('bool', 'null') for t in ts), 'TYPE_ERROR')
+            e.type = 'bool'
+        elif e.op == 'COALESCE':
+            actual = [t for t in ts if t != 'null']
+            require(not actual or all(t == actual[0] for t in actual), 'TYPE_ERROR')
+            e.type = actual[0] if actual else 'null'
+        elif e.op in ('IS NULL', 'IS NOT NULL'):
             e.type = 'bool'
         else:
-            require(ts[0] == ts[1] and (ts[0] != 'bool' or e.op in ('=', '<>')), 'TYPE_ERROR')
+            require((ts[0] == ts[1] or 'null' in ts) and (not any(t == 'bool' for t in ts) or e.op in ('=', '<>')), 'TYPE_ERROR')
             e.type = 'bool'
-    require(not predicate or e.type == 'bool', 'TYPE_ERROR')
+    require(not predicate or e.type in ('bool', 'null'), 'TYPE_ERROR')
