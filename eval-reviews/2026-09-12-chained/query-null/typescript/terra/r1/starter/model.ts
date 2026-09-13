@@ -71,12 +71,12 @@ function fields(
       names.every((k) => Object.hasOwn(x, k)),
   );
 }
-export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
+export function validateDatabase(request: unknown): Map<string, Table> {
   object(request);
   requireThat(request.protocol_version === 1 && request.task === "query-null");
   const data = request.input;
-  fields(data, ["database", "queries"]);
-  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+  object(data);
+  requireThat(Array.isArray(data.database));
   const database = new Map<string, Table>();
   for (const item of data.database as unknown[]) {
     fields(item, ["name", "columns", "rows"]);
@@ -109,6 +109,15 @@ export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
       rows: item.rows as Value[][],
     });
   }
+  return database;
+}
+export function validate(request: unknown): [Map<string, Table>, InputQuery[]] {
+  object(request);
+  requireThat(request.protocol_version === 1 && request.task === "query-null");
+  const data = request.input;
+  fields(data, ["database", "queries"]);
+  requireThat(Array.isArray(data.database) && Array.isArray(data.queries));
+  const database = validateDatabase(request);
   const queries: InputQuery[] = [];
   for (const q of data.queries as unknown[]) {
     fields(q, ["sql", "optimize"]);
