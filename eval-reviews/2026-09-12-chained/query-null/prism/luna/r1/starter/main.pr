@@ -5,7 +5,10 @@ import Parser (..)
 import Binder (..)
 import Engine (..)
 import Data.List (..)
-import Data.Foldable (length)
+import Data.Foldable (all, any, length)
+
+type Live = Live { table: Table, ids: List(Int), used: List(Int) }
+type View = View { name: String, plan: Plan, result: Json, sources: List(String) }
 
 fn validate_query(q : Json) : Unit =
   fields(q, ["sql", "optimize"])
@@ -13,6 +16,166 @@ fn validate_query(q : Json) : Unit =
   match getfield(q, "optimize") of
     JBool(_) => ()
     _ => reject("INVALID_INPUT")
+
+fn query_mode(input : Json) : Json =
+  fields(input, ["database", "queries"])
+  let db = map(validate_table, arr(getfield(input, "database")))
+  demand(unique(map(\(t) -> t.name, db)), "INVALID_INPUT")
+  let qs = arr(getfield(input, "queries"))
+  for q in sof(qs) do validate_query(q)
+  let rs = map(\(q) -> let p = bind(parse_sql(text(getfield(q, "sql"))), db) in execute(if truth(getfield(q, "optimize")) then optimize(p) else p), qs)
+  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(rs))]))])
+
+fn make_live(t : Table) : Live =
+  let ids = map(\(i) -> i + 1, range(0, length(t.rows)))
+  Live { table = t, ids = ids, used = ids }
+
+fn get_live(ts : List(Live), n : String) : Live =
+  match ts of
+    Nil =>
+      reject("UNKNOWN_TABLE")
+      Live { table = Table { name = "", columns = [], rows = [] }, ids = [], used = [] }
+    Cons(x, rest) => if x.table.name == n then x else get_live(rest, n)
+
+fn put_live(ts : List(Live), x : Live) : List(Live) = map(\(y) -> if y.table.name == x.table.name then x else y, ts)
+
+fn ids_has(xs : List(Int), n : Int) : Bool = elem(n, xs)
+
+fn row_replace(rs : List(List(Json)), ids : List(Int), id : Int, row : List(Json)) : List(List(Json)) =
+  match (rs, ids) of
+    (Cons(old, rest), Cons(i, more)) => Cons(if i == id then row else old, row_replace(rest, more, id, row))
+    _ => []
+
+fn row_delete(rs : List(List(Json)), ids : List(Int), id : Int) : List(List(Json)) =
+  match (rs, ids) of
+    (Cons(old, rest), Cons(i, more)) => if i == id then row_delete(rest, more, id) else Cons(old, row_delete(rest, more, id))
+    _ => []
+
+fn valid_row(t : Table, row : List(Json)) : Unit =
+  demand(length(row) == length(t.columns), "INVALID_ROW")
+  for i in srange(0, length(row)) do
+    let v = value_type(at(row, i))
+    let c = at(t.columns, i)
+    demand(v == c.kind || v == "null" && c.nullable, "INVALID_ROW")
+
+fn change(c : Json, ts : List(Live)) : (List(Live), String) =
+  let op = text(getfield(c, "op"))
+  let n = text(getfield(c, "table"))
+  let x = get_live(ts, n)
+  let id = integer(getfield(c, "id"))
+  if op == "insert" then
+    demand(not(ids_has(x.used, id)), "ROW_ID_USED")
+    let row = arr(getfield(c, "row"))
+    valid_row(x.table, row)
+    let nt = Table { ..x.table, rows = append(x.table.rows, [row]) }
+    (put_live(ts, Live { ..x, table = nt, ids = append(x.ids, [id]), used = append(x.used, [id]) }), n)
+  elif op == "update" then
+    demand(ids_has(x.ids, id), "UNKNOWN_ROW")
+    let row = arr(getfield(c, "row"))
+    valid_row(x.table, row)
+    let nt = Table { ..x.table, rows = row_replace(x.table.rows, x.ids, id, row) }
+    (put_live(ts, Live { ..x, table = nt }), n)
+  else
+    demand(ids_has(x.ids, id), "UNKNOWN_ROW")
+    let nt = Table { ..x.table, rows = row_delete(x.table.rows, x.ids, id) }
+    (put_live(ts, Live { ..x, table = nt, ids = filter(\(i) -> i /= id, x.ids) }), n)
+
+fn refresh_view(v : View, ts : List(Live), names : List(String)) : View =
+  if any(\(n) -> elem(n, names), v.sources) then
+    let p = Plan { ..v.plan, tables = map(\(t) -> get_live(ts, t.name).table, v.plan.tables) } in
+    View { ..v, plan = p, result = execute(p) }
+  else v
+
+fn command_shape(c : Json) : Unit =
+  let op = text(getfield(c, "op"))
+  if op == "insert" || op == "update" then
+    fields(c, ["op", "table", "id", "row"])
+    demand(value_type(getfield(c, "id")) == "int" && integer(getfield(c, "id")) > 0 && integer(getfield(c, "id")) <= 2147483647, "INVALID_COMMAND")
+    let ignored = text(getfield(c, "table")) in
+    let ignored2 = arr(getfield(c, "row")) in ()
+  elif op == "delete" then
+    fields(c, ["op", "table", "id"])
+    demand(value_type(getfield(c, "id")) == "int" && integer(getfield(c, "id")) > 0 && integer(getfield(c, "id")) <= 2147483647, "INVALID_COMMAND")
+    let ignored = text(getfield(c, "table")) in ()
+  else
+    reject("INVALID_COMMAND")
+    ()
+
+fn update_views(vs : List(View), ts : List(Live), names : List(String)) : List(View) = map(\(v) -> refresh_view(v, ts, names), vs)
+
+fn command(c : Json, db : List(Table), ts : List(Live), vs : List(View), rev : Int) : (List(Live), List(View), Json, Bool) =
+  let op = text(getfield(c, "op"))
+  if op == "create" then
+    fields(c, ["op", "view", "sql", "optimize"])
+    let n = text(getfield(c, "view"))
+    demand(view_ok(n), "INVALID_COMMAND")
+    demand(not(any(\(v) -> v.name == n, vs)), "VIEW_EXISTS")
+    let p0 = bind(parse_sql(text(getfield(c, "sql"))), db)
+    let p = if truth(getfield(c, "optimize")) then optimize(p0) else p0
+    let p2 = Plan { ..p, tables = map(\(t) -> get_live(ts, t.name).table, p.tables) }
+    let v = View { name = n, plan = p2, result = execute(p2), sources = map(fst, p2.query.sources) }
+    (ts, append(vs, [v]), JObj([("view", JStr(n)), ("revision", JInt(rev))]), false)
+  elif op == "read" then
+    fields(c, ["op", "view"])
+    let n = text(getfield(c, "view"))
+    let v = find_view(vs, n)
+    (ts, vs, add_rev(v.result, rev), false)
+  elif op == "drop" then
+    fields(c, ["op", "view"])
+    let n = text(getfield(c, "view"))
+    let ignored = find_view(vs, n)
+    (ts, filter(\(v) -> v.name /= n, vs), JObj([("dropped", JStr(n))]), false)
+  elif op == "apply" then
+    fields(c, ["op", "changes"])
+    let xs = arr(getfield(c, "changes"))
+    demand(length(xs) > 0 && length(xs) <= 200, "INVALID_COMMAND")
+    for x in sof(xs) do command_shape(x)
+    let (nts, names) = apply_all(xs, ts, [])
+    (nts, update_views(vs, nts, names), JObj([("revision", JInt(rev + 1))]), true)
+  else
+    reject("INVALID_COMMAND")
+    (ts, vs, JNull, false)
+
+fn apply_all(xs : List(Json), ts : List(Live), names : List(String)) : (List(Live), List(String)) =
+  match xs of
+    Nil => (ts, names)
+    Cons(c, rest) => let (nt, n) = change(c, ts) in apply_all(rest, nt, append(names, [n]))
+
+fn view_ok(s : String) : Bool = byte_len(s) > 0 && byte_len(s) <= 40 && letter(byte_at(s, 0)) && all(\(i) -> letter(byte_at(s, i)) || digit(byte_at(s, i)) || byte_at(s, i) == 45, range(0, byte_len(s)))
+
+fn find_view(vs : List(View), n : String) : View =
+  match vs of
+    Nil =>
+      reject("UNKNOWN_VIEW")
+      View { name = "", plan = Plan { query = Query { select = [], sources = [], joins = [], left_joins = [], predicate = literal(JBool(true)), groups = [], having = literal(JBool(true)), has_having = false, order = [], distinct = false, limit = -1, offset = 0 }, tables = [], filters = [], aggregate = false, order = [] }, result = JNull, sources = [] }
+    Cons(v, rest) => if v.name == n then v else find_view(rest, n)
+
+fn add_rev(j : Json, n : Int) : Json =
+  match j of
+    JObj(fs) => JObj(append(fs, [("revision", JInt(n))]))
+    _ => j
+
+fn command_mode(input : Json) : Json =
+  fields(input, ["database", "commands"])
+  let db = map(validate_table, arr(getfield(input, "database")))
+  demand(unique(map(\(t) -> t.name, db)), "INVALID_INPUT")
+  var ts := map(make_live, db)
+  var vs : List(View) := []
+  var rev := 0
+  var out := []
+  let commands = arr(getfield(input, "commands"))
+  demand(length(commands) <= 200, "INVALID_COMMAND")
+  for c in sof(commands) do
+    let (nt, nv, reply, advances) = handle command(c, db, ts, vs, rev) with
+      never reject(code) => (ts, vs, error_response(code), false)
+      return x => x
+    ts := nt
+    vs := nv
+    rev := if advances then rev + 1 else rev
+    out := append(out, [if op_failed(reply) then reply else JObj([("ok", JBool(true)), ("result", reply)])])
+  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(out))]))])
+
+fn op_failed(j : Json) : Bool = hasfield(j, "ok") && not(truth(getfield(j, "ok")))
 
 fn work(request : Json) : Json =
   demand(
@@ -22,17 +185,8 @@ fn work(request : Json) : Json =
     )
   demand(text(getfield(request, "task")) == "query-null", "INVALID_INPUT")
   let input = getfield(request, "input")
-  fields(input, ["database", "queries"])
-  let database = map(validate_table, arr(getfield(input, "database")))
-  demand(unique(map(\(t) -> t.name, database)), "INVALID_INPUT")
-  let queries = arr(getfield(input, "queries"))
-  for q in sof(queries) do
-    validate_query(q)
-  let results = map(
-      \(q) -> let plan = bind(parse_sql(text(getfield(q, "sql"))), database) in execute(if truth(getfield(q, "optimize")) then optimize(plan) else plan),
-      queries,
-    )
-  JObj([("ok", JBool(true)), ("result", JObj([("results", JArr(results))]))])
+  demand(hasfield(input, "queries") /= hasfield(input, "commands"), "INVALID_INPUT")
+  if hasfield(input, "queries") then query_mode(input) else command_mode(input)
 
 fn error_response(code : String) : Json =
   JObj([("ok", JBool(false)), ("error", JObj([("code", JStr(code))]))])

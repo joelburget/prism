@@ -2,7 +2,7 @@
 import Json (..)
 import Data.String (..)
 import Data.List (..)
-import Data.Foldable (all, length)
+import Data.Foldable (all, any, length)
 
 pub effect Domain
   never reject(String) : Unit
@@ -65,6 +65,16 @@ pub fn fields(j : Json, names : List(String)) : Unit =
           "INVALID_INPUT",
         )
     _ => reject("INVALID_INPUT")
+
+pub fn hasfield(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => any(\(kv) -> fst(kv) == key, xs)
+    _ => false
+
+pub fn hasfield(j : Json, key : String) : Bool =
+  match j of
+    JObj(xs) => any(\(kv) -> fst(kv) == key, xs)
+    _ => false
 
 pub fn reserved(s : String) : Bool =
   elem(

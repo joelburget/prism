@@ -1,16 +1,19 @@
 {
-  "run_id": "run-6c0e69db502e",
-  "checkpoint": 1,
+  "run_id": "run-edb9511f9e26",
+  "checkpoint": 2,
   "model": "luna",
   "model_id": "gpt-5.6-luna",
   "task": "query-null",
   "language": "prism",
   "source_available": true,
-  "source_sha256": "0e1064b3d52f2fcfb0842750d621c8a494456149d9461bae458aa39b67aa17d5",
-  "passed": true,
-  "seconds": 354.76096745801624,
-  "tool_calls": 29,
-  "flags": [],
-  "result_sha256": "a7785b7833b2047786af2ca6fcd9b6538e30aef2b52f2d4bec1be741c20b8783",
+  "source_sha256": "d40394210ff802171ce21097cfcb90ca8cd023bc1746b1fdf513414a9447cdd7",
+  "passed": false,
+  "seconds": 440.4155139159993,
+  "tool_calls": 28,
+  "flags": [
+    "task_frozen_after_resource_limit",
+    "timeout"
+  ],
+  "result_sha256": "dc48d39adb741ebec670fa604fe9951a138ce2e441a712839ee796f96bb9a752",
   "archive_note": "Exact frozen source"
 }

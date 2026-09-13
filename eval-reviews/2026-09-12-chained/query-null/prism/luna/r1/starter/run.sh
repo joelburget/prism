@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-exec "$(dirname "$0")/.build/query-null"
+exec prism run "$(dirname "$0")/main.pr"
