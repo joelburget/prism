@@ -194,6 +194,19 @@ class NativeBatchTests(unittest.TestCase):
         self.assertEqual(self.result(plan)["status"], "completed")
         self.grader.assert_called_once()
 
+    def test_wall_timeout_retains_source_and_grades_instead_of_losing_submission(self):
+        plan = self.plan(1)
+        self.agent_result['stop_reason'] = 'native_wall_timeout'
+        batch.execute_plan(self.root)
+        result = self.result(plan)
+        directory = ResultStore(self.root).run_dir(plan['runs'][0]['run_id'])
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(result['stop_reason'], 'native_wall_timeout')
+        self.assertEqual(batch.tree_fingerprint(directory/'source'), result['source_sha256'])
+        self.assertTrue((directory/'native-result.json').is_file())
+        self.assertTrue((directory/'source.patch').is_file())
+        self.grader.assert_called_once()
+
     def test_tool_resource_exhaustion_and_trace_limit_are_scored(self):
         plan = self.plan(1)
         def bounded_agent(client, argv, prompt, execute, record, **limits):

@@ -133,7 +133,15 @@ class RelayPump:
                     self.process.kill()
                     self.process.wait()
             for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
-                stream.close()
+                close_pipe(stream)
+
+
+def close_pipe(stream):
+    """A stopped peer may break the final buffered flush; cleanup must not hide a result."""
+    try:
+        stream.close()
+    except BrokenPipeError:
+        pass
 
 
 def run_client(client, argv, prompt, execute, record, *, wall_seconds=1800, max_calls=100):
@@ -194,8 +202,9 @@ def run_client(client, argv, prompt, execute, record, *, wall_seconds=1800, max_
         writer = threading.Thread(target=feed_prompt, daemon=True)
         writer.start()
         while process.poll() is None:
-            if failure or pump.error or time.monotonic() - started >= wall_seconds:
-                failure.append("native_relay_error" if pump.error else "native_wall_timeout" if not failure else failure[0])
+            expired = time.monotonic() - started >= wall_seconds
+            if failure or expired or pump.error:
+                failure.append(failure[0] if failure else "native_wall_timeout" if expired else "native_relay_error")
                 # Stopping the container also kills descendants of docker-exec.
                 client.close()
                 break
@@ -241,4 +250,4 @@ def run_client(client, argv, prompt, execute, record, *, wall_seconds=1800, max_
                 process.wait()
             for stream in (process.stdin, process.stdout, process.stderr):
                 if not stream.closed:
-                    stream.close()
+                    close_pipe(stream)

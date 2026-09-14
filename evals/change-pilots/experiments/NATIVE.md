@@ -183,3 +183,26 @@ measurements, checks inherited records from previous continuations, and copies
 all other completed records unchanged. Only the client-classification and
 reconciliation code may differ; assignments, task inputs, budgets, runtime images,
 and calibration must match. Resume the new plan with the chained batch runner.
+
+### Deadline shutdown and missing submissions
+
+A killed native client can leave a buffered relay reply whose final flush raises
+`BrokenPipeError`. Cleanup now tolerates that specific closed-peer error so it
+cannot mask the native timeout result and prevent source capture. If the wall
+budget and a relay disconnect are observed together, the wall timeout takes
+precedence; a relay failure observed before the deadline still stops the run as
+infrastructure. Other cleanup errors remain visible.
+
+Regression tests use an actual buffered OS pipe with its reader closed, plus
+controller coverage that a wall-time-limited submission is captured and graded.
+An offline Docker check also kills a client at its deadline and confirms the task
+source can still be frozen and saved. No model inference is required for these checks.
+
+The original final Opus/query checkpoint-two attempt in the 0.22 tutorial cohort
+lost its source capture to this bug. Its task container had already been removed,
+so ordinary no-inference reconciliation cannot recover a submission. The explicitly
+authorized recovery preserves the 31 other stage directories unchanged and starts
+one fresh replacement from the frozen first-checkpoint source, with the same model,
+prompt, image, effort and budgets. The failed attempt and its trace remain in the
+original results root and in the recovery archive. A retry is recorded as such;
+it is not represented as recovery of the original model output.

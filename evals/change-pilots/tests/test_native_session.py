@@ -1,6 +1,7 @@
 """Native controller behavior using bounded in-memory subprocess stand-ins."""
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -213,6 +214,52 @@ class NativeSessionTest(unittest.TestCase):
         self.assertEqual(reports[0]["stop_reason"], "native_wall_timeout")
         client.close.assert_called_once()
         pump.close.assert_called_once()
+
+
+class ShutdownPipeTests(unittest.TestCase):
+    def broken_buffered_pipe(self):
+        reader, writer = os.pipe()
+        stream = io.BufferedWriter(io.FileIO(writer, 'wb'), buffer_size=8192)
+        stream.write(b'pending relay response')
+        os.close(reader)
+        return stream
+
+    def test_relay_close_after_peer_exit_discards_broken_flush_and_closes_all_streams(self):
+        process = Process(returncode=-9)
+        process.stdin = self.broken_buffered_pipe()
+        pump = RelayPump(Mock(), Mock())
+        pump.process = process
+        pump.close()
+        pump.close()  # Closing the context twice is normal after a deadline stop.
+        self.assertTrue(all(s.closed for s in (process.stdin, process.stdout, process.stderr)))
+
+    def test_deadline_with_buffered_relay_reply_preserves_timeout_result(self):
+        process = Process(returncode=None)
+        relay = Process(returncode=-9)
+        relay.stdin = self.broken_buffered_pipe()
+        client = Mock(provider='anthropic')
+        client.name = 'fixture-client'
+        client.close.side_effect = lambda: setattr(process, 'returncode', -9)
+        pump = RelayPump(client, Mock())
+        pump.process = relay
+        pump.start = Mock()
+        # A stopped peer can be visible in the same poll that observes the deadline.
+        with patch('experiments.native_session.subprocess.Popen', return_value=process), \
+             patch('experiments.native_session.RelayPump', return_value=pump):
+            result = run_client(client, ['fixture'], 'prompt', Mock(), Mock(), wall_seconds=1e-9)
+        self.assertEqual(result['stop_reason'], 'native_wall_timeout')
+        self.assertEqual(result['exit_code'], -9)
+        self.assertTrue(relay.stdin.closed)
+        client.close.assert_called_once()
+
+    def test_unrelated_cleanup_errors_remain_visible(self):
+        process = Process(returncode=0)
+        process.stdin = Mock()
+        process.stdin.close.side_effect = OSError('unrelated cleanup failure')
+        pump = RelayPump(Mock(), Mock())
+        pump.process = process
+        with self.assertRaisesRegex(OSError, 'unrelated cleanup failure'):
+            pump.close()
 
 
 class RelayPumpFailureTest(unittest.TestCase):
