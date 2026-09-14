@@ -4,9 +4,36 @@ import sys
 import tempfile
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from report import code_metrics, group, render
+from report import code_metrics, combine, group, render
 
 class ReportingTests(unittest.TestCase):
+    def cohort(self, name, passed):
+        row=dict(run_id=name,cohort=name,model='x',checkpoint=1,task='query',language='prism',passed=passed,
+                 seconds=60,flags=[],tool_calls=3,code_lines=100,performance=None)
+        return dict(cohort=name,plan_sha256=name,results_root='/'+name,recovery=None,notes=[],runs=[row])
+    def test_cohorts_remain_separate_and_latest_is_default(self):
+        data=combine([self.cohort('old',False),self.cohort('new',True)])
+        self.assertEqual(data['default_cohort'],'new')
+        groups=group(data['runs'],['cohort','model','checkpoint'])
+        self.assertEqual([(g['cohort'],g['passed'],g['n']) for g in groups],[('new',1,1),('old',0,1)])
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            (root/'git-reviews.json').write_text(json.dumps({'commits':{'old':{'url':'https://example.com/old','commit':'abc'}}}))
+            render(data,root)
+            exported=json.loads((root/'runs.json').read_text())['runs']
+            self.assertEqual(exported[0]['github_commit'],'abc')
+            self.assertNotIn('github_url',exported[1])
+            self.assertIn('cohort | model | checkpoint',(root/'SUMMARY.md').read_text())
+    def test_overlapping_continuations_are_rejected(self):
+        old=self.cohort('old',False);new=self.cohort('new',True)
+        new['runs'][0]['run_id']='old'
+        with self.assertRaisesRegex(ValueError,'overlapping run IDs'):
+            combine([old,new])
+    def test_duplicate_cohort_labels_are_rejected(self):
+        old=self.cohort('old',False);new=self.cohort('new',True)
+        new['cohort']='old'
+        with self.assertRaisesRegex(ValueError,'labels must be distinct'):
+            combine([old,new])
     def test_churn_handles_added_removed_and_changed_files(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);a=root/'a';b=root/'b';a.mkdir();b.mkdir()

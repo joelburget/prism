@@ -31,8 +31,9 @@ def code_metrics(before, after):
                 added += d-c
     return dict(code_lines=sum(map(len,new.values())),baseline_lines=sum(map(len,old.values())),added_lines=added,removed_lines=removed)
 
-def collect(root):
+def collect(root, label=None):
     plan = read(root/'plan.json')
+    cohort = label or root.name
     rows=[]
     for order,cell in enumerate(plan['runs'],1):
         d=root/'runs'/cell['run_id']; result=read(d/'result.json')
@@ -55,7 +56,7 @@ def collect(root):
         perf_path=root/'performance'/(cell['run_id']+'.json')
         perf=read(perf_path) if perf_path.exists() else None
         row={k:cell[k] for k in ['run_id','chain_id','checkpoint','task','language','repetition']}
-        row.update(order=order,language_context=cell.get('language_context','baseline'),model=cell['model']['key'],model_id=cell['model']['model_id'],provider=cell['model']['provider'],
+        row.update(order=order,cohort=cohort,task_image_id=plan['task_image_id'],retry_of=plan.get('recovery',{}).get('original_failed_run_id') if cell['run_id']==plan.get('recovery',{}).get('retry_run_id') else None,language_context=cell.get('language_context','baseline'),model=cell['model']['key'],model_id=cell['model']['model_id'],provider=cell['model']['provider'],
                    effort=cell.get('effort'),parent_run_id=cell.get('parent_run_id'),passed=result.get('success') is True,
                    seconds=result.get('elapsed_seconds'),tool_calls=result.get('tool_calls'),flags=sorted(set(flags)),
                    stop_reason=result.get('stop_reason'),source_available=(d/'source').is_dir(),source_sha256=result.get('source_sha256'),
@@ -68,7 +69,8 @@ def collect(root):
     for r in rows:
         r['parent_passed']=by_id[r['parent_run_id']]['passed'] if r['parent_run_id'] else None
     return {'schema_version':1,'generated_at':datetime.now(timezone.utc).isoformat(),
-            'plan_sha256':sha(root/'plan.json'),'cohort':'2026-09-12 chained calibration',
+            'plan_sha256':sha(root/'plan.json'),'cohort':cohort,'results_root':str(root.resolve()),
+            'recovery':plan.get('recovery'),
             'notes':[
                 'One rollout per model/task/language cell. Checkpoint two inherits the same model’s frozen checkpoint-one source in a fresh session.',
                 'Behavioral pass requires every public and held-out case. Invalid archives count as failures; their source and code metrics are unavailable.',
@@ -79,6 +81,27 @@ def collect(root):
                 'Token usage is provider-native and not normalized across providers. API-equivalent cost is an estimate, not subscription billing.',
                 'Model identity is visible in this report and its GitHub links. No human review times or comprehension scores have been recorded by this exporter.'
             ],'runs':rows}
+
+def combine(reports):
+    """Keep cohorts distinct and reject overlapping continuations/double counting."""
+    rows = [row for report in reports for row in report['runs']]
+    if len({r['run_id'] for r in rows}) != len(rows):
+        raise ValueError('Cohorts contain overlapping run IDs; select only the final continuation')
+    if len({r['cohort'] for r in reports}) != len(reports):
+        raise ValueError('Cohort labels must be distinct')
+    cohorts = [{k: r[k] for k in ('cohort', 'plan_sha256', 'results_root', 'recovery')} for r in reports]
+    notes = list(dict.fromkeys(n for r in reports for n in r['notes']))
+    if len(reports) > 1:
+        notes.append('Cohorts are separate in every group. The 0.22 tutorial cohort changes both runtime and onboarding, so comparison with 0.18 does not isolate the briefing effect. Performance cutoffs are calibrated separately for each image.')
+    for r in reports:
+        if r.get('recovery'):
+            notes.append(r['cohort'] + ': includes one authorized retry after the original final Opus query stage lost its source to a timeout cleanup failure. The other 31 records were inherited unchanged; the original failed attempt is preserved separately.')
+    return {'schema_version': 2, 'generated_at': datetime.now(timezone.utc).isoformat(),
+            'cohort': ' / '.join(r['cohort'] for r in reports), 'cohorts': cohorts,
+            'default_cohort': reports[-1]['cohort'],
+            'plan_sha256': hashlib.sha256(json.dumps(cohorts,sort_keys=True).encode()).hexdigest(),
+            'runs': rows, 'notes': notes}
+
 
 def median(values):
     values=[v for v in values if v is not None]
@@ -104,7 +127,7 @@ def render(data,output):
     index_file=output/'prism/manifest.json'
     indexes=read(index_file) if index_file.exists() else None
     for r in data['runs']:
-        if git:
+        if git and r['run_id'] in git['commits']:
             r['github_url']=git['commits'][r['run_id']]['url']
             r['github_commit']=git['commits'][r['run_id']]['commit']
         if indexes and r['run_id'] in indexes['runs']:
@@ -118,6 +141,7 @@ def render(data,output):
     (output/'index.html').write_text(template.replace('/*REPORT_DATA*/',json.dumps(data,allow_nan=False).replace('<','\\u003c')))
     lines=['# Chained calibration results','',f"{len(data['runs'])} stages · {sum(r['passed'] for r in data['runs'])} behavioral passes",'']
     for title,keys in [('By model and checkpoint',['model','checkpoint']),('By problem, language and checkpoint',['task','language','checkpoint'])]:
+        if data.get('cohorts'): keys=['cohort',*keys]
         lines += ['## '+title,'','| '+' | '.join(keys)+' | Pass | Median min | Unflagged min | Flagged | Perf |','| '+' | '.join(['---']*(len(keys)+6))+' |']
         for g in group(data['runs'],keys):
             f=lambda x:'—' if x is None else f'{x:.1f}'
@@ -127,5 +151,8 @@ def render(data,output):
     (output/'SUMMARY.md').write_text('\n'.join(lines)+'\n')
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--results',required=True,type=Path);p.add_argument('--output',required=True,type=Path)
-    a=p.parse_args();render(collect(a.results),a.output)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--results',required=True,type=Path,action='append');p.add_argument('--output',required=True,type=Path);p.add_argument('--cohort-label',action='append')
+    a=p.parse_args()
+    if a.cohort_label and len(a.cohort_label)!=len(a.results): p.error('Supply one --cohort-label per --results')
+    labels=a.cohort_label or [None]*len(a.results)
+    render(combine([collect(root,label) for root,label in zip(a.results,labels)]),a.output)

@@ -16,6 +16,23 @@ resource flags, and separate performance-screen results. Selected run IDs persis
 in browser local storage and can be downloaded. No human review measurements are
 invented; GitHub review time must be recorded separately.
 
+To compare completed cohorts, repeat `--results` and provide a distinct label for
+each. The last cohort is selected by default; choose **All** in the Cohort filter
+to compare them. Grouped tables always keep cohorts and checkpoints separate.
+
+```sh
+python3 evals/change-pilots/analysis/report.py \
+  --results ORIGINAL_RESULTS --cohort-label 'Original · Prism 0.18' \
+  --results RECOVERED_RESULTS --cohort-label 'Prism 0.22 + tutorial' \
+  --output REPORT
+```
+
+Supply only the final recovered continuation for a cohort; overlapping run IDs
+are rejected to avoid counting inherited stages twice. Recovery metadata and retry
+markers remain visible. Existing review manifests can cover a subset of cohorts:
+their links are preserved, while newly added stages await their own review exports.
+Existing browser selections are carried forward from the individual cohort report.
+
 ```sh
 python3 evals/change-pilots/analysis/git_reviews.py \
   --results RESULTS --output REPORT --repo CHECKOUT \
